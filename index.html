@@ -261,6 +261,41 @@ const syncStockMovesForOrder = (d, orderId) => {
   }));
   return { ...d, stockMoves: [...others, ...fresh] };
 };
+// ===== 사입 데이터 임포트 (GitHub data/purchases.json) =====
+const PURCHASES_IMPORT_URL = 'https://raw.githubusercontent.com/gustnel1122-pixel/mumutori-dashboard/main/data/purchases.json';
+function applyPurchaseImport(d, payload) {
+  let nd = { ...d, products: [...(d.products || [])], purchaseOrders: [...(d.purchaseOrders || [])], purchaseLines: [...(d.purchaseLines || [])], stockMoves: [...(d.stockMoves || [])] };
+  const seedById = {};
+  (typeof TEST_SEED_PRODUCTS !== 'undefined' ? TEST_SEED_PRODUCTS : []).forEach(p => { seedById[p.id] = p; });
+  const upsertProduct = (rec) => {
+    const id = rec.sku || rec.id;
+    if (!id) return;
+    const i = nd.products.findIndex(x => x.id === id);
+    if (i >= 0) nd.products[i] = { ...nd.products[i], name: rec.name || nd.products[i].name, type: rec.type || nd.products[i].type, hscode: (rec.hscode != null ? rec.hscode : nd.products[i].hscode) };
+    else nd.products.push({ id, name: rec.name || id, type: rec.type || '판매상품', hscode: rec.hscode || '', active: true, memo: rec.memo || '', channelPrices: emptyChannelPrices(), createdAt: rec.createdAt || TODAY });
+  };
+  // 1) payload.products upsert (id 또는 sku 키 모두 허용)
+  (payload.products || []).forEach(upsertProduct);
+  // 2) orders/lines upsert (orderNo 기준) + 라인 참조 SKU 자동 상품생성 + stockMoves 재생성
+  const linesByNo = {};
+  (payload.purchaseLines || []).forEach(l => { (linesByNo[l.orderNo] = linesByNo[l.orderNo] || []).push(l); });
+  (payload.purchaseOrders || []).forEach(o => {
+    const existing = nd.purchaseOrders.find(x => x.orderNo === o.orderNo);
+    const oid = existing ? existing.id : ('ord-' + o.orderNo);
+    const orderObj = { ...o, id: oid };
+    nd.purchaseOrders = existing ? nd.purchaseOrders.map(x => x.id === oid ? orderObj : x) : [...nd.purchaseOrders, orderObj];
+    nd.purchaseLines = nd.purchaseLines.filter(l => l.orderId !== oid);
+    (linesByNo[o.orderNo] || []).forEach((l, li) => {
+      const sku = l.sku || null;
+      if (sku && !nd.products.some(p => p.id === sku)) {
+        upsertProduct(seedById[sku] ? seedById[sku] : { id: sku, name: l.productName || sku, type: (l.hscode === '481910' ? '부자재' : '판매상품'), hscode: l.hscode || '' });
+      }
+      nd.purchaseLines.push({ id: 'pl-' + oid + '-' + li, orderId: oid, lineNo: l.lineNo || (li + 1), productName: l.productName || '', option: l.option || '', hscode: l.hscode || '', unitPriceCNY: Number(l.unitPriceCNY) || 0, qty: Number(l.qty) || 0, amountCNY: Number(l.amountCNY) || 0, receivedAt: l.receivedAt || '', sku: sku, sourceUrl: l.sourceUrl || '', memo: l.memo || '' });
+    });
+    nd = syncStockMovesForOrder(nd, oid);
+  });
+  return nd;
+}
 const moveToTrash = (d, type, id) => {
   const trash = d.trash || [];
   const payload = { outputs: [], plans: [], subplans: [], checklists: [], kpiLogs: [], mainKpi: null };
@@ -2713,11 +2748,88 @@ function PurchaseOrderFormModal({ data, setData, edit, onClose }) {
     </ModalShell>
   );
 }
+function PurchaseImportModal({ data, setData, onClose }) {
+  const [phase, setPhase] = useState('loading');
+  const [err, setErr] = useState('');
+  const [payload, setPayload] = useState(null);
+  const [result, setResult] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch(PURCHASES_IMPORT_URL + '?t=' + Date.now(), { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status + ' — data/purchases.json 를 찾을 수 없어요 (아직 안 올라왔을 수 있어요)');
+        const j = await res.json();
+        if (!j || (!j.purchaseOrders && !j.products)) throw new Error('형식 오류: products/purchaseOrders 가 없습니다');
+        if (alive) { setPayload(j); setPhase('preview'); }
+      } catch (e) { if (alive) { setErr(e.message || '불러오기 실패'); setPhase('error'); } }
+    })();
+    return () => { alive = false; };
+  }, []);
+  const preview = payload ? (() => {
+    const existingNos = new Set((data.purchaseOrders || []).map(o => o.orderNo));
+    const existingSkus = new Set((data.products || []).map(p => p.id));
+    const orders = payload.purchaseOrders || [];
+    const ordersNew = orders.filter(o => !existingNos.has(o.orderNo)).length;
+    const newSkus = (payload.products || []).filter(p => p.sku && !existingSkus.has(p.sku));
+    const shipped = orders.filter(o => ORDER_COST_STATUSES.indexOf(o.status) >= 0).length;
+    const blankSku = (payload.purchaseLines || []).filter(l => !l.sku).length;
+    return { total: orders.length, ordersNew, ordersUpd: orders.length - ordersNew, lines: (payload.purchaseLines || []).length, newSkus, shipped, blankSku };
+  })() : null;
+  const run = () => {
+    const nd = applyPurchaseImport(data, payload);
+    setData(nd);
+    const products = nd.products || [];
+    const sv = t => products.filter(p => t === '전체' || p.type === t).reduce((a, p) => a + computeInventory(nd, p.id).stockValue, 0);
+    setResult({ orders: (payload.purchaseOrders || []).length, lines: (payload.purchaseLines || []).length, products: products.length, total: sv('전체'), sale: sv('판매상품'), sub: sv('부자재'), skipped: (nd.purchaseLines || []).filter(l => !l.sku).length });
+    setPhase('done');
+  };
+  const row = (k, v) => <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '5px 0', borderBottom: '1px solid #F5F4F2' }}><span style={{ color: '#6E6863' }}>{k}</span><span style={{ fontWeight: 700 }}>{v}</span></div>;
+  return (
+    <ModalShell title="🔽 사입 임포트 (GitHub)" onClose={onClose}>
+      {phase === 'loading' && <div style={{ padding: 24, textAlign: 'center', color: '#6E6863', fontSize: 13 }}>data/purchases.json 불러오는 중...</div>}
+      {phase === 'error' && (
+        <div>
+          <div style={{ padding: 16, background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, color: '#B91C1C', fontSize: 12.5 }}>⚠ {err}</div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}><Btn v="secondary" onClick={onClose}>닫기</Btn></div>
+        </div>
+      )}
+      {phase === 'preview' && preview && (
+        <div>
+          <div style={{ fontSize: 12, color: '#A29C95', marginBottom: 8 }}>불러온 데이터 미리보기 {payload.generatedAt ? '· ' + payload.generatedAt : ''}</div>
+          {row('주문 (신규/갱신)', preview.total + '건 (' + preview.ordersNew + ' / ' + preview.ordersUpd + ')')}
+          {row('라인', preview.lines + '건')}
+          {row('배송완료(재고반영 대상)', preview.shipped + '건')}
+          {row('신규 SKU', preview.newSkus.length + '개')}
+          {preview.blankSku > 0 && row('미매핑 라인(재고 스킵)', preview.blankSku + '건')}
+          {preview.newSkus.length > 0 && <div style={{ marginTop: 8, fontSize: 11, color: '#6E6863', maxHeight: 90, overflowY: 'auto', background: '#FAFAF8', borderRadius: 6, padding: 8 }}>{preview.newSkus.map(s => s.sku + ' ' + (s.name || '')).join(' · ')}</div>}
+          <div style={{ fontSize: 11, color: '#A29C95', marginTop: 10 }}>같은 주문번호는 덮어쓰기(중복 방지)되고, 배송완료 주문만 재고가 생성됩니다.</div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 14 }}><Btn onClick={run} style={{ flex: 1 }}>임포트 실행</Btn><Btn v="secondary" onClick={onClose}>취소</Btn></div>
+        </div>
+      )}
+      {phase === 'done' && result && (
+        <div>
+          <div style={{ padding: 12, background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 8, color: '#15803D', fontSize: 13, fontWeight: 700, marginBottom: 10 }}>✅ 임포트 완료</div>
+          {row('반영된 주문', result.orders + '건')}
+          {row('반영된 라인', result.lines + '건')}
+          {row('전체 상품(SKU)', result.products + '개')}
+          {result.skipped > 0 && row('미매핑 라인(재고 미생성)', result.skipped + '건')}
+          {row('재고자산가치 · 판매상품', won(result.sale))}
+          {row('재고자산가치 · 부자재', won(result.sub))}
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, padding: '8px 0 2px', marginTop: 4, borderTop: '2px solid #EDEBE7' }}><span style={{ fontWeight: 700, color: G }}>재고자산가치 총합</span><span style={{ fontWeight: 800, color: G }}>{won(result.total)}</span></div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 14 }}><Btn onClick={onClose} style={{ flex: 1 }}>확인</Btn></div>
+        </div>
+      )}
+    </ModalShell>
+  );
+}
+
 function TabAsset({ data, setData }) {
   const [newVendor, setNewVendor] = useState('');
   const [showAdd, setShowAdd] = useState(false);
   const [editO, setEditO] = useState(null);
   const [expanded, setExpanded] = useState({});
+  const [showImport, setShowImport] = useState(false);
   const vendors = data.vendors || [];
   const orders = (data.purchaseOrders || []).slice().sort((a, b) => (b.receivedAt || '').localeCompare(a.receivedAt || ''));
   const addVendor = () => { const v = newVendor.trim(); if (!v) return; if (vendors.indexOf(v) < 0) setData(d => ({ ...d, vendors: [...(d.vendors || []), v] })); setNewVendor(''); };
@@ -2767,6 +2879,7 @@ function TabAsset({ data, setData }) {
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
           <button onClick={seedTestOrders} style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid #FED7AA', background: '#FFF7ED', color: '#92400E', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>🧪 검증용 실주문 5건 불러오기</button>
           <button onClick={applySkuMapping} style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid #BFDBFE', background: '#EFF6FF', color: '#1D4ED8', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>🔗 SKU 매핑 적용(테스트 5건)</button>
+          <button onClick={() => setShowImport(true)} style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid #A7F3D0', background: '#ECFDF5', color: '#047857', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>🔽 사입 임포트</button>
           <button onClick={() => setShowAdd(true)} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: G, color: 'white', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>+ 사입 주문 추가</button>
         </div>
       </div>
@@ -2830,6 +2943,7 @@ function TabAsset({ data, setData }) {
         );
       })}
       {showAdd && <PurchaseOrderFormModal data={data} setData={setData} onClose={() => setShowAdd(false)} />}
+      {showImport && <PurchaseImportModal data={data} setData={setData} onClose={() => setShowImport(false)} />}
       {editO && <PurchaseOrderFormModal data={data} setData={setData} edit={editO} onClose={() => setEditO(null)} />}
     </div>
   );
