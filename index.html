@@ -2168,19 +2168,24 @@ function TabKpi({ data, setData }) {
   );
 }
 const LOW_MARGIN_THRESHOLD = 30; // 마진율(%) 이 값 미만이면 저마진 경고
-const computeMargin = (price, avgCost, feeRate) => {
-  const fee = Math.round(price * feeRate);
-  const margin = Math.round(price - avgCost - fee);
+const computeMargin = (price, avgCost, feeRate, opts = {}) => {
+  // 판매수수료: 원단위 반올림 후 VAT(+10%) 옵션. 쿠팡=VAT 별도.
+  let fee = Math.round(price * feeRate);
+  if (opts.vatIncluded) fee = Math.round(fee * 1.1);
+  const fulfillmentFee = Number(opts.fulfillmentFee) || 0; // 입출고비(개당 정액)
+  const shippingFee = Number(opts.shippingFee) || 0;       // 배송비(개당 정액)
+  const net = Math.round(price - fee - fulfillmentFee - shippingFee); // 실수령
+  const margin = Math.round(net - avgCost);
   const marginRate = price ? Math.round(margin / price * 1000) / 10 : 0;
-  return { margin, marginRate, fee };
+  return { margin, marginRate, fee, fulfillmentFee, shippingFee, net };
 };
 const skuChannelMargin = (data, product, ch) => {
   const cpx = (product.channelPrices || {})[ch] || {};
   if (cpx.price == null || cpx.price === '') return { status: 'no-price' };
   if (cpx.feeRate == null || cpx.feeRate === '') return { status: 'no-fee', price: cpx.price };
   const inv = computeInventory(data, product.id);
-  const r = computeMargin(cpx.price, inv.avgCost, cpx.feeRate);
-  return { status: 'ok', price: cpx.price, feeRate: cpx.feeRate, avgCost: inv.avgCost, fee: r.fee, margin: r.margin, marginRate: r.marginRate };
+  const r = computeMargin(cpx.price, inv.avgCost, cpx.feeRate, { vatIncluded: cpx.vatIncluded, fulfillmentFee: cpx.fulfillmentFee, shippingFee: cpx.shippingFee });
+  return { status: 'ok', price: cpx.price, feeRate: cpx.feeRate, vatIncluded: !!cpx.vatIncluded, fulfillmentFee: r.fulfillmentFee, shippingFee: r.shippingFee, avgCost: inv.avgCost, fee: r.fee, net: r.net, margin: r.margin, marginRate: r.marginRate };
 };
 const bundleComponents = row => (row && row.components) ? row.components : [];
 const bundleAvgCostSum = (data, row) => bundleComponents(row).reduce((s, c) => s + computeInventory(data, c.sku).avgCost * (Number(c.qty) || 0), 0);
@@ -2188,18 +2193,26 @@ const bundleMargin = (data, row) => {
   if (row.price == null || row.price === '') return { status: 'no-price' };
   if (row.feeRate == null || row.feeRate === '') return { status: 'no-fee', price: row.price };
   const avgCost = bundleAvgCostSum(data, row);
-  const r = computeMargin(row.price, avgCost, row.feeRate);
-  return { status: 'ok', price: row.price, feeRate: row.feeRate, avgCost, fee: r.fee, margin: r.margin, marginRate: r.marginRate };
+  const r = computeMargin(row.price, avgCost, row.feeRate, { vatIncluded: row.vatIncluded, fulfillmentFee: row.fulfillmentFee, shippingFee: row.shippingFee });
+  return { status: 'ok', price: row.price, feeRate: row.feeRate, vatIncluded: !!row.vatIncluded, fulfillmentFee: r.fulfillmentFee, shippingFee: r.shippingFee, avgCost, fee: r.fee, net: r.net, margin: r.margin, marginRate: r.marginRate };
 };
 const PRODUCT_TYPES = ['판매상품', '부자재'];
 const CHANNELS = [['naver', '네이버'], ['coupang', '쿠팡'], ['own', '자사몰']];
 function ChannelPriceRow({ ch, label, val, onChange }) {
   const feePct = val.feeRate != null && val.feeRate !== '' ? String(Math.round(val.feeRate * 1000) / 10) : '';
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '52px 1fr 1fr', gap: 8, alignItems: 'center', marginBottom: 6 }}>
-      <span style={{ fontSize: 12, fontWeight: 700, color: '#6E6863' }}>{label}</span>
-      <input type="number" value={val.price || ''} onChange={e => onChange({ ...val, price: e.target.value === '' ? '' : Number(e.target.value) })} placeholder="판매가(원)" style={{ padding: '7px 9px', borderRadius: 8, border: '1px solid #E3E0DC', fontSize: 12, boxSizing: 'border-box' }} />
-      <input type="number" value={feePct} onChange={e => onChange({ ...val, feeRate: e.target.value === '' ? '' : Number(e.target.value) / 100 })} placeholder="수수료율(%)" style={{ padding: '7px 9px', borderRadius: 8, border: '1px solid #E3E0DC', fontSize: 12, boxSizing: 'border-box' }} />
+    <div style={{ marginBottom: 8 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '52px 1fr 1fr', gap: 8, alignItems: 'center', marginBottom: 4 }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: '#6E6863' }}>{label}</span>
+        <input type="number" value={val.price || ''} onChange={e => onChange({ ...val, price: e.target.value === '' ? '' : Number(e.target.value) })} placeholder="판매가(원)" style={{ padding: '7px 9px', borderRadius: 8, border: '1px solid #E3E0DC', fontSize: 12, boxSizing: 'border-box' }} />
+        <input type="number" value={feePct} onChange={e => onChange({ ...val, feeRate: e.target.value === '' ? '' : Number(e.target.value) / 100 })} placeholder="수수료율(%)" style={{ padding: '7px 9px', borderRadius: 8, border: '1px solid #E3E0DC', fontSize: 12, boxSizing: 'border-box' }} />
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '52px 1fr 1fr auto', gap: 8, alignItems: 'center' }}>
+        <span style={{ fontSize: 10, color: '#A29C95' }}>정액비</span>
+        <input type="number" value={(val.fulfillmentFee != null && val.fulfillmentFee !== '') ? val.fulfillmentFee : ''} onChange={e => onChange({ ...val, fulfillmentFee: e.target.value === '' ? '' : Number(e.target.value) })} placeholder="입출고비(원/개)" style={{ padding: '6px 9px', borderRadius: 8, border: '1px solid #EDEBE8', fontSize: 11, boxSizing: 'border-box' }} />
+        <input type="number" value={(val.shippingFee != null && val.shippingFee !== '') ? val.shippingFee : ''} onChange={e => onChange({ ...val, shippingFee: e.target.value === '' ? '' : Number(e.target.value) })} placeholder="배송비(원/개)" style={{ padding: '6px 9px', borderRadius: 8, border: '1px solid #EDEBE8', fontSize: 11, boxSizing: 'border-box' }} />
+        <label style={{ fontSize: 10, color: '#6E6863', display: 'flex', alignItems: 'center', gap: 3, whiteSpace: 'nowrap' }}><input type="checkbox" checked={!!val.vatIncluded} onChange={e => onChange({ ...val, vatIncluded: e.target.checked })} />수수료VAT</label>
+      </div>
     </div>
   );
 }
@@ -2228,6 +2241,9 @@ function ProductFormModal({ data, setData, edit, onClose }) {
     const cleanCP = v => ({
       price: (v.price === '' || v.price == null) ? null : Number(v.price),
       feeRate: (v.feeRate === '' || v.feeRate == null) ? null : Number(v.feeRate),
+      vatIncluded: !!v.vatIncluded,
+      fulfillmentFee: (v.fulfillmentFee === '' || v.fulfillmentFee == null) ? 0 : Number(v.fulfillmentFee),
+      shippingFee: (v.shippingFee === '' || v.shippingFee == null) ? 0 : Number(v.shippingFee),
     });
     const product = { id: skuT, name: name.trim(), type, hscode: hscode.trim(), active, memo: memo.trim(), channelPrices: {
       naver: cleanCP(cp.naver),
@@ -2391,12 +2407,42 @@ function TabProducts({ data, setData }) {
       return { ...d, products, channelSkuMap };
     });
   };
+  // 쿠팡(로켓그로스) 시드: 수수료 10.5%+VAT + 입출고비 + 배송비. 출처: 쿠팡_상품별_판매연동_고정비용.md(2026-07-26~08-16 정산)
+  const COUPANG_SEED = {
+    'PUR-001': { price: 3900, feeRate: 0.105, vatIncluded: true, fulfillmentFee: 1000, shippingFee: 1500 },
+    'DOLL-002': { price: 4000, feeRate: 0.105, vatIncluded: true, fulfillmentFee: 900, shippingFee: 1350 },
+    'DOLL-001': { price: 4000, feeRate: 0.105, vatIncluded: true, fulfillmentFee: 900, shippingFee: 1350 },
+  };
+  const COUPANG_SKU_IDS = [
+    { id: 'cm-cp-PUR-001', sku: 'PUR-001', channel: 'coupang', channelProductCode: '72887632', channelOptionCode: '', channelOptionName: '', active: true },
+    { id: 'cm-cp-DOLL-002', sku: 'DOLL-002', channel: 'coupang', channelProductCode: '72180829', channelOptionCode: '', channelOptionName: '', active: true },
+    { id: 'cm-cp-DOLL-002-low', sku: 'DOLL-002', channel: 'coupang', channelProductCode: '77509115', channelOptionCode: '', channelOptionName: '저가 리스팅 3,600', active: true },
+    { id: 'cm-cp-DOLL-001', sku: 'DOLL-001', channel: 'coupang', channelProductCode: '72180830', channelOptionCode: '', channelOptionName: '', active: true },
+  ];
+  const COUPANG_BUNDLES = [
+    { id: 'bundle-cp-malrangi-1p1', isBundle: true, channel: 'coupang', channelProductCode: '73044318', channelOptionName: '1+1세트', name: '카피바라 말랑이 1+1 세트 (쿠팡)', price: 6000, feeRate: 0.105, vatIncluded: true, fulfillmentFee: 900, shippingFee: 1350, components: [{ sku: 'TOY-001', qty: 1 }, { sku: 'TOY-002', qty: 1 }], active: true },
+    { id: 'bundle-cp-meokgeori-3', isBundle: true, channel: 'coupang', channelProductCode: '72306689', channelOptionName: '3종세트', name: '먹거리키링 3종세트 (쿠팡)', price: 5900, feeRate: 0.105, vatIncluded: true, fulfillmentFee: 900, shippingFee: 1350, components: [{ sku: 'KEY-001', qty: 1 }, { sku: 'KEY-002', qty: 1 }, { sku: 'KEY-003', qty: 1 }], active: true },
+  ];
+  const applyCoupangSeed = () => {
+    setData(d => {
+      const products = (d.products || []).map(p => {
+        const seed = COUPANG_SEED[p.id];
+        if (!seed) return p;
+        const cp = p.channelPrices || emptyChannelPrices();
+        return { ...p, channelPrices: { ...cp, coupang: { ...(cp.coupang || {}), ...seed } } };
+      });
+      const seedIds = [...COUPANG_SKU_IDS.map(x => x.id), ...COUPANG_BUNDLES.map(x => x.id)];
+      const channelSkuMap = [...(d.channelSkuMap || []).filter(m => seedIds.indexOf(m.id) < 0), ...COUPANG_SKU_IDS, ...COUPANG_BUNDLES];
+      return { ...d, products, channelSkuMap };
+    });
+  };
   return (
     <div style={{ padding: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
         <div style={{ fontSize: 17, fontWeight: 700, color: G }}>📦 상품관리</div>
         <span style={{ fontSize: 11, color: '#A29C95' }}>내부 SKU 마스터 · 채널 매핑 · 부자재 연동 · 판매가/마진</span>
         <button onClick={applyPricingSeed} style={{ marginLeft: 'auto', padding: '8px 14px', borderRadius: 8, border: '1px solid #E3E0DC', background: 'white', color: '#6E6863', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>💰 판매가·수수료율 시드 적용</button>
+        <button onClick={applyCoupangSeed} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #E3E0DC', background: 'white', color: '#B45309', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>🟧 쿠팡 시드 적용</button>
         <button onClick={() => setShowAdd(true)} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: G, color: 'white', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>+ 상품 추가</button>
       </div>
       <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
@@ -2448,6 +2494,7 @@ function TabProducts({ data, setData }) {
                       ) : (
                         <span style={{ fontWeight: 700, color: m.margin < 0 ? '#E53935' : (m.marginRate < LOW_MARGIN_THRESHOLD ? '#B45309' : '#1FA463') }}>
                           마진 {won(m.margin)} ({m.marginRate}%){m.margin < 0 ? ' ⚠음수마진' : (m.marginRate < LOW_MARGIN_THRESHOLD ? ' ⚠저마진' : '')}
+                          {(m.fulfillmentFee > 0 || m.shippingFee > 0) && <span style={{ fontWeight: 400, color: '#A29C95' }}> · 실수령 {won(m.net)} (수수료{m.vatIncluded ? '+VAT' : ''} {won(m.fee)}{m.fulfillmentFee > 0 ? ' · 입출고 ' + won(m.fulfillmentFee) : ''}{m.shippingFee > 0 ? ' · 배송 ' + won(m.shippingFee) : ''})</span>}
                         </span>
                       )}
                     </div>
@@ -2487,6 +2534,7 @@ function TabProducts({ data, setData }) {
                   {m.status === 'ok' ? (
                     <div style={{ fontSize: 14, fontWeight: 800, color: m.margin < 0 ? '#E53935' : (m.marginRate < LOW_MARGIN_THRESHOLD ? '#B45309' : G) }}>
                       {won(m.margin)} ({m.marginRate}%){m.margin < 0 ? ' ⚠' : (m.marginRate < LOW_MARGIN_THRESHOLD ? ' ⚠' : '')}
+                      {(m.fulfillmentFee > 0 || m.shippingFee > 0) && <div style={{ fontSize: 10, fontWeight: 400, color: '#A29C95' }}>실수령 {won(m.net)} · 수수료{m.vatIncluded ? '+VAT' : ''} {won(m.fee)}</div>}
                     </div>
                   ) : (
                     <div style={{ fontSize: 11, color: '#B45309' }}>{m.status === 'no-fee' ? '수수료율 입력 필요' : '판매가 입력 필요'}</div>
@@ -2573,7 +2621,7 @@ const TEST_SEED_ORDERS = [
       { productName: '白色', hscode: '', unitPriceCNY: 2.00, qty: 10, amountCNY: 20.00, memo: '1688 링크 미확인 — 재추출 예정 (장화연필꽂이 추정)' },
     ] },
 ];
-const emptyChannelPrices = () => ({ naver: { price: null, feeRate: null }, coupang: { price: null, feeRate: null }, own: { price: null, feeRate: null } });
+const emptyChannelPrices = () => ({ naver: { price: null, feeRate: null, vatIncluded: false, fulfillmentFee: 0, shippingFee: 0 }, coupang: { price: null, feeRate: null, vatIncluded: true, fulfillmentFee: 0, shippingFee: 0 }, own: { price: null, feeRate: null, vatIncluded: false, fulfillmentFee: 0, shippingFee: 0 } });
 // ===== SKU 확정 매핑 (검증용 실주문 5건 전용) — purchaseLines.productName -> 내부 SKU =====
 const SKU_TEST_MAP = {
   '卫衣款粉色12cm': { sku: 'DOLL-001', type: '판매상품', name: '카피바라 핑크후드 인형', hscode: '' },
