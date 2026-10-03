@@ -1,4 +1,6 @@
-(function () {
+const { DEPARTMENTS, icon, departmentCards, workflowStrip } = await import(`./departments.js?v=${document.body.dataset.build}`);
+const { createStore } = await import(`./store.js?v=${document.body.dataset.build}`);
+(async function () {
   'use strict';
   const C=window.MumutoriERP;
   const $=s=>document.querySelector(s);
@@ -9,36 +11,34 @@
   const badge=(text,tone='')=>`<span class="badge ${tone}">${esc(text)}</span>`;
   const btn=(text,action,args={},className='')=>`<button type="button" class="${className}" data-action="${action}" ${Object.entries(args).map(([k,v])=>`data-${k}="${esc(v)}"`).join(' ')}>${esc(text)}</button>`;
   const options=(values,selected,empty)=>`${empty!=null?`<option value="">${esc(empty)}</option>`:''}${values.map(v=>{const [id,label]=Array.isArray(v)?v:[v,v];return `<option value="${esc(id)}" ${String(id)===String(selected)?'selected':''}>${esc(label)}</option>`;}).join('')}`;
-  const NAV=[['overview','운영 현황','◫'],['bank','통장·자금','↔'],['sales','매출·정산','▤'],['purchases','매입·원가','▣'],['products','상품 관리','◇'],['stock','입출고·재고','▦'],['partners','거래처','◎'],['audit','변경 이력','◷'],['settings','설정·백업','⚙']];
+  const NAV=DEPARTMENTS.map(d=>[d.id,d.label,d.icon]);
   const TYPE_LABEL={product:'상품',bank:'통장 거래',sale:'매출',purchase:'매입',movement:'입출고',partner:'거래처',account:'계좌',backup:'백업',warehouse:'창고'};
+  const store=createStore(C);
   let data,savedRaw=null,loadError='',toastTimer,modal=null,priorFocus=null,filterTimer;
-  const state={view:location.hash.slice(1)||'overview',query:'',filter:'전체',month:'',warehouse:'기본 창고',page:1,showVoided:false,stockTab:'재고 현황'};
+  let currentPage=null,hasRendered=false;
+  const pageId=document.body.dataset.page||'overview';
+  const state={view:pageId,query:new URLSearchParams(location.search).get('q')||'',filter:'전체',month:'',warehouse:'기본 창고',page:1,showVoided:false,stockTab:new URLSearchParams(location.search).get('tab')==='ledger'?'입출고 원장':'재고 현황',attention:new URLSearchParams(location.search).get('attention')||''};
   if(!NAV.some(n=>n[0]===state.view))state.view='overview';
   try{
-    const seed=JSON.parse($('#company-private-data').textContent);
-    savedRaw=localStorage.getItem(C.STORAGE_KEY);
-    let raw=savedRaw;
-    if(!raw){for(const key of ['mumutori-dashboard-v1','mumutori-dashboard-preview-v2']){const value=localStorage.getItem(key);if(value){raw=value;break;}}}
-    data=C.migrate(raw?JSON.parse(raw):seed);
-    if(raw&&!data.erp.migratedAt){
-      try{if(!localStorage.getItem('mumutori-before-erp'))localStorage.setItem('mumutori-before-erp',raw);}catch(e){loadError='이전 상태의 자동 복사 공간이 부족합니다. 전체 백업을 내려받아 보관하세요.';}
-    }
+    const result=await store.load(); data=result.data;savedRaw=result.raw;loadError=result.warning;
+    state.warehouse=data.erp.warehouses[0]||'기본 창고';
+    currentPage=(await import(`./pages/${state.view}.js?v=${document.body.dataset.build}`)).default;
   }catch(e){
-    $('#root').innerHTML=`<section class="fatal"><h1>저장 자료를 확인해야 합니다</h1><p>기존 자료를 덮어쓰지 않았습니다. 저장 파일을 내려받아 확인해 주세요.</p><p>${esc(e.message)}</p><button id="rescue">저장 자료 내려받기</button></section>`;
-    $('#rescue').onclick=()=>download(savedRaw||'', 'mumutori-storage-recovery.txt','text/plain');return;
+    $('#root').innerHTML=`<section class="fatal"><h1>페이지를 열지 못했습니다</h1><p>저장된 자료는 그대로 보관되어 있습니다. 연결을 확인하고 다시 열어 주세요.</p><p>${esc(e.message)}</p><button id="retry">다시 열기</button><button id="rescue">저장 자료 내려받기</button></section>`;
+    $('#retry').onclick=()=>location.reload();
+    $('#rescue').onclick=()=>download(localStorage.getItem(C.STORAGE_KEY)||'', 'mumutori-storage-recovery.txt','text/plain');return;
   }
+
   function notify(text,error=false){clearTimeout(toastTimer);$('#toast').className='toast'+(error?' error':'');$('#toast').textContent=text;$('#toast').hidden=false;toastTimer=setTimeout(()=>$('#toast').hidden=true,5000);}
   function download(content,name,type='application/json'){
     const url=URL.createObjectURL(new Blob([content],{type}));const a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);
   }
   function backup(){download(JSON.stringify({...data,exportedAt:new Date().toISOString()},null,2),'mumutori-erp-'+C.today()+'.json');notify('전체 백업 파일을 내려받았습니다.');}
   function commit(next,message){
-    if(localStorage.getItem(C.STORAGE_KEY)!==savedRaw)throw Error('다른 창에서 자료가 변경되었습니다. 입력 내용을 복사한 뒤 새로고침하고 다시 저장하세요.');
-    next.erp.revision=(data.erp.revision||0)+1;next.erp.updatedAt=new Date().toISOString();next.erp.migratedAt=next.erp.migratedAt||new Date().toISOString();
-    const text=JSON.stringify(next);
-    try{localStorage.setItem(C.STORAGE_KEY,text);}catch(e){throw Error('저장하지 못했습니다. 저장 공간 또는 브라우저 설정을 확인하세요. 입력창을 유지했습니다.');}
-    savedRaw=text;data=next;render();notify(message||'저장했습니다.');
+    const result=store.save(next);savedRaw=result.raw;data=result.data;
+    render();notify(message||'저장했습니다.');
   }
+  const link=(view,label,query='',extra='')=>`<a class="inline-link ${extra}" href="${view==='overview'?'index':view}.html${query?'?q='+encodeURIComponent(query):''}">${esc(label)} <span aria-hidden="true">↗</span></a>`;
   const accountName=id=>data.erp.accounts.find(a=>a.id===id)?.name||id;
   const findProduct=sku=>data.products.find(p=>p.id===sku);
   const matches=(r,fields)=>!state.query||fields.map(k=>r[k]).join(' ').toLowerCase().includes(state.query.toLowerCase());
@@ -52,91 +52,20 @@
     return `<div class="panel"><div class="tablewrap"><table class="table"><thead><tr>${headers.map(h=>`<th ${h[0]==='#'?'class="num"':''}>${esc(h.replace(/^#/,''))}</th>`).join('')}</tr></thead><tbody>${slice.length?slice.map(renderRow).join(''):`<tr><td colspan="${headers.length}"><div class="empty"><b>${esc(emptyText)}</b>${emptyAction}</div></td></tr>`}</tbody></table></div><div class="pager"><span>총 ${won(rows.length)}건 · ${(state.page-1)*25+(rows.length?1:0)}–${Math.min(state.page*25,rows.length)}</span><div class="actions"><button data-action="page" data-value="-1" ${state.page<=1?'disabled':''}>이전</button><span>${state.page} / ${pages}</span><button data-action="page" data-value="1" ${state.page>=pages?'disabled':''}>다음</button></div></div></div>`;
   }
   const editButtons=(type,r,extra='')=>`<div class="rowaction">${!r.voided?btn('수정','edit',{type,id:type==='purchase'?r.orderNo:r.id},'text')+extra:''}${type==='product'?'':btn(r.voided?'복구':'취소','void',{type,id:type==='purchase'?r.orderNo:r.id},'text '+(r.voided?'':'danger'))}</div>`;
-  function filters(placeholder,opts=[],withMonth=false,voids=true){return `<div class="toolbar"><div class="filters"><input id="search" class="search" data-filter="query" aria-label="검색" placeholder="${esc(placeholder)}" value="${esc(state.query)}">${opts.length?`<select id="filter" data-filter="filter" aria-label="분류 필터">${options(['전체',...opts],state.filter)}</select>`:''}${withMonth?`<input type="month" id="month" aria-label="조회 월" data-filter="month" value="${esc(state.month)}">${state.month?btn('전체 기간','clear-month',{},'text'):''}`:''}${voids?`<label><input type="checkbox" data-filter="showVoided" ${state.showVoided?'checked':''}>취소 포함</label>`:''}</div></div>`;}
+  function filters(placeholder,opts=[],withMonth=false,voids=true){return `${state.attention?'<div class="attention-note">확인할 업무로 좁혀 보고 있습니다. '+btn('전체 목록 보기','attention-clear',{},'text')+'</div>':''}`+`<div class="toolbar"><div class="filters"><input id="search" class="search" data-filter="query" aria-label="검색" placeholder="${esc(placeholder)}" value="${esc(state.query)}">${opts.length?`<select id="filter" data-filter="filter" aria-label="분류 필터">${options(['전체',...opts],state.filter)}</select>`:''}${withMonth?`<input type="month" id="month" aria-label="조회 월" data-filter="month" value="${esc(state.month)}">${state.month?btn('전체 기간','clear-month',{},'text'):''}`:''}${voids?`<label><input type="checkbox" data-filter="showVoided" ${state.showVoided?'checked':''}>취소 포함</label>`:''}</div></div>`;}
   const metric=(label,value,unit,sub)=>`<div class="metric"><small>${esc(label)}</small><strong>${won(value)}<em>${esc(unit)}</em></strong><footer>${esc(sub)}</footer></div>`;
-  function head(title,desc,actions,eyebrow='MUMUTORI / ERP'){return `<div class="pagehead"><div><div class="eyebrow">${eyebrow}</div><h1>${title}</h1><p>${desc}</p></div><div class="actions">${actions||''}</div></div>`;}
+  function head(title,desc,actions){const d=DEPARTMENTS.find(d=>d.id===state.view);return `<div class="pagehead"><div><div class="eyebrow"><span class="tiny-index">${d.number}</span> ${d.english} <span class="dept-owner">${d.owner}</span></div><h1>${title}<span class="title-dot">.</span></h1><p>${desc}</p></div><div class="actions">${actions||''}</div></div>`;}
   function accountSummary(){return data.erp.accounts.map(a=>{const rows=C.active(data.bankTransactions).filter(t=>t.accountLabel===a.id);const latest=byDate(rows.filter(t=>t.balance!=null))[0];return {a,rows,latest,net:C.sum(rows,'signedAmount')};});}
-  function overview(){
-    const s=C.financeSummary(data,state.month),products=data.products.filter(p=>p.active!==false),unconfirmed=products.filter(p=>!C.stock(data,p.id,state.warehouse).known).length;
-    const inbound=C.active(C.purchases(data)).filter(p=>C.sum(p.lines,'qty')>C.sum(p.lines,l=>C.moved(data,'purchase',p.orderNo,l.sku))).length;
-    return head('오늘의 운영 현황','매출, 자금, 상품과 입출고를 한곳에서 기록하고 관리하세요.',btn('+ 거래 등록','edit',{type:'bank'},'primary'))+
-      `<div class="connection-strip"><div><strong>매출 통장 자동 연결 안 됨</strong><span> · 통장 자료와 매출 기록을 직접 등록해 관리합니다.</span></div>${btn('자료 등록·백업','nav',{view:'settings'},'text')}</div>`+
-      `<div class="toolbar"><div class="filters"><label>조회 기간 <input id="month" type="month" aria-label="조회 월" data-filter="month" value="${esc(state.month)}"></label>${state.month?btn('전체 기간','clear-month',{},'text'):'<span class="muted">전체 기록 기준</span>'}</div></div>`+
-      `<div class="metrics">${metric('기록된 매출',s.salesGross,'원',s.salesCount+'건 · 부가세 포함 / 보유 자료 범위')}${metric('외부 입금',s.inflow,'원','자금 충전·대여금 회수 포함 / 매출과 별도')}${metric('외부 출금',s.outflow,'원','매입·비용·대여 등 포함 / 내부 이체 제외')}${metric('관리 상품',data.products.length,'개',products.length+'개 운영 · 판매 중단 이력 보관')}</div>`+
-      `<div class="grid2"><div class="panel"><div class="panelhead"><h2>확인할 업무</h2>${badge('원장 기준')}</div><div class="panelbody">${[
-        ['분류가 필요한 통장 거래',s.pending+'건','개인 명의 입금은 자금 충전 또는 대여금 회수로 확인합니다.','bank'],
-        ['수금 연결이 필요한 매출',s.unlinked+'건','통장 수금과 연결하지 않은 기록입니다. 미수금 확정액은 아닙니다.','sales'],
-        ['실사가 필요한 상품',unconfirmed+'개','현재 재고를 입력하면 이후 입출고가 누적됩니다.','stock'],
-        ['입고 기록 확인',inbound+'건','과거 매입도 포함합니다. 실제 입고 기록을 확인하세요.','purchases']
-      ].map(([label,count,desc,view])=>`<div class="task"><div><b>${label}</b><p>${desc}</p></div><div class="actions"><span class="task-number">${count}</span>${btn('열기','nav',{view},'text')}</div></div>`).join('')}</div></div><div><div class="panel"><div class="panelhead"><h2>자금 거래 구분</h2>${btn('통장 원장','nav',{view:'bank'},'text')}</div><div class="panelbody"><div class="mini-row"><span>자금 충전 · 용도 확인 중</span><strong>${money(s.funding)}</strong></div><div class="mini-row"><span>대여금 회수</span><strong>${money(s.loanReceived)}</strong></div><p class="sub">김현수·백다희 명의 입금은 매출에 포함하지 않습니다.</p></div></div><div class="panel"><div class="panelhead"><h2>계좌별 마지막 원장 기록</h2>${badge('실시간 잔액 아님','amber')}</div><div class="panelbody">${accountSummary().map(({a,latest})=>`<div class="mini-row"><div>${esc(a.name)}<span class="sub">${latest?esc(latest.date):'잔액 자료 없음'}</span></div><strong>${latest?money(latest.balance):'미확인'}</strong></div>`).join('')}</div></div></div></div>`+
-      `<div class="panel"><div class="panelhead"><h2>최근 변경</h2>${btn('전체 이력','nav',{view:'audit'},'text')}</div><div class="panelbody">${data.erp.audit.slice(0,5).map(a=>`<div class="mini-row"><div>${esc(a.label)}<span class="sub">${esc(TYPE_LABEL[a.type]||a.type)} · ${esc(a.action)}</span></div><span class="muted">${dateTime(a.date)}</span></div>`).join('')||'<p>등록·수정·취소 기록이 이곳에 남습니다.</p>'}</div></div>`;
-  }
-  function bankView(){
-    const rows=byDate(visible(data.bankTransactions).filter(r=>matches(r,['description','memo','accountLabel','category'])&&inMonth(r)&&(state.filter==='전체'||C.bankCategory(r)===state.filter)));
-    const s=C.financeSummary(data,state.month);
-    return head('통장·자금','입출금의 성격을 기록하고 매출 수금과 연결하세요.',btn('CSV 가져오기','csv-open')+btn('+ 거래 등록','edit',{type:'bank'},'primary'))+
-      `<div class="metrics">${metric('외부 입금',s.inflow,'원','사업 계좌 간 이체 제외')}${metric('외부 출금',s.outflow,'원','기록된 자금 사용액')}${metric('자금 충전',s.funding,'원','매출 집계에서 제외')}${metric('대여금 회수',s.loanReceived,'원','매출 집계에서 제외')}</div>`+
-      `<div class="note section-gap" style="margin-bottom:18px">김현수·백다희의 입금은 <b>자금 충전 / 대여금 회수</b>로 관리합니다. 서로 짝이 확인된 사업 계좌 간 이체는 자금 이동으로 유지합니다.</div>`+
-      filters('거래 내용, 계좌, 메모 검색',C.BANK_CATEGORIES,true)+
-      rowsTable(['날짜','계좌','거래 내용','분류','#입금','#출금','관리'],rows,r=>`<tr ${rowClass(r)}><td class="date">${esc(r.date)}</td><td>${esc(accountName(r.accountLabel||r.account))}</td><td class="maincell"><b>${esc(r.description)}</b><span class="sub">${esc(r.memo||r.sourceFile||'직접 입력')}</span></td><td>${badge(C.bankCategory(r),C.bankCategory(r).includes('확인')?'amber':'')}${r.voided?badge('취소','red'):''}</td><td class="num plus">${r.direction==='입금'?money(r.amount):'—'}</td><td class="num minus">${r.direction==='출금'?money(r.amount):'—'}</td><td>${editButtons('bank',r)}</td></tr>`);
-  }
-  function productView(){
-    const rows=data.products.filter(p=>matches(p,['id','name','memo','barcode','supplier'])&&(state.filter==='전체'?p.active!==false:p.salesStatus===state.filter)).sort((a,b)=>a.id.localeCompare(b.id));
-    return head('상품 관리','상품 정보와 판매 상태를 수정 창에서 관리합니다.',btn('+ 상품 등록','edit',{type:'product'},'primary'))+
-      filters('상품명, 관리번호, 바코드 검색',C.STATUS,false,false)+
-      `<div class="note" style="margin-bottom:18px">기본 목록은 운영 중인 상품입니다. 판매 중단 상품은 상태 필터에서 조회할 수 있습니다. 상품의 관리번호는 매입·매출·재고 연결에 사용됩니다.</div>`+
-      rowsTable(['상품','상태','구분','#기본 판매가','구매처','관리'],rows,p=>`<tr><td><div class="product-cell">${p.imageData&&/^data:image\/(png|jpeg|webp);base64,/.test(p.imageData)?`<img class="thumb" src="${esc(p.imageData)}" alt="" loading="lazy">`:'<span class="thumb blank">◇</span>'}<div><strong>${esc(p.name)}</strong><span class="sub">${esc(p.id)}${p.barcode?' · '+esc(p.barcode):''}</span></div></div></td><td>${badge(p.salesStatus,p.salesStatus==='판매 중'?'green':p.salesStatus==='확인 필요'?'amber':'')}</td><td>${esc(p.type||'판매상품')}</td><td class="num">${p.price!=null&&p.price!==''?money(p.price):'미설정'}</td><td>${esc(p.supplier||'—')}</td><td>${editButtons('product',p)}</td></tr>`);
-  }
-  function salesView(){
-    const rows=byDate(visible(data.finance.channelTransactions).filter(r=>matches(r,['orderId','productName','customer','channel'])&&inMonth(r)&&(state.filter==='전체'||r.channel===state.filter)));
-    const s=C.financeSummary(data,state.month);
-    return head('매출·정산','판매 기록과 실제 수금을 연결하고 출고를 관리하세요.',btn('+ 매출 등록','edit',{type:'sale'},'primary'))+
-      `<div class="metrics">${metric('기록된 매출',s.salesGross,'원','부가세 포함 · 보유 자료 범위')}${metric('정산 예정액',s.expected,'원','기록된 수수료 반영')}${metric('수금 미연결',s.unlinked,'건','통장 거래 연결 필요')}${metric('연결 건의 남은 수금',s.receivable,'원','수금 연결한 기록만 집계')}</div>`+
-      filters('주문번호, 상품명, 거래처 검색',[...new Set(data.finance.channelTransactions.map(r=>r.channel).filter(Boolean))],true)+
-      rowsTable(['매출일','주문·품목','채널 / 거래처','#수량','#매출액','#정산액','수금 / 출고','관리'],rows,r=>{const t=C.saleTotals(data,r),shipped=r.sku?C.moved(data,'sale',r.id,r.sku):0;return `<tr ${rowClass(r)}><td class="date">${esc(r.date)}</td><td class="maincell"><b>${esc(r.productName)}</b><span class="sub">${esc(r.orderId)}${r.sku?' · '+esc(r.sku):''}</span></td><td>${esc(r.channel)}<span class="sub">${esc(r.customer||'')}</span></td><td class="num">${won(r.quantity)}</td><td class="num">${money(r.salesGross)}</td><td class="num">${money(t.expected)}</td><td>${badge(t.status,t.status==='수금 완료'?'green':'amber')}<span class="sub">${r.sku?`출고 ${shipped} / ${r.quantity}`:'재고 상품 미연결'}</span></td><td>${editButtons('sale',r,r.sku&&r.quantity>shipped?btn('출고','ship',{id:r.id},'text'):'')}</td></tr>`;});
-  }
-  function purchaseView(){
-    const rows=byDate(visible(C.purchases(data)).filter(r=>matches(r,['orderNo','vendor','memo','purpose'])&&inMonth(r)&&(state.filter==='전체'||(r.status||'기록 확인')===state.filter)));
-    return head('매입·원가','매입 품목, 구매·배송·통관비와 실제 입고를 기록하세요.',btn('+ 매입 등록','edit',{type:'purchase'},'primary'))+
-      filters('매입번호, 구매처, 메모 검색',['발주','운송 중','배송완료','입고 완료','기록 확인'],true)+
-      rowsTable(['매입일','매입번호 / 구매처','#수량','#구매비','#배송비','#통관비','#결제 총액','관리'],rows,r=>{const t=C.purchaseCost(r);return `<tr ${rowClass(r)}><td class="date">${esc(r.date||r.receivedAt||'—')}</td><td><b>${esc(r.orderNo)}</b><span class="sub">${esc(r.vendor||'—')} · ${esc(r.status||'기록 확인')}</span></td><td class="num">${won(C.sum(r.lines,'qty'))}</td><td class="num">${money(r.purchase)}</td><td class="num">${money(r.shipping)}</td><td class="num">${money(r.customs)}</td><td class="num"><b>${t.complete?money(t.total):money(t.known)}</b>${t.complete?'':`<span class="sub">확인된 금액만 합산</span>`}</td><td>${editButtons('purchase',r,btn('입고','receive',{id:r.orderNo},'text'))}</td></tr>`;});
-  }
-  function stockView(){
-    const action=btn('+ 입출고 기록','edit',{type:'movement'},'primary');
-    let html=head('입출고·재고','실사 수량을 기준으로 입고·출고·반품·창고 이동을 관리합니다.',action)+
-      `<div class="chips">${['재고 현황','입출고 원장'].map(v=>btn(v,'stock-tab',{value:v},'chip '+(state.stockTab===v?'active':''))).join('')}</div>`;
-    if(state.stockTab==='재고 현황'){
-      html+=`<div class="toolbar"><div class="filters"><input id="search" class="search" data-filter="query" aria-label="검색" placeholder="상품명 또는 관리번호 검색" value="${esc(state.query)}"><select id="warehouse" data-filter="warehouse" aria-label="창고 필터">${options(data.erp.warehouses,state.warehouse)}</select></div></div>`;
-      const rows=data.products.filter(p=>matches(p,['id','name'])&&p.active!==false);
-      html+=rowsTable(['상품','창고','#현재 재고','#안전재고','최근 실사','관리'],rows,p=>{const s=C.stock(data,p.id,state.warehouse);return `<tr><td class="maincell"><b>${esc(p.name)}</b><span class="sub">${esc(p.id)}</span></td><td>${esc(state.warehouse)}</td><td class="num">${s.known?`<span class="stock-qty">${won(s.qty)}</span>개 ${s.qty<=C.num(p.safetyStock)?badge('재고 확인','amber'):''}`:badge('실사 필요','amber')}</td><td class="num">${p.safetyStock!=null?won(p.safetyStock)+'개':'—'}</td><td class="date">${esc(s.lastCount||'기준 수량 없음')}</td><td><div class="rowaction">${btn('실사','count',{id:p.id},'text')}${btn('입출고','move-product',{id:p.id},'text')}</div></td></tr>`;});
-      html+='<div class="note">과거 사입 수량은 현재 재고로 자동 반영하지 않습니다. 최초 실사를 등록한 뒤 이후 날짜의 입출고가 재고에 반영됩니다. 실사 날짜 이전 기록은 이력으로 보관합니다.</div>';
-    }else{
-      html+=filters('상품 관리번호, 메모, 문서번호 검색',C.MOVE_TYPES,true);
-      const rows=byDate(visible(data.erp.movements).filter(r=>matches({...r,name:findProduct(r.sku)?.name},['sku','name','memo','sourceId'])&&inMonth(r)&&(state.filter==='전체'||state.filter===r.type)));
-      html+=rowsTable(['날짜','구분','상품','창고','#수량','연결 문서','관리'],rows,r=>`<tr ${rowClass(r)}><td class="date">${esc(r.date)}</td><td>${badge(r.type,r.type==='출고'?'amber':'')}</td><td class="maincell"><b>${esc(findProduct(r.sku)?.name||r.sku)}</b><span class="sub">${esc(r.sku)}</span></td><td>${esc(r.warehouse)}${r.toWarehouse?' → '+esc(r.toWarehouse):''}</td><td class="num">${won(r.qty)}</td><td>${esc(r.sourceId||'직접 기록')}<span class="sub">${esc(r.memo||'')}</span></td><td>${editButtons('movement',r)}</td></tr>`);
-    }return html;
-  }
-  function partnerView(){
-    const rows=data.erp.partners.filter(r=>matches(r,['name','businessNo','contact','memo']));
-    return head('거래처','판매처·구매처의 연락처와 정산 메모를 관리하세요.',btn('+ 거래처 등록','edit',{type:'partner'},'primary'))+filters('거래처명, 사업자번호 검색',[],false,false)+rowsTable(['거래처','구분','사업자번호','연락처','메모','관리'],rows,r=>`<tr><td><b>${esc(r.name)}</b></td><td>${esc(r.type)}</td><td>${esc(r.businessNo||'—')}</td><td>${esc(r.contact||'—')}</td><td class="maincell">${esc(r.memo||'')}</td><td>${btn('수정','edit',{type:'partner',id:r.id},'text')}</td></tr>`,'등록된 거래처가 없습니다.',btn('+ 거래처 등록','edit',{type:'partner'},'primary'));
-  }
-  function auditView(){
-    const rows=data.erp.audit.filter(r=>matches(r,['label','recordId','action'])&&(state.filter==='전체'||TYPE_LABEL[r.type]===state.filter));
-    return head('변경 이력','이 브라우저에서 저장한 등록·수정·취소 내역입니다.')+filters('품목, 관리번호, 작업 검색',Object.values(TYPE_LABEL),false,false)+rowsTable(['저장 시각','구분','기록','작업','변경 항목'],rows,r=>`<tr><td class="date">${dateTime(r.date)}</td><td>${esc(TYPE_LABEL[r.type]||r.type)}</td><td class="maincell"><b>${esc(r.label)}</b><span class="sub">${esc(r.recordId)}</span></td><td>${badge(r.action)}</td><td class="audit-fields">${esc(r.fields.join(', '))}</td></tr>`,'아직 저장한 변경이 없습니다.');
-  }
-  function settingsView(){return head('설정·백업','계좌와 창고를 관리하고 전체 자료를 안전하게 보관하세요.')+
-    `<div class="note amber" style="margin-bottom:20px"><b>저장 위치: 현재 브라우저</b><br>계좌 자동 수집과 다른 기기 동기화는 연결되어 있지 않습니다. 같은 주소라도 브라우저·기기가 다르면 자료가 다릅니다. 브라우저 자료를 지우기 전 전체 백업을 내려받고, 다른 기기에서는 백업을 가져오세요.</div>`+
-    `<div class="grid2"><div class="panel settings-card"><div class="panelhead"><h2>전체 자료 백업</h2></div><div class="panelbody"><p>상품·통장·매입·매출·입출고·변경 이력을 하나의 JSON 파일에 보관합니다.</p>${btn('전체 백업 내려받기','backup',{},'primary')}<div class="filebox"><h3>백업 가져오기</h3><p>가져올 자료와 현재 자료의 차이를 확인한 뒤 병합합니다.</p><input id="backup-file" type="file" accept=".json,application/json" aria-label="백업 파일 선택"></div>${btn('ERP 전환 전 자료 내려받기','migration-backup')} ${btn('최근 병합 전 자료 내려받기','import-backup')}</div></div><div class="panel settings-card"><div class="panelhead"><h2>통장 거래 CSV 등록</h2></div><div class="panelbody"><p>은행에서 받은 내역을 지정 양식에 맞춰 가져올 수 있습니다. 등록 전 미리보기를 제공하고 동일 날짜·계좌·금액·내용은 중복 후보로 제외합니다.</p>${btn('CSV 양식 내려받기','csv-template')} ${btn('CSV 가져오기','csv-open',{},'primary')}<p class="sub">날짜, 계좌, 구분, 금액, 내용, 분류, 메모</p></div></div></div>`+
-    `<div class="grid2"><div class="panel"><div class="panelhead"><h2>계좌 관리</h2>${btn('+ 계좌 추가','edit',{type:'account'},'text')}</div><div class="panelbody">${data.erp.accounts.map(a=>`<div class="mini-row"><div><b>${esc(a.name)}</b><span class="sub">수동 기록 · 자동 연결 안 됨</span></div>${btn('수정','edit',{type:'account',id:a.id},'text')}</div>`).join('')}</div></div><div class="panel"><div class="panelhead"><h2>창고 관리</h2>${btn('+ 창고 추가','warehouse-open',{},'text')}</div><div class="panelbody">${data.erp.warehouses.map(w=>`<div class="mini-row"><span>${esc(w)}</span>${badge('사용 중')}</div>`).join('')}</div></div></div>`;
-  }
   function render(){
     const focus=document.activeElement,focusId=focus?.id,selection=focus?.selectionStart;
-    const title=NAV.find(n=>n[0]===state.view)?.[1]||'운영 현황';
-    const views={overview,bank:bankView,sales:salesView,purchases:purchaseView,products:productView,stock:stockView,partners:partnerView,audit:auditView,settings:settingsView};
-    $('#root').innerHTML=`<div class="shell"><aside class="sidebar"><div class="brand"><span class="brandmark">m.</span><div><strong>무무토리</strong><small>FINANCE & LOGISTICS</small></div></div><div class="nav-label">WORKSPACE</div><nav aria-label="주 메뉴">${NAV.slice(0,7).map(([view,label,icon])=>`<button class="nav-item ${state.view===view?'active':''}" data-action="nav" data-view="${view}" ${state.view===view?'aria-current="page"':''}><span class="nav-icon">${icon}</span>${label}</button>`).join('')}</nav><div class="nav-spacer"></div>${NAV.slice(7).map(([view,label,icon])=>`<button class="nav-item ${state.view===view?'active':''}" data-action="nav" data-view="${view}"><span class="nav-icon">${icon}</span>${label}</button>`).join('')}<div class="sidebar-note">재무 · 상품 · 물류 ERP<br>이 브라우저에 저장됩니다.</div></aside><main class="workspace"><header class="topbar"><div class="breadcrumb">무무토리 ERP <b>/ ${title}</b></div><select class="mobile-nav" id="mobile-nav" aria-label="주 메뉴">${options(NAV.map(n=>[n[0],n[1]]),state.view)}</select><div class="top-actions"><span class="status"><i class="dot"></i>${data.erp.updatedAt?'저장됨 · '+dateTime(data.erp.updatedAt):'기존 자료 불러옴'} · 이 브라우저</span>${btn('전체 백업','backup')}${btn('+ 빠른 기록','quick',{},'primary')}</div></header><div class="content">${loadError?`<div class="note amber">${esc(loadError)}</div>`:''}${views[state.view]()}</div></main></div>`;
+    const d=DEPARTMENTS.find(d=>d.id===state.view);
+    const context={C,data,state,esc,won,money,dateTime,badge,btn,options,TYPE_LABEL,accountName,findProduct,matches,inMonth,visible,byDate,rowClass,rowsTable,editButtons,filters,metric,head,accountSummary,link,icon,departmentCards,workflowStrip};
+    const navItem=n=>`<a href="${n.id==='overview'?'index':n.id}.html" class="nav-item ${state.view===n.id?'active':''}" data-view="${n.id}" ${state.view===n.id?'aria-current="page"':''}><span class="nav-icon">${icon(n.icon)}</span><span>${n.label}</span><small>${n.number}</small></a>`;
+    $('#root').innerHTML=`<div class="shell"><aside class="sidebar"><a href="index.html" class="brand" aria-label="무무토리 운영 홈"><span class="brandmark">m<span>✳</span></span><div><strong>mumutori<span>®</span></strong><small>작은 것들의 큰 가능성</small></div></a><div class="nav-label">OUR WORKSPACE <span>01—08</span></div><nav aria-label="주 메뉴">${DEPARTMENTS.slice(0,8).map(navItem).join('')}</nav><div class="nav-spacer"></div><div class="side-poster"><span class="poster-flower">✳</span><b>MAKE SMALL<br>THINGS MATTER.</b><small>오늘의 작은 기록을 쌓아요.</small></div><nav aria-label="관리 메뉴">${DEPARTMENTS.slice(8).map(navItem).join('')}</nav><div class="sidebar-note"><i class="dot"></i> 내 브라우저에 보관 중</div></aside><main class="workspace" id="main-content"><header class="topbar"><div class="breadcrumb">WORKSPACE <span>/</span> <b>${d.owner}</b></div><a class="mobile-brand" href="index.html">mumutori<span>®</span></a><select class="mobile-nav" id="mobile-nav" aria-label="주 메뉴">${options(NAV.map(n=>[n[0],n[1]]),state.view)}</select><div class="top-actions"><span class="status"><i class="dot"></i>${data.erp.updatedAt?'저장됨 '+dateTime(data.erp.updatedAt):'기록 준비 완료'}</span>${btn('백업','backup')}${btn('+ 빠른 기록','quick',{},'primary')}<span class="avatar" title="무무토리 워크스페이스">M</span></div></header><div class="content ${hasRendered?'':'page-enter'}" data-department="${d.id}">${loadError?`<div class="note amber">${esc(loadError)}</div>`:''}${currentPage(context)}${state.view!=='overview'?`<div class="handoff-strip"><span>${icon('link')} 함께 보는 업무</span>${d.related.map(id=>{const t=DEPARTMENTS.find(x=>x.id===id);return link(id,t.label);}).join('')}<small>같은 상품·거래 기록으로 연결됩니다</small></div>`:''}<footer class="workspace-footer"><b>mumutori studio.</b><span>작은 기록, 이어지는 흐름.</span><span>이 브라우저 저장 · 은행 미연결</span></footer></div></main></div>`;
+    hasRendered=true;
     if(focusId){const el=document.getElementById(focusId);if(el){el.focus();if(selection!=null&&['text','search'].includes(el.type))el.setSelectionRange(selection,selection);}}
   }
-  function navigate(view){if(modal&&!closeModal())return;state.view=view;state.query='';state.filter='전체';state.page=1;state.showVoided=false;location.hash=view;render();window.scrollTo(0,0);}
+  function navigate(view){if(modal&&!closeModal())return;location.assign((view==='overview'?'index':view)+'.html');}
   function field(name,label,value='',config={}){
     const attrs=`id="f-${name}" name="${name}" ${config.required?'required':''} ${config.disabled?'disabled':''} ${config.min!=null?`min="${config.min}"`:''} ${config.step!=null?`step="${config.step}"`:''}`;
     let input;
@@ -297,6 +226,7 @@
       if(action==='modal-close')closeModal();
       if(action==='void')openVoid(type,id);
       if(action==='page'){state.page+=Number(value);render();}
+      if(action==='attention-clear'){state.attention='';state.page=1;const u=new URL(location.href);u.searchParams.delete('attention');history.replaceState(null,'',u);render();}
       if(action==='clear-month'){state.month='';state.page=1;render();}
       if(action==='stock-tab'){state.stockTab=value;state.query='';state.filter='전체';state.page=1;render();}
       if(action==='count')openEditor('movement',null,{sku:id,type:'실사',qty:C.stock(data,id,state.warehouse).qty??0});
@@ -371,9 +301,9 @@
     if(e.key!==C.STORAGE_KEY||e.newValue===savedRaw)return;
     if(modal){notify('다른 창에서 자료가 변경되었습니다. 현재 입력을 보관한 뒤 새로고침하세요.',true);return;}
     if(!e.newValue){notify('저장 자료가 다른 창에서 제거되었습니다. 먼저 전체 백업을 내려받으세요.',true);return;}
-    try{data=C.migrate(JSON.parse(e.newValue));savedRaw=e.newValue;render();notify('다른 창의 저장 내용을 반영했습니다.');}catch(err){notify('다른 창의 자료를 읽지 못했습니다. 현재 내용을 백업하세요.',true);}
+    try{const latest=store.accept(e.newValue);data=latest.data;savedRaw=latest.raw;render();notify('다른 창의 저장 내용을 반영했습니다.');}catch(err){notify('다른 창의 자료를 읽지 못했습니다. 현재 내용을 백업하세요.',true);}
   });
   window.addEventListener('beforeunload',e=>{if(modal?.dirty){e.preventDefault();e.returnValue='';}});
-  window.addEventListener('hashchange',()=>{const view=location.hash.slice(1);if(NAV.some(n=>n[0]===view)&&view!==state.view)navigate(view);});
+  window.addEventListener('pageshow',e=>{if(e.persisted&&localStorage.getItem(C.STORAGE_KEY)!==savedRaw)location.reload();});
   render();
 })();
