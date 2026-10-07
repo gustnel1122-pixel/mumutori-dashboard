@@ -18,6 +18,9 @@ const thumb=(u,px=310)=>{if(!u)return '';u=u.startsWith('//')?'https:'+u:u.repla
 const img=(u,px,cls='')=>u?`<img class="${cls}" src="${esc(thumb(u,px))}" referrerpolicy="no-referrer" loading="lazy" alt="">`:`<span class="${cls} sx-noimg">사진 없음</span>`;
 const rate=()=>{const m=S.tree?.meta||{};return {rate:num(m.rate)||212.2,fee:m.fee==null?0.05:num(m.fee)};};
 const toKrw=y=>{const r=rate();return num(y)*r.rate*(1+r.fee);};
+// PC 자동 처리(mumutori-auto board_watcher.py)가 meta/watcher에 남기는 신호. 15분마다 갱신 → 20분 넘게 없으면 꺼짐으로 본다.
+const REQ_TONE={'요청':'amber','처리중':'amber','작성됨':'green','확인 필요':'red'};
+const watcher=()=>{const w=S.tree?.meta?.watcher;const off='PC가 꺼져 있으면 Claude 대화에서 "보드 요청 확인해줘"라고 말해 주세요.';if(!w?.at)return {on:false,text:'PC 자동 처리 신호 없음 — '+off};const t=new Date(w.at).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});return (Date.now()-new Date(w.at).getTime())/60000<=20?{on:true,text:`PC 자동 처리 켜짐 · 요청하면 1분 안팎으로 신청서를 채웁니다 (마지막 신호 ${t}${w.state==='처리중'?' · 지금 처리 중':''})`}:{on:false,text:`PC 자동 처리 꺼짐 (마지막 신호 ${t}) — ${off}`};};
 
 function notify(text,error=false){const t=document.getElementById('toast');if(!t)return;t.className='toast'+(error?' error':'');t.textContent=text;t.hidden=false;clearTimeout(notify.timer);notify.timer=setTimeout(()=>t.hidden=true,4000);}
 
@@ -131,8 +134,8 @@ function cartTab(){
   return `${likedNoCart.length?`<div class="note amber">💗만 누르고 수량을 안 담은 상품 ${likedNoCart.length}개: ${likedNoCart.map(x=>`<b>${esc(x.name)}</b>`).join(', ')} — 후보 탭에서 옵션·수량을 담아 주세요.</div>`:''}
     <div class="panel section-gap"><div class="tablewrap"><table class="table"><thead><tr><th>사진</th><th>상품 / 옵션</th><th>수량</th><th class="num">단가</th><th class="num">소계</th><th class="num">≈ 원화</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="7"><div class="empty"><b>장바구니가 비어 있습니다.</b>후보에서 💗 → 옵션·수량 담기</div></td></tr>`}</tbody></table></div>
     <div class="sx-total"><span>상품 ${lines.length}줄 · ${lines.reduce((a,l)=>a+num(l.qty),0)}개</span><span>합계 <b>${yuan(totalY)}</b> ≈ <b>${krw(toKrw(totalY))}</b></span><small>환율 ${r.rate}원 × 구매대행 수수료 ${Math.round(r.fee*100)}% 포함 · 1688 판매자 배송비·국제 배송비·관부가세 별도${weight?` · 무게 약 ${(weight/1000).toFixed(2)}kg${weightKnown?'':'(일부 무게 모름)'}`:''}</small></div></div>
-    <div class="sx-request"><div><b>배대지 신청서</b><p>요청하면 Claude가 이 장바구니로 아이템스카우트 배대지 신청서를 채우고 캡처해 드립니다. <b>신청하기는 확인을 받은 뒤에</b> 누릅니다.</p></div><button type="button" class="primary" data-sx="request" ${lines.length?'':'disabled'}>Claude에게 신청서 작성 요청</button></div>
-    ${reqs.length?`<div class="sx-reqs">${reqs.map(([id,q])=>`<div><span class="badge ${q.status==='요청'?'amber':'green'}">${esc(q.status||'요청')}</span> ${esc(new Date(q.at).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}))} · ${esc(q.summary||'')}${q.reply?` — <b>${esc(q.reply)}</b>`:''}</div>`).join('')}<small>Claude는 대화가 열려 있을 때 확인합니다. 급하면 채팅에 "장바구니 신청서 써줘"라고 말해 주세요.</small></div>`:''}`;
+    <div class="sx-request"><div><b>배대지 신청서</b><p>요청하면 PC의 자동 처리 프로그램이 이 장바구니로 아이템스카우트 배대지 신청서를 채우고 캡처합니다. <b>신청하기는 확인을 받은 뒤에</b> 누릅니다.</p><p><span class="badge ${watcher().on?'green':'amber'}">${watcher().on?'켜짐':'꺼짐'}</span> ${esc(watcher().text)}</p></div><button type="button" class="primary" data-sx="request" ${lines.length?'':'disabled'}>Claude에게 신청서 작성 요청</button></div>
+    ${reqs.length?`<div class="sx-reqs">${reqs.map(([id,q])=>`<div><span class="badge ${REQ_TONE[q.status]||'amber'}">${esc(q.status||'요청')}</span> ${esc(new Date(q.at).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}))} · ${esc(q.summary||'')}${q.reply?` — <b>${esc(q.reply)}</b>`:''}</div>`).join('')}<small>'작성됨'이면 PC 크롬의 [작성본] 탭과 드라이브 구매대행/요청작성본에서 확인하고, 신청하려면 Claude에게 "신청해줘"라고 말해 주세요. '확인 필요'는 사유를 보고 Claude에게 맡겨 주세요.</small></div>`:''}`;
 }
 function tasteTab(){
   const t=S.tree||{},rules=Object.entries(t.taste||{}).sort((a,b)=>String(a[1].at||'').localeCompare(String(b[1].at||''))),all=itemRows();
