@@ -6,7 +6,7 @@ const ORIGIN='https://mumutori.test/mumutori-dashboard/';
 const DB='https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.app/sourcing';
 const PIXEL=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=','base64');
 const fixture=()=>({
- items:{'111':{pid:'D01',cat:'친구들',name:'멍한 오리',url:'https://detail.1688.com/offer/111.html',img:'https://cbu01.alicdn.com/img/ibank/a.jpg',priceMin:3.5,priceMax:4,moq:1,unit:'个',weightG:40,options:[{spec:'黄色>20cm',ko:'노랑 20cm',price:3.5,img:'https://cbu01.alicdn.com/img/ibank/b.jpg',weightG:40},{spec:'白色>30cm',ko:'흰색 30cm',price:4}],rounds:{r9:true},shop:{years:'7',repeat:'40%'}},
+ items:{'111':{pid:'D01',cat:'친구들',name:'멍한 오리',url:'https://detail.1688.com/offer/111.html',img:'https://cbu01.alicdn.com/img/ibank/a.jpg',priceMin:3.5,priceMax:4,moq:1,unit:'个',weightG:40,options:[{spec:'黄色>20cm',ko:'노랑 20cm',price:3.5,img:'https://cbu01.alicdn.com/img/ibank/b.jpg',weightG:40},{spec:'白色>30cm',ko:'흰색 30cm',price:4},{spec:'黄色>平口圆形【9*9*邦高10把高23】',ko:'노랑 원형',price:4,img:'https://cbu01.alicdn.com/img/ibank/b.jpg'}],sizeImgs:[{url:'https://cbu01.alicdn.com/img/ibank/size.jpg',cap:'크기 안내 시험'}],rounds:{r9:true},shop:{years:'7',repeat:'40%'}},
         '222':{pid:'B01',cat:'바구니',name:'리본 바구니',url:'https://detail.1688.com/offer/222.html',img:'https://cbu01.alicdn.com/img/ibank/c.jpg',options:[{spec:'圆形',ko:'원형',price:5.8}],rounds:{r9:true},warn:'확인 필요'}},
  marks:{'222':{design:true,note:'무늬가 별로'}},
  rounds:{r9:{title:'9차 시험',date:'2026-10-07',note:'시험 회차',items:{'111':true,'222':true}}},
@@ -76,6 +76,20 @@ const fixture=()=>({
  assert.match(await lb.locator('figcaption').textContent(),/멍한 오리 · 노랑 20cm/);
  await page.keyboard.press('Escape');assert.equal(await lb.count(),0);
  console.log('PASS photos open large (original URL, option names, 대표 사진 badge) and close by Esc, × and backdrop');
+
+ // 같은 사진 옵션 표시 + 1688 옵션명에서 뽑은 치수·모양 + 크기·모양 안내 이미지
+ assert.match(await optRow.nth(0).locator('.sx-same').textContent(),/같은 사진 2개/);
+ assert.match(await optRow.nth(2).locator('.sx-same').textContent(),/같은 사진 2개/);
+ assert.equal(await optRow.nth(1).locator('.sx-same').count(),0);
+ assert.equal(await duck.locator('.sx-samehint').count(),1);
+ assert.match(await optRow.nth(0).locator('.sx-dims').textContent(),/20cm/);
+ assert.match(await optRow.nth(2).locator('.sx-dims').textContent(),/평평한 원형[\s\S]*9×9 · 몸통 높이 10 · 손잡이까지 23/);
+ assert.match(await duck.locator('.sx-sizebtn').textContent(),/크기·모양 안내 보기/);
+ await duck.locator('.sx-sizebtn').click();await lb.waitFor();
+ assert.equal(await lb.locator('img').getAttribute('src'),'https://cbu01.alicdn.com/img/ibank/size.jpg');
+ assert.match(await lb.locator('figcaption').textContent(),/크기 안내 시험/);
+ await page.keyboard.press('Escape');assert.equal(await lb.count(),0);
+ console.log('PASS same-photo options are labelled, sizes/shapes read from 1688 names, size guide opens large');
  await page.locator('.sx-card.like .sx-opt input').first().fill('12');
  await page.locator('.sx-card.like .sx-opt button[data-sx="add"]').first().click();
  w=writes.find(x=>x.method==='PUT'&&x.path.startsWith('cart/111~'));assert.equal(w.body.qty,12);assert.equal(w.body.spec,'黄色>20cm');assert.equal(w.body.price,3.5);

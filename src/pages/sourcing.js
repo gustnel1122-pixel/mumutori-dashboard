@@ -30,6 +30,19 @@ function openZoom(el){
 }
 function closeZoom(){const d=document.querySelector('.sx-lightbox');if(!d)return;d.remove();document.body.style.overflow='';if(zoomOpener&&document.contains(zoomOpener))zoomOpener.focus();zoomOpener=null;}
 function onKey(e){if(e.key==='Escape'&&document.querySelector('.sx-lightbox')){e.preventDefault();closeZoom();}}
+// 1688 옵션명에서 모양·치수 뽑기(사장님 2026-10-08: 옵션 사진이 같아 무엇이 무엇인지 모름). 예: 平口圆形【9*9*邦高10把高23】 → 평평한 원형 / 9×9 · 몸통 높이 10 · 손잡이까지 23
+const SHAPES=[['平口圆形','평평한 원형'],['正方形','정사각'],['长方形','직사각'],['方形','사각'],['椭圆形','타원'],['椭圆','타원'],['圆形','원형'],['心形','하트'],['六角形','육각'],['八角形','팔각']];
+const DIM_WORDS=[['邦高',' · 몸통 높이 '],['把高',' · 손잡이까지 '],['篮口','입구 '],['含手提','손잡이 포함'],['全长','전체 길이 '],['直径','지름 '],['高度','높이 '],['长度','길이 '],['高','높이 '],['长','길이 '],['宽','폭 '],['厘米','cm'],['公分','cm'],['，',' · '],[',',' · '],['（','('],['）',')'],['小号','소 '],['中号','중 '],['大号','대 ']];
+function dimsOf(spec){
+  const s=String(spec||''),chips=[];const sh=SHAPES.find(([k])=>s.includes(k));if(sh)chips.push(sh[1]);
+  // 괄호【】 안은 치수 표시가 있을 때만(색 번호 【11号-浅黄】 같은 것은 빼고), 없으면 괄호 밖에서 '숫자+단위'·长宽高·直径을 찾는다
+  const isDim=x=>/\d\s*[*xX×]\s*\d|\d\s*(?:cm|mm|厘米|公分)|邦高|把高|篮口|[高宽长]\s*\d|直径/i.test(x);
+  const br=[...s.matchAll(/[【\[]([^】\]]*)[】\]]/g)].map(m=>m[1]).filter(isDim);
+  const re=/长\s*\d+(?:\.\d+)?\s*宽\s*\d+(?:\.\d+)?\s*高\s*\d+(?:\.\d+)?|(?:[大中小]号)?(?:全长|直径|长度|高度)?\s*\d+(?:\.\d+)?(?:\s*[*xX×]\s*\d+(?:\.\d+)?){0,2}\s*(?:cm|mm|厘米|公分)|直径\s*\d+(?:\.\d+)?/gi;
+  const parts=br.length?br:(s.replace(/[【\[][^】\]]*[】\]]/g,' ').match(re)||[]);
+  for(let p of parts){p=p.replace(/长\s*(\d+(?:\.\d+)?)\s*宽\s*(\d+(?:\.\d+)?)\s*高\s*(\d+(?:\.\d+)?)/,'$1×$2×$3cm');for(const [a,b] of DIM_WORDS)p=p.split(a).join(b);p=p.replace(/\s*[*xX×]\s*·/g,' ·').replace(/\s*[*xX]\s*/g,'×').replace(/\s+/g,' ').replace(/^ · /,'').trim();if((p.match(/\(/g)||[]).length>(p.match(/\)/g)||[]).length)p+=')';if(p)chips.push(p);}
+  return [...new Set(chips)].slice(0,3);
+}
 const rate=()=>{const m=S.tree?.meta||{};return {rate:num(m.rate)||212.2,fee:m.fee==null?0.05:num(m.fee)};};
 const toKrw=y=>{const r=rate();return num(y)*r.rate*(1+r.fee);};
 // PC 자동 처리(mumutori-auto board_watcher.py)가 meta/watcher에 남기는 신호. 15분마다 갱신 → 20분 넘게 없으면 꺼짐으로 본다.
@@ -98,8 +111,11 @@ function card(r){
   const meta=[r.moq?`최소 ${esc(r.moq)}${esc(r.unit||'개')}`:'',r.weightG?`${esc(r.weightG)}g`:'',r.shop?.years?`판매처 ${esc(r.shop.years)}년`:'',r.shop?.repeat?`재구매 ${esc(r.shop.repeat)}`:''].filter(Boolean).join(' · ');
   const mark=(k,label)=>`<button type="button" class="sx-mark ${m[k]?'on '+k:''}" data-sx="mark" data-id="${esc(r.id)}" data-k="${k}" aria-pressed="${!!m[k]}">${label}</button>`;
   // 옵션 사진이 없으면 대표 사진을 흐리게 + '대표' 표시(옵션 사진처럼 보이지 않게). 1688 원래 옵션명(spec)은 복사해서 1688 페이지에서 찾는다.
-  const optImg=o=>zoom(o.img||r.img,o.img?img(o.img,120):`<span class="sx-optfb" title="1688에 이 옵션 사진이 없어 상품 대표 사진을 보여 줍니다">${img(r.img,120)}<em>대표</em></span>`,{cap:o.ko||o.spec,spec:o.spec,rep:!o.img});
-  const optRows=m.like&&opts.length?`<div class="sx-opts"><b>옵션·수량 담기</b><a class="sx-optlink" href="${esc(r.url)}" target="_blank" rel="noopener">1688에서 옵션 대조 ↗</a><small class="sx-opthelp">회색 글자 = 1688 옵션명 · '복사' 후 1688 페이지에서 Ctrl+F(휴대폰은 페이지 내 찾기)</small>${opts.map(o=>{const lid=r.id+'~'+keyOf(o.spec),line=S.tree?.cart?.[lid];const dk=lid;return `<div class="sx-opt">${optImg(o)}<span>${esc(o.ko||o.spec)}${o.img?'':'<small class="sx-nofoto">옵션 사진 없음 · 대표 사진</small>'}<small class="sx-spec"><span lang="zh">${esc(o.spec)}</span> <button type="button" class="sx-copy" data-sx="copy" data-text="${esc(o.spec)}" aria-label="1688 옵션명 복사: ${esc(o.spec)}">복사</button></small><small>${yuan(o.price)}${o.weightG?' · '+esc(o.weightG)+'g':''}</small></span><input type="number" min="1" step="1" inputmode="numeric" aria-label="${esc((o.ko||o.spec)+' 수량')}" id="sx-q-${esc(dk)}" data-sx-draft="${esc(dk)}" value="${esc(S.draft[dk]??(line?.qty||r.qty||''))}"><button type="button" class="primary" data-sx="add" data-id="${esc(r.id)}" data-spec="${esc(o.spec)}">${line?'수정':'담기'}</button></div>`;}).join('')}${inCart.length?`<span class="sx-in">장바구니에 ${inCart.map(l=>esc((l.ko||l.spec)+' '+l.qty+'개')).join(', ')}</span>`:''}</div>`:'';
+  // 같은 상품 안에서 옵션 사진이 같은 옵션 → '같은 사진 n개' 표시(사진으로는 구분 불가, 치수·모양으로 구분)
+  const sameN={};opts.forEach(o=>{if(o.img)sameN[o.img]=(sameN[o.img]||0)+1;});
+  const sameAny=opts.some(o=>o.img&&sameN[o.img]>1);
+  const optImg=o=>zoom(o.img||r.img,o.img?img(o.img,120):`<span class="sx-optfb" title="1688에 이 옵션 사진이 없어 상품 대표 사진을 보여 줍니다">${img(r.img,120)}<em>대표</em></span>`,{cap:o.ko||o.spec,spec:o.spec,rep:!o.img,cls:o.img&&sameN[o.img]>1?'sx-sameimg':''});
+  const optRows=m.like&&opts.length?`<div class="sx-opts"><b>옵션·수량 담기</b><a class="sx-optlink" href="${esc(r.url)}" target="_blank" rel="noopener">1688에서 옵션 대조 ↗</a><small class="sx-opthelp">회색 글자 = 1688 옵션명 · '복사' 후 1688 페이지에서 Ctrl+F(휴대폰은 페이지 내 찾기)</small>${sameAny?`<small class="sx-samehint">⚠ 사진이 같은 옵션이 있어요 — 초록 글씨 치수·모양${list(r.sizeImgs).length?'과 크기·모양 안내':''}로 구분하세요</small>`:''}${opts.map(o=>{const lid=r.id+'~'+keyOf(o.spec),line=S.tree?.cart?.[lid];const dk=lid;const dims=dimsOf(o.spec);return `<div class="sx-opt">${optImg(o)}<span>${esc(o.ko||o.spec)}${dims.length?`<span class="sx-dims">${dims.map(d=>`<i>${esc(d)}</i>`).join('')}</span>`:''}${o.img&&sameN[o.img]>1?`<small class="sx-same">같은 사진 ${sameN[o.img]}개 · 모양·크기만 다름</small>`:''}${o.img?'':'<small class="sx-nofoto">옵션 사진 없음 · 대표 사진</small>'}<small class="sx-spec"><span lang="zh">${esc(o.spec)}</span> <button type="button" class="sx-copy" data-sx="copy" data-text="${esc(o.spec)}" aria-label="1688 옵션명 복사: ${esc(o.spec)}">복사</button></small><small>${yuan(o.price)}${o.weightG?' · '+esc(o.weightG)+'g':''}</small></span><input type="number" min="1" step="1" inputmode="numeric" aria-label="${esc((o.ko||o.spec)+' 수량')}" id="sx-q-${esc(dk)}" data-sx-draft="${esc(dk)}" value="${esc(S.draft[dk]??(line?.qty||r.qty||''))}"><button type="button" class="primary" data-sx="add" data-id="${esc(r.id)}" data-spec="${esc(o.spec)}">${line?'수정':'담기'}</button></div>`;}).join('')}${inCart.length?`<span class="sx-in">장바구니에 ${inCart.map(l=>esc((l.ko||l.spec)+' '+l.qty+'개')).join(', ')}</span>`:''}</div>`:'';
   return `<article class="sx-card ${st}">
     ${r.img?zoom(r.img,img(r.img,310),{cap:r.name,cls:'sx-img'}):`<a class="sx-img" href="${esc(r.url)}" target="_blank" rel="noopener">${img('',310)}</a>`}
     <div class="sx-body">
@@ -108,6 +124,7 @@ function card(r){
       ${r.desc?`<p class="sx-desc">${esc(r.desc)}</p>`:''}
       <div class="sx-price"><b>${yuan(lo)}${hi>lo?'~'+yuan(hi).slice(1):''}</b> <span>≈ ${krw(toKrw(lo))}${hi>lo?'~':''}/개</span></div>
       ${meta?`<div class="sx-meta">${meta}</div>`:''}
+      ${list(r.sizeImgs).length?`<div class="sx-sizes">${list(r.sizeImgs).map((s,i,a)=>zoom(s.url,`📏 크기·모양 안내${a.length>1?' '+(i+1):' 보기'}`,{cap:s.cap||'크기·모양 안내 (1688 상세페이지)',cls:'sx-sizebtn'})).join('')}</div>`:''}
       <div class="sx-marks">${mark('like','💗 좋아요')}${mark('design','👎 디자인 별로')}${mark('price','💸 가격 별로')}</div>
       <input class="sx-note" id="sx-n-${esc(r.id)}" data-sx-note="${esc(r.id)}" maxlength="300" placeholder="한마디 (예: 링크 사진이 더 좋아)" value="${esc(m.note||'')}">
       ${optRows}
