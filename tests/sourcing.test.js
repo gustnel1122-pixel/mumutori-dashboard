@@ -6,7 +6,7 @@ const ORIGIN='https://mumutori.test/mumutori-dashboard/';
 const DB='https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.app/sourcing';
 const PIXEL=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=','base64');
 let remoteCart=null; // 다른 기기에서 담은 줄(실시간 patch로 들어옴)
-const fixture=()=>({
+const rawFixture=()=>({
  items:{'111':{pid:'D01',cat:'친구들',name:'멍한 오리',url:'https://detail.1688.com/offer/111.html',img:'https://cbu01.alicdn.com/img/ibank/a.jpg',priceMin:3.5,priceMax:4,moq:20,unit:'个',weightG:40,freight:4,options:[{spec:'黄色>20cm',ko:'노랑 20cm',price:3.5,img:'https://cbu01.alicdn.com/img/ibank/b.jpg',weightG:40},{spec:'白色>30cm',ko:'흰색 30cm',price:4},{spec:'黄色>平口圆形【9*9*邦高10把高23】',ko:'노랑 원형',price:4,img:'https://cbu01.alicdn.com/img/ibank/b.jpg'}],sizeImgs:[{url:'https://cbu01.alicdn.com/img/ibank/size.jpg',cap:'크기 안내 시험'}],rounds:{r9:true},shop:{company:'시험 공장',years:'7',repeat:'40%'}},
         '222':{pid:'B01',cat:'바구니',name:'리본 바구니',url:'https://detail.1688.com/offer/222.html',img:'https://cbu01.alicdn.com/img/ibank/c.jpg',options:[{spec:'圆形',ko:'원형',price:5.8}],rounds:{r9:true},warn:'확인 필요'}},
  marks:{'222':{design:true,note:'무늬가 별로'}},
@@ -15,7 +15,11 @@ const fixture=()=>({
  taste:{t1:{kind:'avoid',text:'얼굴 붙인 음식',active:true,source:'시험'}},
  meta:{rate:200,fee:0.05}
 });
+let testPolicy,scenarioTree=null;
+function mockApprove(id,it){return {...it,review:{status:'approved',by:'SYNTHETIC TEST ONLY',at:'2026-10-08T10:00:00Z',snapshot:testPolicy.snapshot(id,it),reviewedImages:[it.img,...Object.values(it.options||{}).map(o=>o.img)].filter(Boolean),reviewedOptions:Object.values(it.options||{}).map(o=>o.spec),classification:{category:'synthetic basket',use:'test display',age:'adult test fixture',materials:'test fabric',regime:'fixture only',rationale:'not a real product review'},checks:Object.fromEntries(['product','supplier','ip','regulatory'].map(k=>[k,{status:'supported',note:'synthetic evidence only',evidence:['https://example.test/evidence']}])) ,riskResolution:'synthetic legacy warning resolved for regression fixture'}};}
+const fixture=()=>{if(scenarioTree)return structuredClone(scenarioTree);const t=rawFixture();for(const [id,it] of Object.entries(t.items))t.items[id]=mockApprove(id,it);return t;};
 (async()=>{
+ testPolicy=await import(require('node:url').pathToFileURL(path.join(ROOT,'src/sourcing-policy.js')).href);
  const browser=await chromium.launch({headless:true,executablePath:process.env.ERP_CHROME,args:['--no-sandbox']});
  const context=await browser.newContext({viewport:{width:1440,height:1080}});const errors=[],writes=[];
  await context.route('https://mumutori.test/**',route=>{const name=new URL(route.request().url()).pathname.replace('/mumutori-dashboard/','')||'index.html';const file=path.join(ROOT,name);const ext=path.extname(file);return route.fulfill({status:fs.existsSync(file)?200:404,contentType:({'.html':'text/html','.js':'application/javascript','.json':'application/json','.css':'text/css','.svg':'image/svg+xml','.gz':'application/gzip'})[ext]||'text/plain',body:fs.existsSync(file)?fs.readFileSync(file):'Not found'});});
@@ -115,7 +119,7 @@ const fixture=()=>({
  await bar.locator('.sx-q-head').click();assert.equal(await bar.locator('.sx-q-detail').count(),0);
  console.log('PASS estimate bar appears on add: goods, seller freight, 5% fee, weight-based shipping, MOQ warning, detail toggle');
 
- await page.locator('[data-sx="tab"][data-id="cart"]').click();
+ await page.locator('.chip[data-sx="tab"][data-id="cart"]').click();
  assert.equal(await page.locator('.sx-qty').inputValue(),'12');
  assert.match(await page.locator('tbody .sx-spec').first().textContent(),/黄色>20cm/);
  await page.locator('tbody [data-sx="zoom"]').first().click();await page.locator('.sx-lightbox').waitFor();
@@ -169,5 +173,45 @@ const fixture=()=>({
   await page.keyboard.press('Escape');}
  assert.deepEqual(errors,[]);
  console.log('PASS other pages keep strict CSP, purchases links to sourcing, mobile widths, no runtime errors');
+
+ // New workflow: all records below are synthetic; every endpoint is intercepted.
+ remoteCart=null;await page.setViewportSize({width:1440,height:1080});scenarioTree=fixture();
+ const template=scenarioTree.items['111'];
+ const staged=(id,name)=>({...structuredClone(template),name,url:'https://detail.1688.com/offer/'+id+'.html',review:{status:'unreviewed'}});
+ scenarioTree.items['333']=staged('333','근거 없는 일반 후보');
+ scenarioTree.items['444']=mockApprove('444',staged('444','Jellycat 비교 검토 시험'));
+ scenarioTree.items['444'].review.flags=[{status:'open',note:'image comparison pending'}];
+ scenarioTree.items['555']=mockApprove('555',staged('555','분류 미확인 시험'));scenarioTree.items['555'].review.classification.regime='unknown';
+ scenarioTree.items['666']=mockApprove('666',staged('666','변경 이미지 시험'));scenarioTree.items['666'].img='https://cbu01.alicdn.com/changed.jpg';
+ scenarioTree.items['777']={name:'사진 없는 기존 선택',url:'https://detail.1688.com/offer/777.html',options:[{spec:'no-photo',ko:'사진 없음 옵션',price:1}],review:{status:'unreviewed'}};
+ scenarioTree.cart={'111~legacy':{offerId:'111',spec:'黄色>20cm',ko:'노랑 20cm',img:template.img,price:3.5,qty:2,weightG:40},'222~legacy':{offerId:'222',spec:'圆形',ko:'원형',img:scenarioTree.items['222'].img,price:5.8,qty:1},'777~legacy':{offerId:'777',spec:'no-photo',ko:'사진 없음 옵션',price:1,qty:1}};
+ scenarioTree.requests={old:{status:'작성됨',summary:'preserve synthetic request'}};
+ await page.goto(ORIGIN+'sourcing.html');await page.locator('.sx-card').first().waitFor();assert.equal(await page.locator('.sx-card').count(),2);
+ await page.locator('[data-sx="tab"][data-id="review"]').click();assert.equal(await page.locator('.sx-review-card').count(),5);
+ const reviewText=await page.locator('.sx-review-list').textContent();assert.match(reviewText,/근거 없는 일반 후보/);assert.match(reviewText,/미해소 위험 신호/);assert.match(reviewText,/분류.*근거 부족/);assert.match(reviewText,/再検査|재검수/);
+ assert.equal(await page.locator('.sx-review-card [data-sx="add"]').count(),0);
+ await page.locator('.sx-q-head').click();const chosen=page.locator('.sx-q-item');
+ assert.equal(await chosen.nth(0).locator('[data-sx="zoom"]').getAttribute('data-src'),'https://cbu01.alicdn.com/img/ibank/b.jpg','current selected SKU overrides old representative cart photo');
+ assert.match(await chosen.nth(0).locator('.sx-chosen-photo').textContent(),/선택 옵션 사진/);
+ assert.match(await chosen.nth(1).locator('.sx-chosen-photo').textContent(),/옵션 사진 없음 · 대표 사진/);
+ assert.match(await chosen.nth(2).locator('.sx-chosen-photo').textContent(),/사진 없음/);
+ if(process.env.ERP_PROOF_DIR)await page.screenshot({path:path.join(process.env.ERP_PROOF_DIR,'followup-quote-desktop.png')});
+ await chosen.nth(0).locator('input[data-sx-qty]').fill('5');await chosen.nth(0).locator('input[data-sx-qty]').press('Tab');
+ await page.waitForFunction(()=>/3줄 7개/.test(document.querySelector('.sx-q-head')?.textContent||''));assert.ok(writes.some(x=>x.path==='cart/111~legacy'&&x.body.qty===5));
+ await page.locator('.chip[data-sx="tab"][data-id="cart"]').click();const beforeRequests=writes.filter(x=>x.path.startsWith('requests/')).length;
+ await page.locator('[data-sx="request"]').click();assert.match(await page.locator('#toast').textContent(),/검수 대기/);assert.equal(writes.filter(x=>x.path.startsWith('requests/')).length,beforeRequests);
+ await page.locator('.sx-q-item [data-sx="remove"][data-id="777~legacy"]').click();assert.equal(await page.locator('.sx-q-item').count(),2);
+ await page.locator('[data-sx="tab"][data-id="items"]').click();await page.locator('.sx-card',{hasText:'멍한 오리'}).locator('[data-sx="exclude"]').click();assert.equal(await page.locator('.sx-card').count(),1);
+ assert.match(await page.locator('.sx-q-head').textContent(),/2줄 6개/);assert.ok(writes.some(x=>x.path==='marks/111'&&x.body.exclusion?.active&&Object.keys(x.body).some(k=>k.startsWith('exclusionEvents/'))));
+ await page.locator('[data-sx="tab"][data-id="excluded"]').click();assert.match(await page.locator('.sx-review-list').textContent(),/멍한 오리[\s\S]*추천 제외/);await page.locator('[data-sx="restore"]').click();assert.match(await page.locator('.sx-review-list').textContent(),/복구됨/);
+ assert.ok(writes.some(x=>x.path==='marks/111'&&x.body.exclusion?.active===false&&Object.values(x.body).some(v=>v?.action==='restore')));
+ await page.locator('[data-sx="tab"][data-id="items"]').click();assert.equal(await page.locator('.sx-card').count(),2);assert.match(await page.locator('.sx-q-head').textContent(),/2줄 6개/);
+ // Canonical original URL excludes an old alias too, even when the mark key differs.
+ scenarioTree.items.alias={...structuredClone(template),url:'https://detail.1688.com/offer/111.html?tracking=alias'};scenarioTree.items.alias=mockApprove('alias',scenarioTree.items.alias);
+ scenarioTree.marks['old-key']={exclusion:{active:true,identity:'1688:111',sourceUrl:'https://detail.1688.com/offer/111.html',name:'stable exclusion'}};
+ await page.goto(ORIGIN+'sourcing.html');await page.locator('.sx-card').first().waitFor();assert.equal(await page.locator('.sx-card').count(),1);assert.equal(await page.locator('.sx-set').count(),0);
+ for(const width of [390,768]){await page.setViewportSize({width,height:900});await page.locator('.sx-q-head').click();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'chosen rows fit mobile '+width);if(process.env.ERP_PROOF_DIR)await page.screenshot({path:path.join(process.env.ERP_PROOF_DIR,'followup-quote-'+width+'.png')});await page.locator('.sx-q-head').click();await page.locator('[data-sx="tab"][data-id="review"]').click();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'review queue fits mobile '+width);if(process.env.ERP_PROOF_DIR)await page.screenshot({path:path.join(process.env.ERP_PROOF_DIR,'followup-review-'+width+'.png')});}
+ assert.deepEqual(errors,[]);console.log('PASS chosen SKU legacy fallback/no-image, quote quantity/remove, reversible exclusions with history, canonical alias exclusion, insufficient/suspected/changed review queue, existing cart preservation, mobile');
+
  await browser.close();
 })().catch(e=>{console.error(e);process.exit(1);});

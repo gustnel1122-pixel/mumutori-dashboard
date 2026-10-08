@@ -1,6 +1,7 @@
 // 소싱 보드 — 1688 후보 고르기(💗/👎/💸·한마디)와 발주 장바구니.
 // 자료는 ERP 원장(localStorage)과 별개로 Firebase Realtime DB `sourcing/`에 있다(로그인 없이 공유, 2026-10-07 사장님 결정).
 // Claude는 mumutori-auto/sourcing_db.py로 같은 경로를 읽고 써서, 표시를 다음 소싱·발주에 반영한다.
+import {identity,originalUrl,exclusion,reviewProblems,recommendable} from '../sourcing-policy.js';
 const DB='https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.app/sourcing';
 const S={tree:null,status:'connecting',tab:'items',round:'',filter:'전체',cat:'',q:'',draft:{},err:'',quoteOpen:false};
 let ctx=null,started=false,source=null,pollTimer=null,searchTimer=null;
@@ -105,6 +106,26 @@ function filtered(rows){
 }
 function cartLines(){return Object.entries(S.tree?.cart||{}).map(([id,l])=>({...l,id})).sort((a,b)=>String(a.at||'').localeCompare(String(b.at||'')));}
 
+
+// Resolve the chosen SKU first; old cart lines may have stored the representative image in img.
+function chosenPhoto(l,it={}){
+ const o=list(it.options).find(o=>o.spec===l.spec),selected=o?.img||(l.imageSource==='option'?l.img:'');
+ return {url:selected||it.img||l.img||'',rep:!selected,label:selected?'선택 옵션 사진':(it.img?'옵션 사진 없음 · 대표 사진':l.img?'저장된 사진 · 옵션 확인 필요':'사진 없음')};
+}
+function chosenVisual(l,it={},cls='sx-cart-img'){
+ const f=chosenPhoto(l,it),cap=(it.name||l.offerId)+(l.ko?' · '+l.ko:'');
+ return `<div class="sx-chosen-photo">${zoom(f.url,img(f.url,120,cls),{cap,spec:l.spec,rep:f.rep})}<small>${esc(f.label)}</small></div>`;
+}
+const isAdmitted=r=>recommendable(r.id,r,S.tree?.marks||{});
+function excludedTab(){
+ const t=S.tree||{},rows=Object.entries(t.marks||{}).filter(([,m])=>m.exclusion).sort((a,b)=>String(b[1].exclusion.at||'').localeCompare(String(a[1].exclusion.at||'')));
+ return `<div class="note">추천에서만 제외합니다. 기존 상품·표시·장바구니·신청 이력은 보존합니다. 복구해도 검수 요건은 다시 확인하며, 기존 👎 표시는 그대로입니다.</div><div class="sx-review-list">${rows.map(([mid,m])=>{const x=m.exclusion,it=t.items?.[mid]||Object.values(t.items||{}).find(it=>identity('',it.url)===x.identity)||{};return `<article class="sx-review-card"><b>${esc(it.name||x.name||mid)}</b><span class="badge ${x.active?'red':'green'}">${x.active?'추천 제외':'복구됨'}</span><p>${esc(x.reason||'사용자 추천 제외')}</p><small>${x.restoredAt?'복구 '+esc(x.restoredAt)+' · ':''}${esc(x.at||'')} · ${esc(x.by||'')} · ${esc(x.identity||'')}</small><p>${list(m.exclusionEvents).map(e=>esc((e.action==='restore'?'복구':'제외')+' · '+e.at+' · '+e.by)).join('<br>')}</p><a href="${esc(x.sourceUrl||originalUrl(mid,it.url))}" target="_blank" rel="noopener">원본 상품</a>${x.active?`<button type="button" data-sx="restore" data-id="${esc(mid)}">추천 제외 복구</button>`:''}</article>`;}).join('')||'<p>추천 제외 내역이 없습니다.</p>'}</div>`;
+}
+function reviewTab(){
+ const rows=itemRows().filter(r=>!exclusion(r.id,r,S.tree?.marks||{})&&!isAdmitted(r));
+ return `<div class="note amber">검토 대기 상품은 추천·세트 제안·새 담기에서 보류합니다. 원본/옵션/실제 검토 이미지·공급자·분류·연령·용도·재질·근거와 검수자·시각을 기록한 뒤 승인해야 합니다. 검수 기록은 판매 적법성이나 무위험 보증이 아닙니다. 기존 선택·주문 이력은 보존합니다.</div><div class="sx-review-list">${rows.map(r=>`<article class="sx-review-card"><div>${zoom(r.img,img(r.img,120,'sx-cart-img'),{cap:r.name})}<h3>${esc(r.name)}</h3><span class="badge amber">${esc(({approved:'승인 기록 있음 · 재검수 필요',hold:'보류',in_review:'검수 중',unreviewed:'미검수'})[r.review?.status]||'미검수')}</span></div><p>${reviewProblems(r.id,r).map(esc).join(' · ')}</p><p>${list(r.options).map(o=>esc((o.ko||'')+' · '+o.spec)).join(' / ')}</p><div class="sx-review-images">${[...new Set([r.img,...list(r.sourceImages),...list(r.options).map(o=>o.img)].filter(Boolean))].map(u=>zoom(u,img(u,120,'sx-cart-img'),{cap:r.name+' · 검토 대상 사진'})).join('')}</div><p>${esc(r.warn||'')} ${list(r.review?.flags).map(f=>esc(f.note||f)).join(' · ')}</p><small>검수자 ${esc(r.review?.by||'미기록')} · ${esc(r.review?.at||'시각 미기록')}</small>${r.review?.classification?`<p>분류: ${Object.entries(r.review.classification).map(([k,v])=>esc(k)+': '+esc(v)).join(' · ')}</p>`:''}${Object.entries(r.review?.checks||{}).map(([k,c])=>`<p>${esc(k)} (${esc(c.status||'미기록')}): ${esc(c.note||'근거 미기록')} ${list(c.evidence).map(u=>`<a href="${esc(/^https:\/\//.test(u)?u:'#')}" target="_blank" rel="noopener">검토 근거</a>`).join(' ')}</p>`).join('')}<a href="${esc(r.url)}" target="_blank" rel="noopener">원본·옵션 검토 ↗</a><button type="button" data-sx="exclude" data-id="${esc(r.id)}">추천에서 제외</button></article>`).join('')||'<p>검토 대기 상품이 없습니다.</p>'}</div>`;
+}
+
 function card(r){
   const m=r.mark,st=markState(m),opts=list(r.options),inCart=cartLines().filter(l=>l.offerId===r.id);
   const prices=opts.map(o=>num(o.price)).filter(Boolean),lo=prices.length?Math.min(...prices):num(r.priceMin),hi=prices.length?Math.max(...prices):num(r.priceMax);
@@ -125,7 +146,7 @@ function card(r){
       <div class="sx-price"><b>${yuan(lo)}${hi>lo?'~'+yuan(hi).slice(1):''}</b> <span>≈ ${krw(toKrw(lo))}${hi>lo?'~':''}/개</span></div>
       ${meta?`<div class="sx-meta">${meta}</div>`:''}
       ${list(r.sizeImgs).length?`<div class="sx-sizes">${list(r.sizeImgs).map((s,i,a)=>zoom(s.url,`📏 크기·모양 안내${a.length>1?' '+(i+1):' 보기'}`,{cap:s.cap||'크기·모양 안내 (1688 상세페이지)',cls:'sx-sizebtn'})).join('')}</div>`:''}
-      <div class="sx-marks">${mark('like','💗 좋아요')}${mark('design','👎 디자인 별로')}${mark('price','💸 가격 별로')}</div>
+      <div class="sx-marks">${mark('like','💗 좋아요')}${mark('design','👎 디자인 별로')}${mark('price','💸 가격 별로')}</div><button type="button" class="sx-exclude" data-sx="exclude" data-id="${esc(r.id)}">추천에서 제외</button>
       <input class="sx-note" id="sx-n-${esc(r.id)}" data-sx-note="${esc(r.id)}" maxlength="300" placeholder="한마디 (예: 링크 사진이 더 좋아)" value="${esc(m.note||'')}">
       ${optRows}
       <a class="sx-link" href="${esc(r.url)}" target="_blank" rel="noopener">1688에서 보기 ↗ <small>${esc(r.url)}</small></a>
@@ -143,7 +164,7 @@ function setCard(id,s,items){
     <input class="sx-note" id="sx-sn-${esc(id)}" data-sx-setnote="${esc(id)}" maxlength="300" placeholder="세트에 한마디" value="${esc(mk.note||'')}"></article>`;
 }
 function itemsTab(){
-  const t=S.tree||{},all=itemRows(),rows=filtered(all),rounds=Object.entries(t.rounds||{}).sort((a,b)=>String(b[1].date||'').localeCompare(String(a[1].date||'')));
+  const t=S.tree||{},all=itemRows().filter(isAdmitted),rows=filtered(all),rounds=Object.entries(t.rounds||{}).sort((a,b)=>String(b[1].date||'').localeCompare(String(a[1].date||'')));
   const cats=[...new Set(all.map(r=>r.cat).filter(Boolean))];
   const count=f=>all.filter(f).length;
   const sum=`<div class="sx-summary">${[['후보',all.length],['💗',count(r=>r.mark.like)],['👎',count(r=>r.mark.design)],['💸',count(r=>r.mark.price)],['안 본 것',count(r=>!markState(r.mark))]].map(([a,b])=>`<span class="badge">${a} ${b}</span>`).join('')}</div>`;
@@ -151,7 +172,7 @@ function itemsTab(){
   const groups=[...new Set(rows.map(r=>r.cat||'기타'))];
   const body=rows.length?groups.map(g=>`<div class="sx-section"><h2>${esc(g)}</h2><span>${rows.filter(r=>(r.cat||'기타')===g).length}개</span></div><div class="sx-grid">${rows.filter(r=>(r.cat||'기타')===g).map(card).join('')}</div>`).join(''):`<div class="note">${all.length?'조건에 맞는 후보가 없습니다.':'아직 후보가 없습니다. Claude가 1688에서 찾으면 여기에 올라옵니다.'}</div>`;
   const shownRounds=S.round?rounds.filter(([id])=>id===S.round):rounds;
-  const sets=Object.entries(t.sets||{}).filter(([,s])=>shownRounds.some(([rid])=>rid===s.round));
+  const sets=Object.entries(t.sets||{}).filter(([,s])=>shownRounds.some(([rid])=>rid===s.round)&&list(s.parts).every(p=>t.items?.[p.offerId]&&recommendable(p.offerId,t.items[p.offerId],t.marks||{})));
   const setsHtml=sets.length?`<div class="sx-section"><h2>세트 제안</h2><span>Claude가 후보로 짠 구성 — 마음에 들면 💗</span></div><div class="sx-sets">${sets.map(([id,s])=>setCard(id,s,t.items||{})).join('')}</div>`:'';
   const roundNote=shownRounds.length&&S.round?`<div class="note">${esc(shownRounds[0][1].note||'')}</div>`:'';
   return sum+tools+roundNote+body+setsHtml;
@@ -161,7 +182,7 @@ function cartTab(){
   const likedNoCart=itemRows().filter(r=>r.mark.like&&!lines.some(l=>l.offerId===r.id));
   let totalY=0,weight=0,weightKnown=true;
   const rows=lines.map(l=>{const it=items[l.offerId]||{},sub=num(l.price)*num(l.qty);totalY+=sub;if(l.weightG)weight+=num(l.weightG)*num(l.qty);else weightKnown=false;
-    return `<tr><td>${zoom(l.img||it.img,img(l.img||it.img,120,'sx-cart-img'),{cap:(it.name||l.offerId)+(l.ko?' · '+l.ko:''),spec:l.spec,rep:!l.img})}</td><td class="maincell"><b><a href="${esc(it.url||'#')}" target="_blank" rel="noopener">${esc(it.name||l.offerId)}</a></b><span class="sub">${esc(l.ko||'')}</span><span class="sub sx-spec"><span lang="zh">${esc(l.spec)}</span> <button type="button" class="sx-copy" data-sx="copy" data-text="${esc(l.spec)}" aria-label="1688 옵션명 복사: ${esc(l.spec)}">복사</button></span></td><td><input type="number" min="1" step="1" class="sx-qty" id="sx-cq-${esc(l.id)}" data-sx-qty="${esc(l.id)}" aria-label="수량" value="${esc(l.qty)}"></td><td class="num">${yuan(l.price)}</td><td class="num"><b>${yuan(sub)}</b></td><td class="num">${krw(toKrw(sub))}</td><td>${`<button type="button" class="text danger" data-sx="remove" data-id="${esc(l.id)}">빼기</button>`}</td></tr>`;}).join('');
+    return `<tr><td>${chosenVisual(l,it)}</td><td class="maincell"><b><a href="${esc(it.url||'#')}" target="_blank" rel="noopener">${esc(it.name||l.offerId)}</a></b><span class="sub">${esc(l.ko||'')}</span><span class="sub sx-spec"><span lang="zh">${esc(l.spec)}</span> <button type="button" class="sx-copy" data-sx="copy" data-text="${esc(l.spec)}" aria-label="1688 옵션명 복사: ${esc(l.spec)}">복사</button></span></td><td><input type="number" min="1" step="1" class="sx-qty" id="sx-cq-${esc(l.id)}" data-sx-qty="${esc(l.id)}" aria-label="수량" value="${esc(l.qty)}"></td><td class="num">${yuan(l.price)}</td><td class="num"><b>${yuan(sub)}</b></td><td class="num">${krw(toKrw(sub))}</td><td>${`<button type="button" class="text danger" data-sx="remove" data-id="${esc(l.id)}">빼기</button>`}</td></tr>`;}).join('');
   const reqs=Object.entries(t.requests||{}).sort((a,b)=>String(b[1].at||'').localeCompare(String(a[1].at||''))).slice(0,5);
   const r=rate();
   return `${likedNoCart.length?`<div class="note amber">💗만 누르고 수량을 안 담은 상품 ${likedNoCart.length}개: ${likedNoCart.map(x=>`<b>${esc(x.name)}</b>`).join(', ')} — 후보 탭에서 옵션·수량을 담아 주세요.</div>`:''}
@@ -192,7 +213,7 @@ function quote(){
     const it=items[l.offerId]||{},q=num(l.qty),sub=num(l.price)*q;goods+=sub;qty+=q;perOffer[l.offerId]=(perOffer[l.offerId]||0)+q;
     const w=num(l.weightG)||num(list(it.options).find(o=>o.spec===l.spec)?.weightG)||num(it.weightG);if(w)weightG+=w*q;else unknownW++;
     const sk=it.shop?.company||it.name||l.offerId,s=sellers[sk]=sellers[sk]||{shop:sk,offers:{},lines:[],goods:0};
-    s.lines.push({...l,name:it.name||l.offerId,sub});s.goods+=sub;s.offers[l.offerId]=it;
+    s.lines.push({...l,name:it.name||l.offerId,it,sub});s.goods+=sub;s.offers[l.offerId]=it;
   }
   let freight=0;for(const s of Object.values(sellers)){s.freight=Object.values(s.offers).reduce((a,it)=>a+num(it.freight),0);freight+=s.freight;}
   const moq=Object.entries(perOffer).map(([oid,q])=>{const it=items[oid]||{},m=num(it.moq);return m&&q<m?{name:it.name||oid,m,q}:null;}).filter(Boolean); // board_watcher.ledger_check와 같은 규칙: 상품별 옵션 수량 합 < 최소 주문
@@ -208,7 +229,7 @@ function quoteBar(){
   const head=`<button type="button" class="sx-q-head" data-sx="quote" aria-expanded="${!!S.quoteOpen}" aria-controls="sx-q-detail"><span class="sx-q-title">🧾 예상 견적</span><span>${q.n}줄 ${q.qty.toLocaleString('ko-KR')}개</span><span>구매 ${yuan(q.purchaseCny)} ≈ ${krw(q.purchaseKrw)}</span><span>국제배송 ≈ ${krw(q.ship)} <small>(${q.billKg}kg)</small></span><b>합계 ≈ ${krw(q.total)}</b><em>${S.quoteOpen?'접기 ▴':'자세히 ▾'}</em></button>`;
   const row=(th,td,cls='')=>`<tr class="${cls}"><th>${th}</th><td>${td}</td></tr>`;
   const detail=S.quoteOpen?`<div class="sx-q-detail" id="sx-q-detail">
-    <div class="sx-q-sellers">${q.sellers.map(s=>`<div class="sx-q-seller"><b>${esc(s.shop)}</b>${s.lines.map(l=>`<div class="sx-q-line"><span>${esc(l.name)} · ${esc(l.ko||l.spec)}</span><span>${num(l.qty).toLocaleString('ko-KR')}개 × ${yuan(l.price)}</span><span>${yuan(l.sub)}</span></div>`).join('')}<div class="sx-q-line sub"><span>판매자 배송비</span><span></span><span>${yuan(s.freight)}</span></div></div>`).join('')}</div>
+    <div class="sx-q-sellers">${q.sellers.map(s=>`<div class="sx-q-seller"><b>${esc(s.shop)}</b>${s.lines.map(l=>`<div class="sx-q-line sx-q-item">${chosenVisual(l,l.it,'sx-cart-img')}<div class="sx-q-item-body"><b>${esc(l.name)} · ${esc(l.ko||l.spec)}</b><small lang="zh">${esc(l.spec)}</small><span>${num(l.qty).toLocaleString('ko-KR')}개 × ${yuan(l.price)}</span><label>수량 <input class="sx-q-qty" type="number" min="1" step="1" id="sx-qq-${esc(l.id)}" data-sx-qty="${esc(l.id)}" aria-label="${esc(l.name+' '+(l.ko||l.spec)+' 견적 수량')}" value="${esc(l.qty)}"></label><button type="button" class="text danger" data-sx="remove" data-id="${esc(l.id)}">장바구니에서 빼기</button></div><b>${yuan(l.sub)}</b></div>`).join('')}<div class="sx-q-line sub"><span>판매자 배송비</span><span></span><span>${yuan(s.freight)}</span></div></div>`).join('')}</div>
     <table class="sx-q-table"><tbody>
       ${row('상품 합계',yuan(q.goods))}${row(`1688 판매자 배송비 (${q.sellers.length}곳)`,yuan(q.freight))}${row(`구매대행 수수료 ${Math.round(q.r.fee*100)}%`,yuan(q.fee))}
       ${row('구매비 (예치금 결제)',`${yuan(q.purchaseCny)} ≈ ${krw(q.purchaseKrw)}<small>환율 ${q.r.rate}원</small>`,'sum')}
@@ -231,8 +252,8 @@ function view(){
   if(S.status==='denied')return status+`<div class="note error">소싱 자료를 읽을 권한이 없습니다. Firebase 규칙에 <code>sourcing</code> 칸이 열려 있어야 합니다.</div>`;
   if(!S.tree)return status+`<div class="note">소싱 자료를 불러오는 중입니다.</div>`;
   const nCart=Object.keys(t.cart||{}).length,nRule=Object.values(t.taste||{}).filter(r=>r.active!==false).length;
-  const tabs=`<div class="chips">${[['items','후보 '+Object.keys(t.items||{}).length],['cart','장바구니 '+nCart],['taste','취향 규칙 '+nRule]].map(([id,l])=>`<button type="button" class="chip ${S.tab===id?'active':''}" data-sx="tab" data-id="${id}">${esc(l)}</button>`).join('')}</div>`;
-  return status+tabs+(S.tab==='cart'?cartTab():S.tab==='taste'?tasteTab():itemsTab())+quoteBar();
+  const tabs=`<div class="chips">${[['items','후보 '+itemRows().filter(isAdmitted).length],['cart','장바구니 '+nCart],['taste','취향 규칙 '+nRule],['review','검토 대기 '+itemRows().filter(r=>!exclusion(r.id,r,t.marks||{})&&!isAdmitted(r)).length],['excluded','삭제 내역 '+Object.values(t.marks||{}).filter(m=>m.exclusion?.active).length]].map(([id,l])=>`<button type="button" class="chip ${S.tab===id?'active':''}" data-sx="tab" data-id="${id}">${esc(l)}</button>`).join('')}</div>`;
+  return status+tabs+(S.tab==='cart'?cartTab():S.tab==='taste'?tasteTab():S.tab==='review'?reviewTab():S.tab==='excluded'?excludedTab():itemsTab())+quoteBar();
 }
 function refresh(){
   const root=document.getElementById('sx-root');if(!root)return;
@@ -256,6 +277,18 @@ async function onClick(e){
     if(sx==='zoom'){openZoom(el);return;}
     if(sx==='quote'){S.quoteOpen=!S.quoteOpen;refresh();return;}
     if(sx==='copy'){const ok=await copyText(el.dataset.text||'');notify(ok?'1688 옵션명을 복사했습니다 — 1688 페이지에서 Ctrl+F(휴대폰은 페이지 내 찾기)로 붙여 넣어 찾으세요.':'복사하지 못했습니다 — 회색 글자를 길게 눌러 직접 복사해 주세요.',!ok);return;}
+    if(sx==='exclude'){
+      const it=S.tree.items[id]||{},old=S.tree.marks?.[id]?.exclusion||{};
+      const eventId='e'+Date.now().toString(36);
+      await send('PATCH','marks/'+id,{['exclusionEvents/'+eventId]:{action:'exclude',at:now(),by:'사장님 보드',identity:identity(id,it.url),reason:S.tree.marks?.[id]?.note||'사용자 추천 제외'},exclusion:{...old,active:true,identity:identity(id,it.url),offerId:id,sourceUrl:originalUrl(id,it.url),name:it.name||id,reason:S.tree.marks?.[id]?.note||'사용자 추천 제외',at:now(),by:'사장님 보드',restoredAt:null}});
+      notify('추천에서 제외했습니다. 장바구니·신청 이력은 그대로입니다.');return;
+    }
+    if(sx==='restore'){
+      const old=S.tree.marks?.[id]?.exclusion;if(!old)return;
+      const eventId='e'+Date.now().toString(36);
+      await send('PATCH','marks/'+id,{['exclusionEvents/'+eventId]:{action:'restore',at:now(),by:'사장님 보드',identity:old.identity},exclusion:{...old,active:false,restoredAt:now(),restoredBy:'사장님 보드'}});
+      notify('추천 제외를 복구했습니다. 검수 상태와 기존 표시는 유지됩니다.');return;
+    }
     if(sx==='mark'){
       const m={...(S.tree?.marks?.[id]||{})},on=!m[k];
       const next={like:k==='like'?on:(on?false:!!m.like),design:k==='design'?on:(k==='like'&&on?false:!!m.design),price:k==='price'?on:(k==='like'&&on?false:!!m.price),at:now(),by:'대시보드'};
@@ -266,15 +299,17 @@ async function onClick(e){
       await send('PATCH','sets/'+id+'/mark',{like:k==='like'?on:(on?false:!!m.like),bad:k==='bad'?on:(on?false:!!m.bad),at:now()});
     }
     if(sx==='add'){
+      if(!recommendable(id,S.tree.items[id]||{},S.tree.marks||{}))throw Error('추천 제외 또는 검수 대기 상품은 새로 담을 수 없습니다.');
       const it=S.tree.items[id],o=list(it.options).find(x=>x.spec===spec),lid=id+'~'+keyOf(spec);
       const qty=Math.round(num(S.draft[lid]??document.getElementById('sx-q-'+lid)?.value));
       if(qty<1)throw Error('수량을 1개 이상 입력하세요.');
-      await send('PUT','cart/'+lid,{offerId:id,spec,ko:o?.ko||'',price:num(o?.price),img:o?.img||it.img||'',weightG:o?.weightG||it.weightG||null,qty,at:S.tree?.cart?.[lid]?.at||now(),updatedAt:now()});
+      await send('PUT','cart/'+lid,{offerId:id,spec,ko:o?.ko||'',price:num(o?.price),img:o?.img||'',imageSource:o?.img?'option':it.img?'representative':'none',weightG:o?.weightG||it.weightG||null,qty,at:S.tree?.cart?.[lid]?.at||now(),updatedAt:now()});
       delete S.draft[lid];notify(`장바구니에 담았습니다 — ${it.name} ${o?.ko||spec} ${qty}개`);
     }
     if(sx==='remove'){await send('DELETE','cart/'+id);notify('장바구니에서 뺐습니다.');}
     if(sx==='request'){
       const lines=cartLines();if(!lines.length)return;
+      if(lines.some(l=>!recommendable(l.offerId,S.tree.items?.[l.offerId]||{},S.tree.marks||{})))throw Error('검수 대기·추천 제외 품목이 있습니다. 기존 장바구니는 유지되며 검토 후 새 신청서를 요청하세요.');
       const total=lines.reduce((a,l)=>a+num(l.price)*num(l.qty),0),rid='r'+Date.now().toString(36);
       await send('PUT','requests/'+rid,{kind:'배대지 신청서',status:'요청',at:now(),summary:`${lines.length}줄 ${lines.reduce((a,l)=>a+num(l.qty),0)}개 · ${yuan(total)}`,lines:Object.fromEntries(lines.map(l=>[l.id,{offerId:l.offerId,spec:l.spec,ko:l.ko||'',qty:l.qty,price:l.price}]))});
       notify('요청을 남겼습니다. Claude가 확인하면 신청서를 채웁니다.');
