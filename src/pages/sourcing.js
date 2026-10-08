@@ -2,7 +2,7 @@
 // 자료는 ERP 원장(localStorage)과 별개로 Firebase Realtime DB `sourcing/`에 있다(로그인 없이 공유, 2026-10-07 사장님 결정).
 // Claude는 mumutori-auto/sourcing_db.py로 같은 경로를 읽고 써서, 표시를 다음 소싱·발주에 반영한다.
 const DB='https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.app/sourcing';
-const S={tree:null,status:'connecting',tab:'items',round:'',filter:'전체',cat:'',q:'',draft:{},err:''};
+const S={tree:null,status:'connecting',tab:'items',round:'',filter:'전체',cat:'',q:'',draft:{},err:'',quoteOpen:false};
 let ctx=null,started=false,source=null,pollTimer=null,searchTimer=null;
 const STATUS={connecting:['연결 중','',''],ok:['실시간 연결됨 · 다른 기기·Claude와 같이 봅니다','ok',''],retry:['연결이 끊겨 다시 잇는 중','bad',''],poll:['실시간 연결이 안 돼 20초마다 새로 읽는 중','bad',''],denied:['Firebase 규칙이 아직 열리지 않았습니다','bad','']};
 const FILTERS=['전체','안 본 것','💗 좋아요','👎 디자인 별로','💸 가격 별로'];
@@ -166,7 +166,7 @@ function cartTab(){
   const r=rate();
   return `${likedNoCart.length?`<div class="note amber">💗만 누르고 수량을 안 담은 상품 ${likedNoCart.length}개: ${likedNoCart.map(x=>`<b>${esc(x.name)}</b>`).join(', ')} — 후보 탭에서 옵션·수량을 담아 주세요.</div>`:''}
     <div class="panel section-gap"><div class="tablewrap"><table class="table"><thead><tr><th>사진</th><th>상품 / 옵션</th><th>수량</th><th class="num">단가</th><th class="num">소계</th><th class="num">≈ 원화</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="7"><div class="empty"><b>장바구니가 비어 있습니다.</b>후보에서 💗 → 옵션·수량 담기</div></td></tr>`}</tbody></table></div>
-    <div class="sx-total"><span>상품 ${lines.length}줄 · ${lines.reduce((a,l)=>a+num(l.qty),0)}개</span><span>합계 <b>${yuan(totalY)}</b> ≈ <b>${krw(toKrw(totalY))}</b></span><small>환율 ${r.rate}원 × 구매대행 수수료 ${Math.round(r.fee*100)}% 포함 · 1688 판매자 배송비·국제 배송비·관부가세 별도${weight?` · 무게 약 ${(weight/1000).toFixed(2)}kg${weightKnown?'':'(일부 무게 모름)'}`:''}</small></div></div>
+    <div class="sx-total"><span>상품 ${lines.length}줄 · ${lines.reduce((a,l)=>a+num(l.qty),0)}개</span><span>합계 <b>${yuan(totalY)}</b> ≈ <b>${krw(toKrw(totalY))}</b></span><small>환율 ${r.rate}원 × 구매대행 수수료 ${Math.round(r.fee*100)}% 포함 · 1688 판매자 배송비·국제 배송비·관부가세 별도(배송비 포함 예상은 아래 견적 줄)${weight?` · 무게 약 ${(weight/1000).toFixed(2)}kg${weightKnown?'':'(일부 무게 모름)'}`:''}</small></div></div>
     <div class="sx-request"><div><b>배대지 신청서</b><p>요청하면 PC의 자동 처리 프로그램이 이 장바구니로 아이템스카우트 배대지 신청서를 채우고 캡처합니다. <b>신청하기는 확인을 받은 뒤에</b> 누릅니다.</p><p><span class="badge ${watcher().on?'green':'amber'}">${watcher().on?'켜짐':'꺼짐'}</span> ${esc(watcher().text)}</p></div><button type="button" class="primary" data-sx="request" ${lines.length?'':'disabled'}>Claude에게 신청서 작성 요청</button></div>
     ${reqs.length?`<div class="sx-reqs">${reqs.map(([id,q])=>`<div><span class="badge ${REQ_TONE[q.status]||'amber'}">${esc(q.status||'요청')}</span> ${esc(new Date(q.at).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}))} · ${esc(q.summary||'')}${q.reply?` — <b>${esc(q.reply)}</b>`:''}</div>`).join('')}<small>'작성됨'이면 PC 크롬의 [작성본] 탭과 드라이브 구매대행/요청작성본에서 확인하고, 신청하려면 Claude에게 "신청해줘"라고 말해 주세요. '확인 필요'는 사유를 보고 Claude에게 맡겨 주세요.</small></div>`:''}`;
 }
@@ -179,6 +179,52 @@ function tasteTab(){
     <form class="sx-addrule" data-sx-form="rule"><select name="kind" aria-label="규칙 종류"><option value="avoid">피하기</option><option value="prefer">좋아함</option><option value="price">가격</option><option value="rule">기준</option></select><input name="text" maxlength="200" required placeholder="예: 반짝이 소재는 빼 줘" aria-label="새 규칙"><button type="submit" class="primary">규칙 추가</button></form></div>
     ${gallery('💗 좋아한 것',all.filter(r=>r.mark.like),'이런 결로 더 찾습니다')}${gallery('👎 디자인 별로',all.filter(r=>r.mark.design),'같은 상품·같은 결은 빼고 찾습니다')}${gallery('💸 가격 별로',all.filter(r=>r.mark.price),'이 가격대는 비싸다고 봅니다')}`;
 }
+// ---- 실시간 예상 견적(사장님 2026-10-08: "담은 거 실시간으로 아래 견적"). 요율은 장부 meta/ship, 없으면 아래 기본값.
+// 기본값 근거: 배대지 웨이하이 항공 요금표 Gold(사업자) 0.5kg 5,990원·0.5kg당 +1,820원(guide_08.php?tr_no=28, 2026-10-08 확인),
+// 통관·포장·부피·작업 항목은 실제 견적에서 달라질 수 있으며 상세 근거는 내부 업무 기록에서 관리한다.
+// 배송비 부가세·관부가세는 실제 견적 확인 후 별도로 반영한다.
+const SHIP_DEFAULT={mode:'항공',grade:'Gold(사업자)',base05:5990,per05:1820,fixed:19500,boxPack:3000,cjMid:3900,cjLarge:4900,midMaxKg:5,boxMaxKg:15,multiBox:2000,originPer:60,originCap:30000,packRate:0.1,boxKg:0.5};
+const shipCfg=()=>({...SHIP_DEFAULT,...(S.tree?.meta?.ship||{})});
+function quote(){
+  const t=S.tree||{},items=t.items||{},lines=cartLines();if(!lines.length)return null;
+  const r=rate(),c=shipCfg(),sellers={},perOffer={};let goods=0,qty=0,weightG=0,unknownW=0;
+  for(const l of lines){
+    const it=items[l.offerId]||{},q=num(l.qty),sub=num(l.price)*q;goods+=sub;qty+=q;perOffer[l.offerId]=(perOffer[l.offerId]||0)+q;
+    const w=num(l.weightG)||num(list(it.options).find(o=>o.spec===l.spec)?.weightG)||num(it.weightG);if(w)weightG+=w*q;else unknownW++;
+    const sk=it.shop?.company||it.name||l.offerId,s=sellers[sk]=sellers[sk]||{shop:sk,offers:{},lines:[],goods:0};
+    s.lines.push({...l,name:it.name||l.offerId,sub});s.goods+=sub;s.offers[l.offerId]=it;
+  }
+  let freight=0;for(const s of Object.values(sellers)){s.freight=Object.values(s.offers).reduce((a,it)=>a+num(it.freight),0);freight+=s.freight;}
+  const moq=Object.entries(perOffer).map(([oid,q])=>{const it=items[oid]||{},m=num(it.moq);return m&&q<m?{name:it.name||oid,m,q}:null;}).filter(Boolean); // board_watcher.ledger_check와 같은 규칙: 상품별 옵션 수량 합 < 최소 주문
+  const fee=(goods+freight)*r.fee,purchaseCny=goods+freight+fee,purchaseKrw=purchaseCny*r.rate;
+  const estKg=weightG/1000*(1+c.packRate)+c.boxKg,billKg=Math.max(0.5,Math.ceil(estKg/0.5-1e-9)*0.5),boxes=Math.max(1,Math.ceil(billKg/c.boxMaxKg));
+  const base=c.base05+c.per05*(billKg/0.5-1),boxCost=boxes*(c.boxPack+(billKg<=c.midMaxKg?c.cjMid:c.cjLarge)),multi=(boxes-1)*c.multiBox,origin=Math.min(c.originPer*qty,c.originCap);
+  const ship=base+c.fixed+boxCost+multi+origin;
+  return {n:lines.length,qty,goods,freight,fee,purchaseCny,purchaseKrw,weightG,unknownW,estKg,billKg,boxes,base,boxCost,multi,origin,ship,total:purchaseKrw+ship,moq,sellers:Object.values(sellers),r,c};
+}
+function quoteBar(){
+  const q=quote();if(!q)return '';
+  const warns=[q.moq.length?`<span class="sx-q-warn bad">⚠ 최소 주문 미달 — ${esc(q.moq[0].name)} ${q.moq[0].q}/${q.moq[0].m}개${q.moq.length>1?` 외 ${q.moq.length-1}곳`:''}</span>`:'',q.unknownW?`<span class="sx-q-warn">무게 모름 ${q.unknownW}개 — 배송비 더 나올 수 있음</span>`:''].filter(Boolean).join('');
+  const head=`<button type="button" class="sx-q-head" data-sx="quote" aria-expanded="${!!S.quoteOpen}" aria-controls="sx-q-detail"><span class="sx-q-title">🧾 예상 견적</span><span>${q.n}줄 ${q.qty.toLocaleString('ko-KR')}개</span><span>구매 ${yuan(q.purchaseCny)} ≈ ${krw(q.purchaseKrw)}</span><span>국제배송 ≈ ${krw(q.ship)} <small>(${q.billKg}kg)</small></span><b>합계 ≈ ${krw(q.total)}</b><em>${S.quoteOpen?'접기 ▴':'자세히 ▾'}</em></button>`;
+  const row=(th,td,cls='')=>`<tr class="${cls}"><th>${th}</th><td>${td}</td></tr>`;
+  const detail=S.quoteOpen?`<div class="sx-q-detail" id="sx-q-detail">
+    <div class="sx-q-sellers">${q.sellers.map(s=>`<div class="sx-q-seller"><b>${esc(s.shop)}</b>${s.lines.map(l=>`<div class="sx-q-line"><span>${esc(l.name)} · ${esc(l.ko||l.spec)}</span><span>${num(l.qty).toLocaleString('ko-KR')}개 × ${yuan(l.price)}</span><span>${yuan(l.sub)}</span></div>`).join('')}<div class="sx-q-line sub"><span>판매자 배송비</span><span></span><span>${yuan(s.freight)}</span></div></div>`).join('')}</div>
+    <table class="sx-q-table"><tbody>
+      ${row('상품 합계',yuan(q.goods))}${row(`1688 판매자 배송비 (${q.sellers.length}곳)`,yuan(q.freight))}${row(`구매대행 수수료 ${Math.round(q.r.fee*100)}%`,yuan(q.fee))}
+      ${row('구매비 (예치금 결제)',`${yuan(q.purchaseCny)} ≈ ${krw(q.purchaseKrw)}<small>환율 ${q.r.rate}원</small>`,'sum')}
+      ${row(`국제 배송 기본 (${esc(q.c.mode)}·웨이하이, ${q.billKg}kg)`,krw(q.base))}${row('사업자통관 수수료 + 간이통관',krw(q.c.fixed))}
+      ${row(`상자 ${q.boxes}개 포장·CJ 부피 추가`,krw(q.boxCost))}${q.multi?row('멀티박스',krw(q.multi)):''}${row(`원산지 표기·작업 (개당 약 ${q.c.originPer}원, 최대 ${krw(q.c.originCap)})`,krw(q.origin))}
+      ${row('국제 배송비 (입고·무게 측정 후 따로 결제)',`≈ ${krw(q.ship)}`,'sum')}${row('합계 (예상)',`≈ ${krw(q.total)}`,'total')}
+    </tbody></table>
+    <ul class="sx-q-notes">
+      <li>무게: 상품 무게 합 ${(q.weightG/1000).toFixed(2)}kg + 포장 ${Math.round(q.c.packRate*100)}%·상자 ${q.c.boxKg}kg ≈ ${q.estKg.toFixed(2)}kg → 0.5kg 단위 올림 ${q.billKg}kg${q.unknownW?` · 무게 모르는 품목 ${q.unknownW}개는 빠져 있어 더 나올 수 있음`:''}.</li>
+      ${q.moq.map(m=>`<li class="bad">⚠ 최소 주문 미달 — ${esc(m.name)}: 최소 주문 ${m.m}개인데 ${m.q}개</li>`).join('')}
+      <li>관부가세 별도 — 지난 배송 2건은 배대지 청구에 없었지만 품목·금액에 따라 세관이 따로 부과할 수 있습니다. 바구니·상자처럼 부피 큰 물건은 부피무게로 배송비가 더 나올 수 있습니다.</li>
+      <li>기준: 배대지 웨이하이 항공 요금표 ${esc(q.c.grade)} + 지난 배송 2건 실제 청구 항목. 모든 숫자는 예상이며 실제 금액은 배대지 견적·무게 측정 후 확정됩니다.</li>
+    </ul>
+    <button type="button" class="sx-q-cart" data-sx="tab" data-id="cart">장바구니에서 수량 바꾸기</button></div>`:'';
+  return `<div class="sx-quote" role="region" aria-label="실시간 예상 견적">${head}${warns?`<div class="sx-q-warns">${warns}</div>`:''}${detail}</div>`;
+}
 function view(){
   const [label,tone]=STATUS[S.status]||STATUS.connecting,t=S.tree||{};
   const status=`<div class="sx-status ${tone}"><i></i>${esc(label)}${S.err?` · ${esc(S.err)}`:''}${t.meta?.updatedAt?` · Claude 마지막 갱신 ${esc(new Date(t.meta.updatedAt).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}))}`:''}</div>`;
@@ -186,7 +232,7 @@ function view(){
   if(!S.tree)return status+`<div class="note">소싱 자료를 불러오는 중입니다.</div>`;
   const nCart=Object.keys(t.cart||{}).length,nRule=Object.values(t.taste||{}).filter(r=>r.active!==false).length;
   const tabs=`<div class="chips">${[['items','후보 '+Object.keys(t.items||{}).length],['cart','장바구니 '+nCart],['taste','취향 규칙 '+nRule]].map(([id,l])=>`<button type="button" class="chip ${S.tab===id?'active':''}" data-sx="tab" data-id="${id}">${esc(l)}</button>`).join('')}</div>`;
-  return status+tabs+(S.tab==='cart'?cartTab():S.tab==='taste'?tasteTab():itemsTab());
+  return status+tabs+(S.tab==='cart'?cartTab():S.tab==='taste'?tasteTab():itemsTab())+quoteBar();
 }
 function refresh(){
   const root=document.getElementById('sx-root');if(!root)return;
@@ -208,6 +254,7 @@ async function onClick(e){
   try{
     if(sx==='tab'){S.tab=id;refresh();window.scrollTo({top:0});return;}
     if(sx==='zoom'){openZoom(el);return;}
+    if(sx==='quote'){S.quoteOpen=!S.quoteOpen;refresh();return;}
     if(sx==='copy'){const ok=await copyText(el.dataset.text||'');notify(ok?'1688 옵션명을 복사했습니다 — 1688 페이지에서 Ctrl+F(휴대폰은 페이지 내 찾기)로 붙여 넣어 찾으세요.':'복사하지 못했습니다 — 회색 글자를 길게 눌러 직접 복사해 주세요.',!ok);return;}
     if(sx==='mark'){
       const m={...(S.tree?.marks?.[id]||{})},on=!m[k];
