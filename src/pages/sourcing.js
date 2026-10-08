@@ -16,6 +16,20 @@ const keyOf=s=>{let h=5381;for(const c of String(s))h=((h*33)^c.charCodeAt(0))>>
 // 1688 사진은 다른 사이트 주소를 referrer로 보내면 403 → <img referrerpolicy="no-referrer">, 크기 접미사로 썸네일
 const thumb=(u,px=310)=>{if(!u)return '';u=u.startsWith('//')?'https:'+u:u.replace(/^http:/,'https:');return /\.(jpe?g|png|webp)_/i.test(u)?u:`${u}_${px}x${px}q90.jpg_.webp`;};
 const img=(u,px,cls='')=>u?`<img class="${cls}" src="${esc(thumb(u,px))}" referrerpolicy="no-referrer" loading="lazy" alt="">`:`<span class="${cls} sx-noimg">사진 없음</span>`;
+// 사진 크게 보기(사장님 2026-10-08): 사진을 버튼으로 감싸 누르면(Enter 포함) 큰 사진 창. 큰 사진 = 1688 원본(썸네일 크기 접미사 뺌).
+const bigUrl=u=>{if(!u)return '';u=u.startsWith('//')?'https:'+u:u.replace(/^http:/,'https:');return u.replace(/(\.(jpe?g|png|webp))_.*$/i,'$1');};
+const zoom=(u,inner,{cap='',spec='',rep=false,cls=''}={})=>u?`<button type="button" class="sx-zoom ${cls}" data-sx="zoom" data-src="${esc(bigUrl(u))}" data-cap="${esc(cap)}" data-spec="${esc(spec)}" data-rep="${rep?1:0}" aria-label="사진 크게 보기${cap?': '+esc(cap):''}">${inner}</button>`:inner;
+let zoomOpener=null;
+function openZoom(el){
+  closeZoom();
+  const {src,cap,spec,rep}=el.dataset;
+  const d=document.createElement('div');d.className='sx-lightbox';d.setAttribute('role','dialog');d.setAttribute('aria-modal','true');d.setAttribute('aria-label','큰 사진'+(cap?': '+cap:''));
+  d.innerHTML=`<figure><button type="button" class="sx-lb-close" aria-label="닫기">×</button><img src="${esc(src)}" referrerpolicy="no-referrer" alt="${esc(cap||'상품 사진')}"><figcaption>${rep==='1'?'<span class="badge red">옵션 사진 없음 · 대표 사진</span>':''}${cap?`<b>${esc(cap)}</b>`:''}${spec?`<small lang="zh">1688 옵션명: ${esc(spec)}</small>`:''}</figcaption></figure>`;
+  d.addEventListener('click',e=>{if(e.target===d||e.target.closest('.sx-lb-close'))closeZoom();});
+  document.body.appendChild(d);document.body.style.overflow='hidden';zoomOpener=el;d.querySelector('.sx-lb-close').focus();
+}
+function closeZoom(){const d=document.querySelector('.sx-lightbox');if(!d)return;d.remove();document.body.style.overflow='';if(zoomOpener&&document.contains(zoomOpener))zoomOpener.focus();zoomOpener=null;}
+function onKey(e){if(e.key==='Escape'&&document.querySelector('.sx-lightbox')){e.preventDefault();closeZoom();}}
 const rate=()=>{const m=S.tree?.meta||{};return {rate:num(m.rate)||212.2,fee:m.fee==null?0.05:num(m.fee)};};
 const toKrw=y=>{const r=rate();return num(y)*r.rate*(1+r.fee);};
 // PC 자동 처리(mumutori-auto board_watcher.py)가 meta/watcher에 남기는 신호. 15분마다 갱신 → 20분 넘게 없으면 꺼짐으로 본다.
@@ -84,10 +98,10 @@ function card(r){
   const meta=[r.moq?`최소 ${esc(r.moq)}${esc(r.unit||'개')}`:'',r.weightG?`${esc(r.weightG)}g`:'',r.shop?.years?`판매처 ${esc(r.shop.years)}년`:'',r.shop?.repeat?`재구매 ${esc(r.shop.repeat)}`:''].filter(Boolean).join(' · ');
   const mark=(k,label)=>`<button type="button" class="sx-mark ${m[k]?'on '+k:''}" data-sx="mark" data-id="${esc(r.id)}" data-k="${k}" aria-pressed="${!!m[k]}">${label}</button>`;
   // 옵션 사진이 없으면 대표 사진을 흐리게 + '대표' 표시(옵션 사진처럼 보이지 않게). 1688 원래 옵션명(spec)은 복사해서 1688 페이지에서 찾는다.
-  const optImg=o=>o.img?img(o.img,120):`<span class="sx-optfb" title="1688에 이 옵션 사진이 없어 상품 대표 사진을 보여 줍니다">${img(r.img,120)}<em>대표</em></span>`;
+  const optImg=o=>zoom(o.img||r.img,o.img?img(o.img,120):`<span class="sx-optfb" title="1688에 이 옵션 사진이 없어 상품 대표 사진을 보여 줍니다">${img(r.img,120)}<em>대표</em></span>`,{cap:o.ko||o.spec,spec:o.spec,rep:!o.img});
   const optRows=m.like&&opts.length?`<div class="sx-opts"><b>옵션·수량 담기</b><a class="sx-optlink" href="${esc(r.url)}" target="_blank" rel="noopener">1688에서 옵션 대조 ↗</a><small class="sx-opthelp">회색 글자 = 1688 옵션명 · '복사' 후 1688 페이지에서 Ctrl+F(휴대폰은 페이지 내 찾기)</small>${opts.map(o=>{const lid=r.id+'~'+keyOf(o.spec),line=S.tree?.cart?.[lid];const dk=lid;return `<div class="sx-opt">${optImg(o)}<span>${esc(o.ko||o.spec)}${o.img?'':'<small class="sx-nofoto">옵션 사진 없음 · 대표 사진</small>'}<small class="sx-spec"><span lang="zh">${esc(o.spec)}</span> <button type="button" class="sx-copy" data-sx="copy" data-text="${esc(o.spec)}" aria-label="1688 옵션명 복사: ${esc(o.spec)}">복사</button></small><small>${yuan(o.price)}${o.weightG?' · '+esc(o.weightG)+'g':''}</small></span><input type="number" min="1" step="1" inputmode="numeric" aria-label="${esc((o.ko||o.spec)+' 수량')}" id="sx-q-${esc(dk)}" data-sx-draft="${esc(dk)}" value="${esc(S.draft[dk]??(line?.qty||r.qty||''))}"><button type="button" class="primary" data-sx="add" data-id="${esc(r.id)}" data-spec="${esc(o.spec)}">${line?'수정':'담기'}</button></div>`;}).join('')}${inCart.length?`<span class="sx-in">장바구니에 ${inCart.map(l=>esc((l.ko||l.spec)+' '+l.qty+'개')).join(', ')}</span>`:''}</div>`:'';
   return `<article class="sx-card ${st}">
-    <a class="sx-img" href="${esc(r.url)}" target="_blank" rel="noopener">${img(r.img,310)}</a>
+    ${r.img?zoom(r.img,img(r.img,310),{cap:r.name,cls:'sx-img'}):`<a class="sx-img" href="${esc(r.url)}" target="_blank" rel="noopener">${img('',310)}</a>`}
     <div class="sx-body">
       <div class="sx-top"><span class="sx-pid">${esc(r.pid||'')}</span>${r.warn?`<span class="badge amber">⚠ ${esc(r.warn)}</span>`:''}${list(r.tags).map(x=>`<span class="badge">${esc(x)}</span>`).join('')}</div>
       <h3><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.name)}</a></h3>
@@ -106,7 +120,7 @@ function setCard(id,s,items){
   const total=parts.reduce((a,p)=>a+num(p.o?.price??p.it?.priceMin)*p.q,0);
   const mk=s.mark||{};
   return `<article class="sx-set ${mk.like?'like':mk.bad?'bad':''}"><h3>${esc(s.name||id)}</h3>${s.desc?`<p class="sx-desc">${esc(s.desc)}</p>`:''}
-    <div class="sx-parts">${parts.map(p=>`<a href="${esc(p.it?.url||'#')}" target="_blank" rel="noopener" title="${esc((p.o?.ko?p.o.ko+' · ':'')+p.spec+(p.o&&!p.o.img?' (옵션 사진 없음 · 대표 사진)':''))}">${img(p.o?.img||p.it?.img,120)}<span>${esc(p.it?.name||p.offerId)}${p.q>1?' ×'+p.q:''}</span>${p.it&&S.tree?.marks?.[p.offerId]?.design?'<em>👎</em>':''}</a>`).join('')}</div>
+    <div class="sx-parts">${parts.map(p=>`<div class="sx-part">${zoom(p.o?.img||p.it?.img,img(p.o?.img||p.it?.img,120),{cap:(p.it?.name||p.offerId)+(p.o?.ko?' · '+p.o.ko:''),spec:p.spec,rep:!!(p.o&&!p.o.img)})}<a href="${esc(p.it?.url||'#')}" target="_blank" rel="noopener" title="${esc((p.o?.ko?p.o.ko+' · ':'')+p.spec+(p.o&&!p.o.img?' (옵션 사진 없음 · 대표 사진)':''))}">${esc(p.it?.name||p.offerId)}${p.q>1?' ×'+p.q:''}</a>${p.it&&S.tree?.marks?.[p.offerId]?.design?'<em>👎</em>':''}</div>`).join('')}</div>
     <div class="sx-price"><b>${yuan(total)}</b> <span>≈ ${krw(toKrw(total))} · 세트 1개 상품가${s.defaultCount?` · 제안 ${esc(s.defaultCount)}세트`:''}</span></div>
     <div class="sx-marks two"><button type="button" class="sx-mark ${mk.like?'on like':''}" data-sx="set-mark" data-id="${esc(id)}" data-k="like">💗 이 세트 좋아요</button><button type="button" class="sx-mark ${mk.bad?'on design':''}" data-sx="set-mark" data-id="${esc(id)}" data-k="bad">👎 별로</button></div>
     <input class="sx-note" id="sx-sn-${esc(id)}" data-sx-setnote="${esc(id)}" maxlength="300" placeholder="세트에 한마디" value="${esc(mk.note||'')}"></article>`;
@@ -130,7 +144,7 @@ function cartTab(){
   const likedNoCart=itemRows().filter(r=>r.mark.like&&!lines.some(l=>l.offerId===r.id));
   let totalY=0,weight=0,weightKnown=true;
   const rows=lines.map(l=>{const it=items[l.offerId]||{},sub=num(l.price)*num(l.qty);totalY+=sub;if(l.weightG)weight+=num(l.weightG)*num(l.qty);else weightKnown=false;
-    return `<tr><td>${img(l.img||it.img,120,'sx-cart-img')}</td><td class="maincell"><b><a href="${esc(it.url||'#')}" target="_blank" rel="noopener">${esc(it.name||l.offerId)}</a></b><span class="sub">${esc(l.ko||'')}</span><span class="sub sx-spec"><span lang="zh">${esc(l.spec)}</span> <button type="button" class="sx-copy" data-sx="copy" data-text="${esc(l.spec)}" aria-label="1688 옵션명 복사: ${esc(l.spec)}">복사</button></span></td><td><input type="number" min="1" step="1" class="sx-qty" id="sx-cq-${esc(l.id)}" data-sx-qty="${esc(l.id)}" aria-label="수량" value="${esc(l.qty)}"></td><td class="num">${yuan(l.price)}</td><td class="num"><b>${yuan(sub)}</b></td><td class="num">${krw(toKrw(sub))}</td><td>${`<button type="button" class="text danger" data-sx="remove" data-id="${esc(l.id)}">빼기</button>`}</td></tr>`;}).join('');
+    return `<tr><td>${zoom(l.img||it.img,img(l.img||it.img,120,'sx-cart-img'),{cap:(it.name||l.offerId)+(l.ko?' · '+l.ko:''),spec:l.spec,rep:!l.img})}</td><td class="maincell"><b><a href="${esc(it.url||'#')}" target="_blank" rel="noopener">${esc(it.name||l.offerId)}</a></b><span class="sub">${esc(l.ko||'')}</span><span class="sub sx-spec"><span lang="zh">${esc(l.spec)}</span> <button type="button" class="sx-copy" data-sx="copy" data-text="${esc(l.spec)}" aria-label="1688 옵션명 복사: ${esc(l.spec)}">복사</button></span></td><td><input type="number" min="1" step="1" class="sx-qty" id="sx-cq-${esc(l.id)}" data-sx-qty="${esc(l.id)}" aria-label="수량" value="${esc(l.qty)}"></td><td class="num">${yuan(l.price)}</td><td class="num"><b>${yuan(sub)}</b></td><td class="num">${krw(toKrw(sub))}</td><td>${`<button type="button" class="text danger" data-sx="remove" data-id="${esc(l.id)}">빼기</button>`}</td></tr>`;}).join('');
   const reqs=Object.entries(t.requests||{}).sort((a,b)=>String(b[1].at||'').localeCompare(String(a[1].at||''))).slice(0,5);
   const r=rate();
   return `${likedNoCart.length?`<div class="note amber">💗만 누르고 수량을 안 담은 상품 ${likedNoCart.length}개: ${likedNoCart.map(x=>`<b>${esc(x.name)}</b>`).join(', ')} — 후보 탭에서 옵션·수량을 담아 주세요.</div>`:''}
@@ -176,6 +190,7 @@ async function onClick(e){
   const {sx,id,k,spec}=el.dataset;
   try{
     if(sx==='tab'){S.tab=id;refresh();window.scrollTo({top:0});return;}
+    if(sx==='zoom'){openZoom(el);return;}
     if(sx==='copy'){const ok=await copyText(el.dataset.text||'');notify(ok?'1688 옵션명을 복사했습니다 — 1688 페이지에서 Ctrl+F(휴대폰은 페이지 내 찾기)로 붙여 넣어 찾으세요.':'복사하지 못했습니다 — 회색 글자를 길게 눌러 직접 복사해 주세요.',!ok);return;}
     if(sx==='mark'){
       const m={...(S.tree?.marks?.[id]||{})},on=!m[k];
@@ -228,7 +243,7 @@ export default function renderPage(c){
   ctx=c;
   if(!started){
     started=true;
-    document.addEventListener('click',onClick);document.addEventListener('change',onChange);document.addEventListener('input',onInput);document.addEventListener('submit',onSubmit,true);
+    document.addEventListener('click',onClick);document.addEventListener('change',onChange);document.addEventListener('input',onInput);document.addEventListener('submit',onSubmit,true);document.addEventListener('keydown',onKey);
     connect();
   }
   return ctx.head('소싱 보드','Claude가 1688에서 찾은 후보를 보고 💗·👎·💸와 한마디를 남기세요. 표시는 바로 저장되고, Claude가 다음 소싱과 발주에 반영합니다.',`<a class="inline-link" href="purchases.html">매입·원가로 ↗</a>`)+`<div id="sx-root">${view()}</div>`;

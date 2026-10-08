@@ -56,6 +56,26 @@ const fixture=()=>({
  assert.match(await page.locator('#toast').textContent(),/복사했습니다/);
  assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),'白色>30cm');
  console.log('PASS option rows show 1688 option name with copy, mark missing option photos, link to 1688');
+
+ // 사진 크게 보기: 옵션 사진(원본 주소·옵션명) → Esc, 대표 사진 옵션 → × 버튼, 카드 대표 사진(키보드 Enter) → 배경 클릭
+ const lb=page.locator('.sx-lightbox');
+ await optRow.nth(0).locator('[data-sx="zoom"]').click();await lb.waitFor();
+ assert.equal(await lb.locator('img').getAttribute('src'),'https://cbu01.alicdn.com/img/ibank/b.jpg');
+ assert.equal(await lb.locator('img').getAttribute('referrerpolicy'),'no-referrer');
+ assert.match(await lb.locator('figcaption').textContent(),/노랑 20cm[\s\S]*黄色>20cm/);
+ assert.equal(await lb.locator('.badge.red').count(),0);
+ await page.keyboard.press('Escape');assert.equal(await lb.count(),0);
+ await optRow.nth(1).locator('[data-sx="zoom"]').click();await lb.waitFor();
+ assert.match(await lb.locator('figcaption').textContent(),/옵션 사진 없음 · 대표 사진[\s\S]*흰색 30cm[\s\S]*白色>30cm/);
+ assert.equal(await lb.locator('img').getAttribute('src'),'https://cbu01.alicdn.com/img/ibank/a.jpg');
+ await lb.locator('.sx-lb-close').click();assert.equal(await lb.count(),0);
+ await duck.locator('.sx-zoom.sx-img').focus();await page.keyboard.press('Enter');await lb.waitFor();
+ assert.match(await lb.locator('figcaption').textContent(),/멍한 오리/);
+ await page.mouse.click(5,5);assert.equal(await lb.count(),0);
+ await page.locator('.sx-set .sx-part [data-sx="zoom"]').first().click();await lb.waitFor();
+ assert.match(await lb.locator('figcaption').textContent(),/멍한 오리 · 노랑 20cm/);
+ await page.keyboard.press('Escape');assert.equal(await lb.count(),0);
+ console.log('PASS photos open large (original URL, option names, 대표 사진 badge) and close by Esc, × and backdrop');
  await page.locator('.sx-card.like .sx-opt input').first().fill('12');
  await page.locator('.sx-card.like .sx-opt button[data-sx="add"]').first().click();
  w=writes.find(x=>x.method==='PUT'&&x.path.startsWith('cart/111~'));assert.equal(w.body.qty,12);assert.equal(w.body.spec,'黄色>20cm');assert.equal(w.body.price,3.5);
@@ -64,6 +84,9 @@ const fixture=()=>({
  await page.locator('[data-sx="tab"][data-id="cart"]').click();
  assert.equal(await page.locator('.sx-qty').inputValue(),'12');
  assert.match(await page.locator('tbody .sx-spec').first().textContent(),/黄色>20cm/);
+ await page.locator('tbody [data-sx="zoom"]').first().click();await page.locator('.sx-lightbox').waitFor();
+ assert.match(await page.locator('.sx-lightbox figcaption').textContent(),/멍한 오리 · 노랑 20cm/);
+ await page.keyboard.press('Escape');assert.equal(await page.locator('.sx-lightbox').count(),0);
  assert.match(await page.locator('.sx-total').textContent(),/¥42/);
  assert.match(await page.locator('.sx-total').textContent(),/8,820원/); // 42 × 200 × 1.05
  await page.locator('[data-sx="request"]').click();
@@ -78,7 +101,11 @@ const fixture=()=>({
  assert.doesNotMatch(await other.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute('content'),/firebase/);
  assert.ok(await other.locator('.handoff-strip a[href="sourcing.html"]').count());
  await other.close();
- for(const width of [390,768]){await page.setViewportSize({width,height:900});await page.goto(ORIGIN+'sourcing.html');await page.locator('.sx-card').first().waitFor();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'no horizontal scroll at '+width);}
+ for(const width of [390,768]){await page.setViewportSize({width,height:900});await page.goto(ORIGIN+'sourcing.html');await page.locator('.sx-card').first().waitFor();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'no horizontal scroll at '+width);
+  await page.locator('.sx-card .sx-zoom.sx-img').first().click();const fig=await page.locator('.sx-lightbox figure').boundingBox();
+  assert.ok(fig.x>=0&&fig.y>=0&&fig.x+fig.width<=width+1&&fig.y+fig.height<=901,'large photo fits screen at '+width);
+  const close=await page.locator('.sx-lb-close').boundingBox();assert.ok(close.x>=0&&close.x+close.width<=width+1&&close.y>=0,'close button visible at '+width);
+  await page.keyboard.press('Escape');}
  assert.deepEqual(errors,[]);
  console.log('PASS other pages keep strict CSP, purchases links to sourcing, mobile widths, no runtime errors');
  await browser.close();
