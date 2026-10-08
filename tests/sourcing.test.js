@@ -42,13 +42,28 @@ const fixture=()=>({
  let w=writes.find(x=>x.path==='marks/111');assert.equal(w.method,'PATCH');assert.equal(w.body.like,true);assert.equal(w.body.design,false);
  await duck.locator('.sx-note').fill('표정 좋아');await duck.locator('.sx-note').press('Tab');
  await page.waitForFunction(()=>true);assert.ok(writes.some(x=>x.path==='marks/111'&&x.body.note==='표정 좋아'));
+ // 옵션 줄: 1688 원래 옵션명 + 복사, 옵션 사진 없으면 '대표 사진' 표시, 1688 대조 링크
+ const optRow=page.locator('.sx-card.like .sx-opt');
+ assert.match(await optRow.nth(0).locator('.sx-spec').textContent(),/黄色>20cm/);
+ assert.equal(await optRow.nth(0).locator('.sx-optfb').count(),0);
+ assert.equal(await optRow.nth(1).locator('.sx-optfb').count(),1);
+ assert.match(await optRow.nth(1).textContent(),/옵션 사진 없음 · 대표 사진/);
+ assert.match(await page.locator('.sx-card.like .sx-optlink').getAttribute('href'),/offer\/111\.html/);
+ assert.match(await page.locator('.sx-card.like .sx-link').textContent(),/1688에서 보기/);
+ await context.grantPermissions(['clipboard-read','clipboard-write'],{origin:'https://mumutori.test'});
+ await optRow.nth(1).locator('[data-sx="copy"]').click();
+ await page.locator('#toast:not([hidden])').waitFor();
+ assert.match(await page.locator('#toast').textContent(),/복사했습니다/);
+ assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),'白色>30cm');
+ console.log('PASS option rows show 1688 option name with copy, mark missing option photos, link to 1688');
  await page.locator('.sx-card.like .sx-opt input').first().fill('12');
- await page.locator('.sx-card.like .sx-opt button').first().click();
+ await page.locator('.sx-card.like .sx-opt button[data-sx="add"]').first().click();
  w=writes.find(x=>x.method==='PUT'&&x.path.startsWith('cart/111~'));assert.equal(w.body.qty,12);assert.equal(w.body.spec,'黄色>20cm');assert.equal(w.body.price,3.5);
  console.log('PASS 💗 mark, note and option quantity are written to shared ledger');
 
  await page.locator('[data-sx="tab"][data-id="cart"]').click();
  assert.equal(await page.locator('.sx-qty').inputValue(),'12');
+ assert.match(await page.locator('tbody .sx-spec').first().textContent(),/黄色>20cm/);
  assert.match(await page.locator('.sx-total').textContent(),/¥42/);
  assert.match(await page.locator('.sx-total').textContent(),/8,820원/); // 42 × 200 × 1.05
  await page.locator('[data-sx="request"]').click();

@@ -83,7 +83,9 @@ function card(r){
   const prices=opts.map(o=>num(o.price)).filter(Boolean),lo=prices.length?Math.min(...prices):num(r.priceMin),hi=prices.length?Math.max(...prices):num(r.priceMax);
   const meta=[r.moq?`최소 ${esc(r.moq)}${esc(r.unit||'개')}`:'',r.weightG?`${esc(r.weightG)}g`:'',r.shop?.years?`판매처 ${esc(r.shop.years)}년`:'',r.shop?.repeat?`재구매 ${esc(r.shop.repeat)}`:''].filter(Boolean).join(' · ');
   const mark=(k,label)=>`<button type="button" class="sx-mark ${m[k]?'on '+k:''}" data-sx="mark" data-id="${esc(r.id)}" data-k="${k}" aria-pressed="${!!m[k]}">${label}</button>`;
-  const optRows=m.like&&opts.length?`<div class="sx-opts"><b>옵션·수량 담기</b>${opts.map(o=>{const lid=r.id+'~'+keyOf(o.spec),line=S.tree?.cart?.[lid];const dk=lid;return `<div class="sx-opt">${img(o.img||r.img,120)}<span>${esc(o.ko||o.spec)}<small>${yuan(o.price)}${o.weightG?' · '+esc(o.weightG)+'g':''}</small></span><input type="number" min="1" step="1" inputmode="numeric" aria-label="${esc((o.ko||o.spec)+' 수량')}" id="sx-q-${esc(dk)}" data-sx-draft="${esc(dk)}" value="${esc(S.draft[dk]??(line?.qty||r.qty||''))}"><button type="button" class="primary" data-sx="add" data-id="${esc(r.id)}" data-spec="${esc(o.spec)}">${line?'수정':'담기'}</button></div>`;}).join('')}${inCart.length?`<span class="sx-in">장바구니에 ${inCart.map(l=>esc((l.ko||l.spec)+' '+l.qty+'개')).join(', ')}</span>`:''}</div>`:'';
+  // 옵션 사진이 없으면 대표 사진을 흐리게 + '대표' 표시(옵션 사진처럼 보이지 않게). 1688 원래 옵션명(spec)은 복사해서 1688 페이지에서 찾는다.
+  const optImg=o=>o.img?img(o.img,120):`<span class="sx-optfb" title="1688에 이 옵션 사진이 없어 상품 대표 사진을 보여 줍니다">${img(r.img,120)}<em>대표</em></span>`;
+  const optRows=m.like&&opts.length?`<div class="sx-opts"><b>옵션·수량 담기</b><a class="sx-optlink" href="${esc(r.url)}" target="_blank" rel="noopener">1688에서 옵션 대조 ↗</a><small class="sx-opthelp">회색 글자 = 1688 옵션명 · '복사' 후 1688 페이지에서 Ctrl+F(휴대폰은 페이지 내 찾기)</small>${opts.map(o=>{const lid=r.id+'~'+keyOf(o.spec),line=S.tree?.cart?.[lid];const dk=lid;return `<div class="sx-opt">${optImg(o)}<span>${esc(o.ko||o.spec)}${o.img?'':'<small class="sx-nofoto">옵션 사진 없음 · 대표 사진</small>'}<small class="sx-spec"><span lang="zh">${esc(o.spec)}</span> <button type="button" class="sx-copy" data-sx="copy" data-text="${esc(o.spec)}" aria-label="1688 옵션명 복사: ${esc(o.spec)}">복사</button></small><small>${yuan(o.price)}${o.weightG?' · '+esc(o.weightG)+'g':''}</small></span><input type="number" min="1" step="1" inputmode="numeric" aria-label="${esc((o.ko||o.spec)+' 수량')}" id="sx-q-${esc(dk)}" data-sx-draft="${esc(dk)}" value="${esc(S.draft[dk]??(line?.qty||r.qty||''))}"><button type="button" class="primary" data-sx="add" data-id="${esc(r.id)}" data-spec="${esc(o.spec)}">${line?'수정':'담기'}</button></div>`;}).join('')}${inCart.length?`<span class="sx-in">장바구니에 ${inCart.map(l=>esc((l.ko||l.spec)+' '+l.qty+'개')).join(', ')}</span>`:''}</div>`:'';
   return `<article class="sx-card ${st}">
     <a class="sx-img" href="${esc(r.url)}" target="_blank" rel="noopener">${img(r.img,310)}</a>
     <div class="sx-body">
@@ -95,7 +97,7 @@ function card(r){
       <div class="sx-marks">${mark('like','💗 좋아요')}${mark('design','👎 디자인 별로')}${mark('price','💸 가격 별로')}</div>
       <input class="sx-note" id="sx-n-${esc(r.id)}" data-sx-note="${esc(r.id)}" maxlength="300" placeholder="한마디 (예: 링크 사진이 더 좋아)" value="${esc(m.note||'')}">
       ${optRows}
-      <a class="sx-link" href="${esc(r.url)}" target="_blank" rel="noopener">1688 링크 ↗ <small>${esc(r.url)}</small></a>
+      <a class="sx-link" href="${esc(r.url)}" target="_blank" rel="noopener">1688에서 보기 ↗ <small>${esc(r.url)}</small></a>
     </div></article>`;
 }
 function setCard(id,s,items){
@@ -104,7 +106,7 @@ function setCard(id,s,items){
   const total=parts.reduce((a,p)=>a+num(p.o?.price??p.it?.priceMin)*p.q,0);
   const mk=s.mark||{};
   return `<article class="sx-set ${mk.like?'like':mk.bad?'bad':''}"><h3>${esc(s.name||id)}</h3>${s.desc?`<p class="sx-desc">${esc(s.desc)}</p>`:''}
-    <div class="sx-parts">${parts.map(p=>`<a href="${esc(p.it?.url||'#')}" target="_blank" rel="noopener" title="${esc(p.o?.ko||p.spec)}">${img(p.o?.img||p.it?.img,120)}<span>${esc(p.it?.name||p.offerId)}${p.q>1?' ×'+p.q:''}</span>${p.it&&S.tree?.marks?.[p.offerId]?.design?'<em>👎</em>':''}</a>`).join('')}</div>
+    <div class="sx-parts">${parts.map(p=>`<a href="${esc(p.it?.url||'#')}" target="_blank" rel="noopener" title="${esc((p.o?.ko?p.o.ko+' · ':'')+p.spec+(p.o&&!p.o.img?' (옵션 사진 없음 · 대표 사진)':''))}">${img(p.o?.img||p.it?.img,120)}<span>${esc(p.it?.name||p.offerId)}${p.q>1?' ×'+p.q:''}</span>${p.it&&S.tree?.marks?.[p.offerId]?.design?'<em>👎</em>':''}</a>`).join('')}</div>
     <div class="sx-price"><b>${yuan(total)}</b> <span>≈ ${krw(toKrw(total))} · 세트 1개 상품가${s.defaultCount?` · 제안 ${esc(s.defaultCount)}세트`:''}</span></div>
     <div class="sx-marks two"><button type="button" class="sx-mark ${mk.like?'on like':''}" data-sx="set-mark" data-id="${esc(id)}" data-k="like">💗 이 세트 좋아요</button><button type="button" class="sx-mark ${mk.bad?'on design':''}" data-sx="set-mark" data-id="${esc(id)}" data-k="bad">👎 별로</button></div>
     <input class="sx-note" id="sx-sn-${esc(id)}" data-sx-setnote="${esc(id)}" maxlength="300" placeholder="세트에 한마디" value="${esc(mk.note||'')}"></article>`;
@@ -128,7 +130,7 @@ function cartTab(){
   const likedNoCart=itemRows().filter(r=>r.mark.like&&!lines.some(l=>l.offerId===r.id));
   let totalY=0,weight=0,weightKnown=true;
   const rows=lines.map(l=>{const it=items[l.offerId]||{},sub=num(l.price)*num(l.qty);totalY+=sub;if(l.weightG)weight+=num(l.weightG)*num(l.qty);else weightKnown=false;
-    return `<tr><td>${img(l.img||it.img,120,'sx-cart-img')}</td><td class="maincell"><b><a href="${esc(it.url||'#')}" target="_blank" rel="noopener">${esc(it.name||l.offerId)}</a></b><span class="sub">${esc(l.ko||'')} · ${esc(l.spec)}</span></td><td><input type="number" min="1" step="1" class="sx-qty" id="sx-cq-${esc(l.id)}" data-sx-qty="${esc(l.id)}" aria-label="수량" value="${esc(l.qty)}"></td><td class="num">${yuan(l.price)}</td><td class="num"><b>${yuan(sub)}</b></td><td class="num">${krw(toKrw(sub))}</td><td>${`<button type="button" class="text danger" data-sx="remove" data-id="${esc(l.id)}">빼기</button>`}</td></tr>`;}).join('');
+    return `<tr><td>${img(l.img||it.img,120,'sx-cart-img')}</td><td class="maincell"><b><a href="${esc(it.url||'#')}" target="_blank" rel="noopener">${esc(it.name||l.offerId)}</a></b><span class="sub">${esc(l.ko||'')}</span><span class="sub sx-spec"><span lang="zh">${esc(l.spec)}</span> <button type="button" class="sx-copy" data-sx="copy" data-text="${esc(l.spec)}" aria-label="1688 옵션명 복사: ${esc(l.spec)}">복사</button></span></td><td><input type="number" min="1" step="1" class="sx-qty" id="sx-cq-${esc(l.id)}" data-sx-qty="${esc(l.id)}" aria-label="수량" value="${esc(l.qty)}"></td><td class="num">${yuan(l.price)}</td><td class="num"><b>${yuan(sub)}</b></td><td class="num">${krw(toKrw(sub))}</td><td>${`<button type="button" class="text danger" data-sx="remove" data-id="${esc(l.id)}">빼기</button>`}</td></tr>`;}).join('');
   const reqs=Object.entries(t.requests||{}).sort((a,b)=>String(b[1].at||'').localeCompare(String(a[1].at||''))).slice(0,5);
   const r=rate();
   return `${likedNoCart.length?`<div class="note amber">💗만 누르고 수량을 안 담은 상품 ${likedNoCart.length}개: ${likedNoCart.map(x=>`<b>${esc(x.name)}</b>`).join(', ')} — 후보 탭에서 옵션·수량을 담아 주세요.</div>`:''}
@@ -164,11 +166,17 @@ function refresh(){
 
 // ---- 조작
 const now=()=>new Date().toISOString();
+async function copyText(t){
+  try{await navigator.clipboard.writeText(t);return true;}catch(e){}
+  const a=document.createElement('textarea');a.value=t;a.setAttribute('readonly','');a.style.cssText='position:fixed;opacity:0;top:0;left:0';document.body.appendChild(a);a.select();
+  let ok=false;try{ok=document.execCommand('copy');}catch(e){}a.remove();return ok;
+}
 async function onClick(e){
   const el=e.target.closest('[data-sx]');if(!el||!el.closest('#sx-root'))return;
   const {sx,id,k,spec}=el.dataset;
   try{
     if(sx==='tab'){S.tab=id;refresh();window.scrollTo({top:0});return;}
+    if(sx==='copy'){const ok=await copyText(el.dataset.text||'');notify(ok?'1688 옵션명을 복사했습니다 — 1688 페이지에서 Ctrl+F(휴대폰은 페이지 내 찾기)로 붙여 넣어 찾으세요.':'복사하지 못했습니다 — 회색 글자를 길게 눌러 직접 복사해 주세요.',!ok);return;}
     if(sx==='mark'){
       const m={...(S.tree?.marks?.[id]||{})},on=!m[k];
       const next={like:k==='like'?on:(on?false:!!m.like),design:k==='design'?on:(k==='like'&&on?false:!!m.design),price:k==='price'?on:(k==='like'&&on?false:!!m.price),at:now(),by:'대시보드'};
