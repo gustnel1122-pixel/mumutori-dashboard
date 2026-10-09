@@ -267,12 +267,12 @@ const fixture=()=>{if(scenarioTree)return structuredClone(scenarioTree);const t=
  assert.deepEqual(errors,[]);console.log('PASS multiple reasons/memo, opt-in/risk separation, cancel/Esc/backdrop, edit/restore, doubleclick idempotency, old watcher blocks orders, manual review queue and mobile');
 
  // 검수 요청 전달 상태 표시(전달됨 / 전달 못 함). 가짜 요청 기록만 사용.
- for(const [dispatch,expect] of [[{status:'sent',at:'2026-10-09T04:30:00Z',target:'claude-f9',messageId:'m-1'},/소싱 담당 Claude에게 전달됨[\s\S]*검수 결과 대기/],[{status:'target_absent',at:'2026-10-09T04:30:00Z',note:'대상 대화 없음'},/전달 못 함\(대상 대화 없음\)/]]){
+ for(const [dispatch,expect] of [[{status:'sent',at:'2026-10-09T04:30:00Z',target:'claude-f9',messageId:'m-1'},/소싱 담당 Claude에게 전달됨[\s\S]*검수 결과 대기/],[{status:'target_absent',at:'2026-10-09T04:30:00Z',note:'대상 대화 없음'},/전달 못 함\(대상 대화 없음\)/],[{status:'delivery_unknown',at:'2026-10-09T04:30:00Z',note:'보내던 처리기가 끝남'},/전달 여부 모름[\s\S]*자동으로 다시 보내지 않음/]]){
   scenarioTree=fixture();const fp=testPolicy.skuSnapshot('111',scenarioTree.items['111'],'黄色>20cm');scenarioTree.cart={['111~'+testPolicy.keyOfSpec('黄色>20cm')]:{offerId:'111',spec:'黄色>20cm',ko:'노랑 20cm',price:3.5,qty:20,img:'https://cbu01.alicdn.com/img/ibank/b.jpg',at:'2026-10-09T04:00:00Z'}};
   scenarioTree.reviewRequests={'v-dispatch-test':{offerId:'111',spec:'黄色>20cm',fingerprint:fp,policyVersion:testPolicy.POLICY_VERSION,status:'manual_pending',at:'2026-10-09T04:29:00Z',by:'시험',dispatch}};
   await page.setViewportSize({width:1440,height:1000});await page.goto(ORIGIN+'sourcing.html');await page.locator('.sx-card').first().waitFor();await page.locator('[data-sx="tab"][data-id="cart"]').click();
   assert.match(await page.locator('.sx-sku-status').first().textContent(),expect);}
- scenarioTree=null;assert.deepEqual(errors,[]);console.log('PASS review request dispatch status shows sent / not sent without claiming approval');
+ scenarioTree=null;assert.deepEqual(errors,[]);console.log('PASS review request dispatch status shows sent / not sent / unknown without claiming approval');
 
  await browser.close();
 })().catch(e=>{console.error(e);process.exit(1);});
