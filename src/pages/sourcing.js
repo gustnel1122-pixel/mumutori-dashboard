@@ -1,7 +1,8 @@
 // 소싱 보드 — 1688 후보 고르기(💗/👎/💸·한마디)와 발주 장바구니.
 // 자료는 ERP 원장(localStorage)과 별개로 Firebase Realtime DB `sourcing/`에 있다(로그인 없이 공유, 2026-10-07 사장님 결정).
 // Claude는 mumutori-auto/sourcing_db.py로 같은 경로를 읽고 써서, 표시를 다음 소싱·발주에 반영한다.
-import {identity,originalUrl,exclusion,reviewProblems,recommendable} from '../sourcing-policy.js';
+import {identity,originalUrl,exclusion,reviewProblems,recommendable,POLICY_VERSION,keyOfSpec,skuSnapshot,skuReviewProblems,orderProblems} from '../sourcing-policy.js';
+import {touchedPaths,remember,revertTouched} from '../sourcing-sync.js';
 const DB='https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.app/sourcing';
 const S={tree:null,status:'connecting',tab:'items',round:'',filter:'전체',cat:'',q:'',draft:{},err:'',quoteOpen:false};
 let ctx=null,started=false,source=null,pollTimer=null,searchTimer=null;
@@ -30,7 +31,7 @@ function openZoom(el){
   document.body.appendChild(d);document.body.style.overflow='hidden';zoomOpener=el;d.querySelector('.sx-lb-close').focus();
 }
 function closeZoom(){const d=document.querySelector('.sx-lightbox');if(!d)return;d.remove();document.body.style.overflow='';if(zoomOpener&&document.contains(zoomOpener))zoomOpener.focus();zoomOpener=null;}
-function onKey(e){if(e.key==='Escape'&&document.querySelector('.sx-lightbox')){e.preventDefault();closeZoom();}}
+function onKey(e){if(e.key==='Escape'){if(document.querySelector('.sx-lightbox')){e.preventDefault();closeZoom();}else if(reasonDialog){e.preventDefault();closeReasons();}}}
 // 1688 옵션명에서 모양·치수 뽑기(사장님 2026-10-08: 옵션 사진이 같아 무엇이 무엇인지 모름). 예: 平口圆形【9*9*邦高10把高23】 → 평평한 원형 / 9×9 · 몸통 높이 10 · 손잡이까지 23
 const SHAPES=[['平口圆形','평평한 원형'],['正方形','정사각'],['长方形','직사각'],['方形','사각'],['椭圆形','타원'],['椭圆','타원'],['圆形','원형'],['心形','하트'],['六角形','육각'],['八角形','팔각']];
 const DIM_WORDS=[['邦高',' · 몸통 높이 '],['把高',' · 손잡이까지 '],['篮口','입구 '],['含手提','손잡이 포함'],['全长','전체 길이 '],['直径','지름 '],['高度','높이 '],['长度','길이 '],['高','높이 '],['长','길이 '],['宽','폭 '],['厘米','cm'],['公分','cm'],['，',' · '],[',',' · '],['（','('],['）',')'],['小号','소 '],['中号','중 '],['大号','대 ']];
@@ -48,7 +49,7 @@ const rate=()=>{const m=S.tree?.meta||{};return {rate:num(m.rate)||212.2,fee:m.f
 const toKrw=y=>{const r=rate();return num(y)*r.rate*(1+r.fee);};
 // PC 자동 처리(mumutori-auto board_watcher.py)가 meta/watcher에 남기는 신호. 15분마다 갱신 → 20분 넘게 없으면 꺼짐으로 본다.
 const REQ_TONE={'요청':'amber','처리중':'amber','작성됨':'green','확인 필요':'red'};
-const watcher=()=>{const w=S.tree?.meta?.watcher;const off='PC가 꺼져 있으면 Claude 대화에서 "보드 요청 확인해줘"라고 말해 주세요.';if(!w?.at)return {on:false,text:'PC 자동 처리 신호 없음 — '+off};const t=new Date(w.at).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});return (Date.now()-new Date(w.at).getTime())/60000<=20?{on:true,text:`PC 자동 처리 켜짐 · 요청하면 1분 안팎으로 신청서를 채웁니다 (마지막 신호 ${t}${w.state==='처리중'?' · 지금 처리 중':''})`}:{on:false,text:`PC 자동 처리 꺼짐 (마지막 신호 ${t}) — ${off}`};};
+const watcher=()=>{const w=S.tree?.meta?.watcher;const off='PC가 꺼져 있으면 Claude 대화에서 "보드 요청 확인해줘"라고 말해 주세요.';if(!w?.at)return {on:false,text:'PC 자동 처리 신호 없음 — '+off};if(w.version!==POLICY_VERSION)return {on:false,label:'적용 대기',text:'검수 기능 적용 대기 — 담당자가 PC 처리기를 업데이트한 뒤 신청서를 요청할 수 있습니다.'};const t=new Date(w.at).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});return (Date.now()-new Date(w.at).getTime())/60000<=20?{on:true,text:`PC 자동 처리 켜짐 · 요청하면 1분 안팎으로 신청서를 채웁니다 (마지막 신호 ${t}${w.state==='처리중'?' · 지금 처리 중':''})`}:{on:false,text:`PC 자동 처리 꺼짐 (마지막 신호 ${t}) — ${off}`};};
 
 function notify(text,error=false){const t=document.getElementById('toast');if(!t)return;t.className='toast'+(error?' error':'');t.textContent=text;t.hidden=false;clearTimeout(notify.timer);notify.timer=setTimeout(()=>t.hidden=true,4000);}
 
@@ -81,14 +82,10 @@ function connect(){
   source.onerror=()=>{if(++failures>=3){source.close();poll();return;}S.status='retry';refresh();};
 }
 async function send(method,path,body){
-  if(method!=='GET'){
-    if(method==='DELETE')setAt(path,null);
-    else if(method==='PATCH')for(const [k,v] of Object.entries(body))setAt(path+'/'+k,v);
-    else setAt(path,body);
-    refresh();
-  }
-  const r=await fetch(`${DB}/${path}.json`,{method,headers:{'Content-Type':'application/json'},body:method==='DELETE'?undefined:JSON.stringify(body)});
-  if(!r.ok){readAll().catch(()=>{});throw Error(r.status===401?'Firebase 쓰기 권한이 없습니다. 규칙을 확인해야 합니다.':'저장하지 못했습니다 ('+r.status+').');}
+ const touched=touchedPaths(method,path,body),prior=remember(S.tree,touched);
+ if(touched.length){for(const [p,v] of touched)setAt(p,v);refresh();}
+ try{const r=await fetch(`${DB}/${path}.json`,{method,headers:{'Content-Type':'application/json'},body:method==='DELETE'?undefined:JSON.stringify(body)});if(!r.ok)throw Error(r.status===401?'Firebase 쓰기 권한이 없습니다.':'저장하지 못했습니다 ('+r.status+').');}
+ catch(err){S.tree=revertTouched(S.tree,touched,prior);refresh();await readAll().catch(()=>{});throw err;}   // 실패 시 이번에 바꾼 칸만 되돌림(그 사이 실시간 변경 보존)
 }
 
 // ---- 화면
@@ -119,7 +116,7 @@ function chosenVisual(l,it={},cls='sx-cart-img'){
 const isAdmitted=r=>recommendable(r.id,r,S.tree?.marks||{});
 function excludedTab(){
  const t=S.tree||{},rows=Object.entries(t.marks||{}).filter(([,m])=>m.exclusion).sort((a,b)=>String(b[1].exclusion.at||'').localeCompare(String(a[1].exclusion.at||'')));
- return `<div class="note">추천에서만 제외합니다. 기존 상품·표시·장바구니·신청 이력은 보존합니다. 복구해도 검수 요건은 다시 확인하며, 기존 👎 표시는 그대로입니다.</div><div class="sx-review-list">${rows.map(([mid,m])=>{const x=m.exclusion,it=t.items?.[mid]||Object.values(t.items||{}).find(it=>identity('',it.url)===x.identity)||{};return `<article class="sx-review-card"><b>${esc(it.name||x.name||mid)}</b><span class="badge ${x.active?'red':'green'}">${x.active?'추천 제외':'복구됨'}</span><p>${esc(x.reason||'사용자 추천 제외')}</p><small>${x.restoredAt?'복구 '+esc(x.restoredAt)+' · ':''}${esc(x.at||'')} · ${esc(x.by||'')} · ${esc(x.identity||'')}</small><p>${list(m.exclusionEvents).map(e=>esc((e.action==='restore'?'복구':'제외')+' · '+e.at+' · '+e.by)).join('<br>')}</p><a href="${esc(x.sourceUrl||originalUrl(mid,it.url))}" target="_blank" rel="noopener">원본 상품</a>${x.active?`<button type="button" data-sx="restore" data-id="${esc(mid)}">추천 제외 복구</button>`:''}</article>`;}).join('')||'<p>추천 제외 내역이 없습니다.</p>'}</div>`;
+ return `<div class="note">추천에서만 제외합니다. 기존 상품·표시·장바구니·신청 이력은 보존합니다. 복구해도 검수 요건은 다시 확인하며, 기존 👎 표시는 그대로입니다.</div><div class="sx-review-list">${rows.map(([mid,m])=>{const x=m.exclusion,it=t.items?.[mid]||Object.values(t.items||{}).find(it=>identity('',it.url)===x.identity)||{};return `<article class="sx-review-card"><b>${esc(it.name||x.name||mid)}</b><span class="badge ${x.active?'red':'green'}">${x.active?'추천 제외':'복구됨'}</span><p>${esc(x.memo||x.reason||'사유 미기록 · 상품만 제외')}</p><p>${list(x.reasons).map(r=>esc(r.label||r.dimension)).join(' · ')}</p><small>${x.active&&x.applyNext?'구체 선호를 다음 후보에도 적용':'상품만 제외 · 선호 자동 확대 없음'}</small><button type="button" data-sx="exclude" data-id="${esc(mid)}">사유·범위 수정</button><small>${x.restoredAt?'복구 '+esc(x.restoredAt)+' · ':''}${esc(x.at||'')} · ${esc(x.by||'')} · ${esc(x.identity||'')}</small><p>${list(m.exclusionEvents).map(e=>esc((e.action==='restore'?'복구':'제외')+' · '+e.at+' · '+e.by)).join('<br>')}</p><a href="${esc(x.sourceUrl||originalUrl(mid,it.url))}" target="_blank" rel="noopener">원본 상품</a>${x.active?`<button type="button" data-sx="restore" data-id="${esc(mid)}">추천 제외 복구</button>`:''}</article>`;}).join('')||'<p>추천 제외 내역이 없습니다.</p>'}</div>`;
 }
 function reviewTab(){
  const rows=itemRows().filter(r=>!exclusion(r.id,r,S.tree?.marks||{})&&!isAdmitted(r));
@@ -182,23 +179,23 @@ function cartTab(){
   const likedNoCart=itemRows().filter(r=>r.mark.like&&!lines.some(l=>l.offerId===r.id));
   let totalY=0,weight=0,weightKnown=true;
   const rows=lines.map(l=>{const it=items[l.offerId]||{},sub=num(l.price)*num(l.qty);totalY+=sub;if(l.weightG)weight+=num(l.weightG)*num(l.qty);else weightKnown=false;
-    return `<tr><td>${chosenVisual(l,it)}</td><td class="maincell"><b><a href="${esc(it.url||'#')}" target="_blank" rel="noopener">${esc(it.name||l.offerId)}</a></b><span class="sub">${esc(l.ko||'')}</span><span class="sub sx-spec"><span lang="zh">${esc(l.spec)}</span> <button type="button" class="sx-copy" data-sx="copy" data-text="${esc(l.spec)}" aria-label="1688 옵션명 복사: ${esc(l.spec)}">복사</button></span></td><td><input type="number" min="1" step="1" class="sx-qty" id="sx-cq-${esc(l.id)}" data-sx-qty="${esc(l.id)}" aria-label="수량" value="${esc(l.qty)}"></td><td class="num">${yuan(l.price)}</td><td class="num"><b>${yuan(sub)}</b></td><td class="num">${krw(toKrw(sub))}</td><td>${`<button type="button" class="text danger" data-sx="remove" data-id="${esc(l.id)}">빼기</button>`}</td></tr>`;}).join('');
+    return `<tr><td>${chosenVisual(l,it)}</td><td class="maincell"><b><a href="${esc(it.url||'#')}" target="_blank" rel="noopener">${esc(it.name||l.offerId)}</a></b><span class="sub">${esc(l.ko||'')}</span>${skuStatus(l,it)}<span class="sub sx-spec"><span lang="zh">${esc(l.spec)}</span> <button type="button" class="sx-copy" data-sx="copy" data-text="${esc(l.spec)}" aria-label="1688 옵션명 복사: ${esc(l.spec)}">복사</button></span></td><td><input type="number" min="1" step="1" class="sx-qty" id="sx-cq-${esc(l.id)}" data-sx-qty="${esc(l.id)}" aria-label="수량" value="${esc(l.qty)}"></td><td class="num">${yuan(l.price)}</td><td class="num"><b>${yuan(sub)}</b></td><td class="num">${krw(toKrw(sub))}</td><td>${`<button type="button" class="text danger" data-sx="remove" data-id="${esc(l.id)}">빼기</button>`}</td></tr>`;}).join('');
   const reqs=Object.entries(t.requests||{}).sort((a,b)=>String(b[1].at||'').localeCompare(String(a[1].at||''))).slice(0,5);
   const r=rate();
   return `${likedNoCart.length?`<div class="note amber">💗만 누르고 수량을 안 담은 상품 ${likedNoCart.length}개: ${likedNoCart.map(x=>`<b>${esc(x.name)}</b>`).join(', ')} — 후보 탭에서 옵션·수량을 담아 주세요.</div>`:''}
     <div class="panel section-gap"><div class="tablewrap"><table class="table"><thead><tr><th>사진</th><th>상품 / 옵션</th><th>수량</th><th class="num">단가</th><th class="num">소계</th><th class="num">≈ 원화</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="7"><div class="empty"><b>장바구니가 비어 있습니다.</b>후보에서 💗 → 옵션·수량 담기</div></td></tr>`}</tbody></table></div>
     <div class="sx-total"><span>상품 ${lines.length}줄 · ${lines.reduce((a,l)=>a+num(l.qty),0)}개</span><span>합계 <b>${yuan(totalY)}</b> ≈ <b>${krw(toKrw(totalY))}</b></span><small>환율 ${r.rate}원 × 구매대행 수수료 ${Math.round(r.fee*100)}% 포함 · 1688 판매자 배송비·국제 배송비·관부가세 별도(배송비 포함 예상은 아래 견적 줄)${weight?` · 무게 약 ${(weight/1000).toFixed(2)}kg${weightKnown?'':'(일부 무게 모름)'}`:''}</small></div></div>
-    <div class="sx-request"><div><b>배대지 신청서</b><p>요청하면 PC의 자동 처리 프로그램이 이 장바구니로 아이템스카우트 배대지 신청서를 채우고 캡처합니다. <b>신청하기는 확인을 받은 뒤에</b> 누릅니다.</p><p><span class="badge ${watcher().on?'green':'amber'}">${watcher().on?'켜짐':'꺼짐'}</span> ${esc(watcher().text)}</p></div><button type="button" class="primary" data-sx="request" ${lines.length?'':'disabled'}>Claude에게 신청서 작성 요청</button></div>
+    <div class="sx-request"><div><b>배대지 신청서</b><p>선택 옵션 정밀검수 완료와 새 감시기 버전 확인 후 요청하면 PC의 자동 처리 프로그램이 이 장바구니로 아이템스카우트 배대지 신청서를 채우고 캡처합니다. <b>신청하기는 확인을 받은 뒤에</b> 누릅니다.</p><p><span class="badge ${watcher().on?'green':'amber'}">${watcher().label||(watcher().on?'켜짐':'꺼짐')}</span> ${esc(watcher().text)}</p></div><button type="button" class="primary" data-sx="request" ${lines.length?'':'disabled'}>검수 확인 후 신청서 작성 요청</button></div>
     ${reqs.length?`<div class="sx-reqs">${reqs.map(([id,q])=>`<div><span class="badge ${REQ_TONE[q.status]||'amber'}">${esc(q.status||'요청')}</span> ${esc(new Date(q.at).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}))} · ${esc(q.summary||'')}${q.reply?` — <b>${esc(q.reply)}</b>`:''}</div>`).join('')}<small>'작성됨'이면 PC 크롬의 [작성본] 탭과 드라이브 구매대행/요청작성본에서 확인하고, 신청하려면 Claude에게 "신청해줘"라고 말해 주세요. '확인 필요'는 사유를 보고 Claude에게 맡겨 주세요.</small></div>`:''}`;
 }
 function tasteTab(){
   const t=S.tree||{},rules=Object.entries(t.taste||{}).sort((a,b)=>String(a[1].at||'').localeCompare(String(b[1].at||''))),all=itemRows();
   const KIND={avoid:['피하기','red'],prefer:['좋아함','green'],price:['가격','amber'],rule:['기준','']};
   const gallery=(title,rows,why)=>`<div class="sx-section"><h2>${title}</h2><span>${why}</span></div><div class="sx-thumbs">${rows.length?rows.map(r=>`<a href="${esc(r.url)}" target="_blank" rel="noopener" title="${esc(r.mark.note||'')}">${img(r.img,120)}<span>${esc(r.name)}</span>${r.mark.note?`<em>${esc(r.mark.note)}</em>`:''}</a>`).join(''):'<p class="sub">아직 없습니다.</p>'}</div>`;
-  return `<div class="note">Claude는 다음 소싱 전에 이 규칙과 표시를 읽습니다. 👎 받은 상품과 같은 상품은 다시 제안하지 않고, 💸 받은 종류에는 가격 상한을 둡니다. 규칙이 틀렸으면 끄거나 고쳐 주세요.</div>
+  return `<div class="note">수집기와 게시 도우미는 최신 활성 규칙과 제외 사유를 평가하고 결과를 기록합니다. 자유문장 규칙·미기록 속성은 담당 확인 대기로 남깁니다. 한 상품의 취향을 종류 전체로 확대하지 않습니다.</div>
     <div class="panel section-gap"><ul class="sx-rules">${rules.map(([id,r])=>`<li class="${r.active===false?'off':''}"><span class="badge ${KIND[r.kind]?.[1]||''}">${KIND[r.kind]?.[0]||'기준'}</span><p>${esc(r.text)}<small>${esc(r.source||'')}${r.by?' · '+esc(r.by):''}</small></p><label class="sx-switch"><input type="checkbox" data-sx-rule="${esc(id)}" ${r.active===false?'':'checked'}> 적용</label></li>`).join('')||'<li><p>아직 규칙이 없습니다.</p></li>'}</ul>
     <form class="sx-addrule" data-sx-form="rule"><select name="kind" aria-label="규칙 종류"><option value="avoid">피하기</option><option value="prefer">좋아함</option><option value="price">가격</option><option value="rule">기준</option></select><input name="text" maxlength="200" required placeholder="예: 반짝이 소재는 빼 줘" aria-label="새 규칙"><button type="submit" class="primary">규칙 추가</button></form></div>
-    ${gallery('💗 좋아한 것',all.filter(r=>r.mark.like),'이런 결로 더 찾습니다')}${gallery('👎 디자인 별로',all.filter(r=>r.mark.design),'같은 상품·같은 결은 빼고 찾습니다')}${gallery('💸 가격 별로',all.filter(r=>r.mark.price),'이 가격대는 비싸다고 봅니다')}`;
+    ${gallery('💗 좋아한 것',all.filter(r=>r.mark.like),'이런 결로 더 찾습니다')}${gallery('👎 디자인 별로',all.filter(r=>r.mark.design),'같은 상품 제외 · 구체 선호는 명시한 범위만 적용')}${gallery('💸 가격 별로',all.filter(r=>r.mark.price),'이 가격대는 비싸다고 봅니다')}`;
 }
 // ---- 실시간 예상 견적(사장님 2026-10-08: "담은 거 실시간으로 아래 견적"). 요율은 장부 meta/ship, 없으면 아래 기본값.
 // 기본값 근거: 배대지 웨이하이 항공 요금표 Gold(사업자) 0.5kg 5,990원·0.5kg당 +1,820원(guide_08.php?tr_no=28, 2026-10-08 확인),
@@ -264,6 +261,27 @@ function refresh(){
 
 // ---- 조작
 const now=()=>new Date().toISOString();
+
+const REASONS=[['expression','design','표정'],['color','design','색감'],['shape','design','형태'],['materialFeel','design','재질감'],['brandMood','design','브랜드 분위기'],['price','purchase','가격'],['moq','purchase','MOQ'],['size','purchase','크기'],['quality','purchase','품질'],['imitation','risk','모방 의심'],['certification','risk','인증 확인 필요']];
+let reasonDialog=null,reasonOpener=null;
+const pendingActions=new Set();
+function closeReasons(){if(!reasonDialog||reasonDialog.dataset.busy==='1')return;reasonDialog.remove();reasonDialog=null;document.body.style.overflow='';if(reasonOpener&&document.contains(reasonOpener))reasonOpener.focus();reasonOpener=null;}
+function openReasons(id,opener){closeReasons();const it=S.tree.items[id]||{},old=S.tree.marks?.[id]?.exclusion||{};reasonOpener=opener;
+ const d=document.createElement('div');d.className='sx-reason-modal';d.setAttribute('role','dialog');d.setAttribute('aria-modal','true');d.setAttribute('aria-label','추천 제외 사유');d.dataset.item=id;d.dataset.event='e'+crypto.randomUUID();d.dataset.at=now();
+ d.innerHTML=`<form><h2>${esc(it.name||id)} · 추천 제외 사유</h2><p>여러 이유를 선택할 수 있습니다. 이 상품만 제외가 기본입니다.</p><fieldset><legend>디자인 · 구매 조건 · 판매위험</legend>${REASONS.map(([key,kind,label])=>'<label class="sx-reason-row"><input type="checkbox" name="'+key+'" '+(list(old.reasons).some(r=>r.dimension===key)?'checked':'')+'>'+esc(label)+' ('+({design:'디자인',purchase:'구매 조건',risk:'판매위험'})[kind]+')'+(kind==='risk'?'':'<input name="v-'+key+'" aria-label="'+esc(label)+' 다음 후보 조건" placeholder="'+(['price','moq'].includes(key)?'허용 상한 숫자':'다음에 피할 구체 속성')+'" value="'+esc(list(old.preferences).find(p=>p.dimension===key)?.value||'')+'">')+'</label>').join('')}</fieldset><label>메모<textarea name="memo" maxlength="1000">${esc(old.memo||old.reason||'')}</textarea></label><fieldset><legend>적용 범위</legend><label><input type="radio" name="scope" value="item" ${old.applyNext?'':'checked'}>이 상품만 제외</label><label><input type="radio" name="scope" value="next" ${old.applyNext?'checked':''}>이 선호를 다음 후보 선정에도 적용</label><label>다음 후보 분류 범위<input name="category" value="${esc(list(old.preferences)[0]?.scope??it.cat??'')}" placeholder="빈칸이면 모든 분류"></label><small>구체 속성만 반영합니다. 한 펭귄 제외를 모든 펭귄 기피로 확대하지 않습니다. 모방·인증은 별도 검수합니다.</small></fieldset><p role="status"></p><div class="sx-reason-actions"><button type="button" data-reason-cancel>취소</button><button type="submit" class="primary">사유 저장</button></div></form>`;
+ d.addEventListener('click',e=>{if(e.target===d||e.target.closest('[data-reason-cancel]'))closeReasons();});d.addEventListener('submit',saveReasons);document.body.appendChild(d);reasonDialog=d;document.body.style.overflow='hidden';d.querySelector('textarea').focus();
+}
+async function saveReasons(e){e.preventDefault();const d=reasonDialog;if(!d||d.dataset.busy==='1')return;const f=new FormData(e.target),id=d.dataset.item,it=S.tree.items[id]||{},old=S.tree.marks?.[id]?.exclusion||{},reasons=REASONS.filter(([key])=>f.has(key)).map(([dimension,kind,label])=>({dimension,kind,label})),applyNext=f.get('scope')==='next',preferences=reasons.filter(r=>r.kind!=='risk'&&String(f.get('v-'+r.dimension)||'').trim()).map(r=>({...r,value:String(f.get('v-'+r.dimension)).trim(),scope:String(f.get('category')||'').trim()}));
+ if(applyNext&&(!preferences.length||reasons.filter(r=>r.kind!=='risk').some(r=>!preferences.some(p=>p.dimension===r.dimension)))){d.querySelector('[role="status"]').textContent='다음 후보에 적용할 구체 속성·상한을 입력하세요. 판매위험은 취향으로 확대하지 않습니다.';return;}
+ const at=d.dataset.at,x={...old,active:true,identity:identity(id,it.url),offerId:id,sourceUrl:originalUrl(id,it.url),name:it.name||id,reasons,memo:String(f.get('memo')||'').trim(),reason:String(f.get('memo')||'').trim(),applyNext,preferences:applyNext?preferences:[],at,by:'사장님 보드',restoredAt:null};d.dataset.busy='1';d.querySelectorAll('button,input,textarea').forEach(el=>el.disabled=true);
+ try{await send('PATCH','marks/'+id,{exclusion:x,['exclusionEvents/'+d.dataset.event]:{action:old.active?'edit':'exclude',at,by:x.by,identity:x.identity,reasons,memo:x.memo,applyNext,preferences:x.preferences}});d.dataset.busy='0';closeReasons();notify('추천 제외 사유를 저장했습니다. 다음 소싱 적용 범위를 구분해 기록했습니다.');}
+ catch(err){d.dataset.busy='0';d.querySelectorAll('button,input,textarea').forEach(el=>el.disabled=false);d.querySelector('[role="status"]').textContent=err.message;}
+}
+function skuStatus(l,it){const r=it.skuReviews?.[keyOfSpec(l.spec)]||{},problems=skuReviewProblems(l.offerId,it,l.spec),requests=Object.values(S.tree.reviewRequests||{}).filter(q=>q.offerId===l.offerId&&q.spec===l.spec&&q.fingerprint===skuSnapshot(l.offerId,it,l.spec));const pending=requests.find(q=>['manual_pending','in_review'].includes(q.status));if(pending)problems.unshift('수동 정밀검수 대기·진행 중');const disp=pending?.status==='manual_pending'?dispatchText(pending.dispatch):'';return `<div class="sx-sku-status"><span class="badge ${problems.length?'amber':'green'}">${esc(problems.length?({in_review:'검수 중',need_info:'추가 정보 필요',not_recommended:'권장하지 않음'})[r.status]||'선택 옵션 미검수·재검수':'확인 범위 내 진행 검토 가능')}</span><small>${esc(problems.join(' · '))}</small>${disp?'<small class="sx-dispatch">'+esc(disp)+'</small>':''}${r.by?'<small>검수자 '+esc(r.by)+' · '+esc(r.at||'')+' · 유효 '+esc(r.expiresAt||'')+'</small>':''}${Object.values(r.checks||{}).map(c=>'<p>'+esc(c.note||'')+' '+list(c.evidence).map(u=>'<a href="'+esc(/^https:\/\//.test(u)?u:'#')+'" target="_blank" rel="noopener">근거</a>').join(' ')+'</p>').join('')}<button type="button" data-sx="sku-review" data-id="${esc(l.id)}">${pending?'수동 검수 대기':'선택 옵션 검수 요청'}</button><small>Claude 전달은 검수 요청을 넘기는 것일 뿐 자동 승인이 아닙니다 · 담기는 주문 승인이 아닙니다.</small></div>`;}
+// 검수 요청 전달 상태(PC 감시기 → 소싱 담당 Claude 대화, 2026-10-09). 결과는 담당이 원문·사진을 본 뒤 기록한다.
+function dispatchText(d){const t=d?.at?new Date(d.at).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'';if(!d)return '전달 대기 — PC 감시기가 소싱 담당 Claude에게 보냅니다';if(d.status==='sending')return 'Claude에게 전달 중';if(d.status==='sent')return `소싱 담당 Claude에게 전달됨 ${t} · 검수 결과 대기`;return '전달 못 함('+(d.note||d.status)+') — 수동 검수 대기';}
+async function requestSku(lid){if(pendingActions.has('review:'+lid))return;const l=S.tree.cart[lid],it=S.tree.items[l.offerId]||{},fingerprint=skuSnapshot(l.offerId,it,l.spec);if(!fingerprint)throw Error('장부에 없는 선택 옵션입니다.');const prior=Object.values(S.tree.reviewRequests||{}).find(q=>q.offerId===l.offerId&&q.spec===l.spec&&q.fingerprint===fingerprint&&['manual_pending','in_review'].includes(q.status));if(prior){notify('이미 검수 대기 중입니다.');return;}pendingActions.add('review:'+lid);try{const rid='v'+crypto.randomUUID();await send('PUT','reviewRequests/'+rid,{offerId:l.offerId,spec:l.spec,fingerprint,policyVersion:POLICY_VERSION,status:'manual_pending',operator:'수동 담당 검수',at:now(),image:list(it.options).find(o=>o.spec===l.spec)?.img||'',by:'사장님 보드'});notify('검수 요청 저장 · PC가 소싱 담당 Claude에게 전달합니다. 결과는 담당이 원문·사진을 확인한 뒤 기록합니다.');}finally{pendingActions.delete('review:'+lid);}}
+
 async function copyText(t){
   try{await navigator.clipboard.writeText(t);return true;}catch(e){}
   const a=document.createElement('textarea');a.value=t;a.setAttribute('readonly','');a.style.cssText='position:fixed;opacity:0;top:0;left:0';document.body.appendChild(a);a.select();
@@ -277,16 +295,13 @@ async function onClick(e){
     if(sx==='zoom'){openZoom(el);return;}
     if(sx==='quote'){S.quoteOpen=!S.quoteOpen;refresh();return;}
     if(sx==='copy'){const ok=await copyText(el.dataset.text||'');notify(ok?'1688 옵션명을 복사했습니다 — 1688 페이지에서 Ctrl+F(휴대폰은 페이지 내 찾기)로 붙여 넣어 찾으세요.':'복사하지 못했습니다 — 회색 글자를 길게 눌러 직접 복사해 주세요.',!ok);return;}
-    if(sx==='exclude'){
-      const it=S.tree.items[id]||{},old=S.tree.marks?.[id]?.exclusion||{};
-      const eventId='e'+Date.now().toString(36);
-      await send('PATCH','marks/'+id,{['exclusionEvents/'+eventId]:{action:'exclude',at:now(),by:'사장님 보드',identity:identity(id,it.url),reason:S.tree.marks?.[id]?.note||'사용자 추천 제외'},exclusion:{...old,active:true,identity:identity(id,it.url),offerId:id,sourceUrl:originalUrl(id,it.url),name:it.name||id,reason:S.tree.marks?.[id]?.note||'사용자 추천 제외',at:now(),by:'사장님 보드',restoredAt:null}});
-      notify('추천에서 제외했습니다. 장바구니·신청 이력은 그대로입니다.');return;
-    }
+    if(sx==='sku-review'){await requestSku(id);return;}
+    if(sx==='exclude'){openReasons(id,el);return;}
     if(sx==='restore'){
       const old=S.tree.marks?.[id]?.exclusion;if(!old)return;
-      const eventId='e'+Date.now().toString(36);
-      await send('PATCH','marks/'+id,{['exclusionEvents/'+eventId]:{action:'restore',at:now(),by:'사장님 보드',identity:old.identity},exclusion:{...old,active:false,restoredAt:now(),restoredBy:'사장님 보드'}});
+      if(pendingActions.has('restore:'+id))return;pendingActions.add('restore:'+id);
+      const eventId='e'+crypto.randomUUID();
+      try{await send('PATCH','marks/'+id,{['exclusionEvents/'+eventId]:{action:'restore',at:now(),by:'사장님 보드',identity:old.identity},exclusion:{...old,active:false,restoredAt:now(),restoredBy:'사장님 보드',applyNext:false}});}finally{pendingActions.delete('restore:'+id);}
       notify('추천 제외를 복구했습니다. 검수 상태와 기존 표시는 유지됩니다.');return;
     }
     if(sx==='mark'){
@@ -309,9 +324,12 @@ async function onClick(e){
     if(sx==='remove'){await send('DELETE','cart/'+id);notify('장바구니에서 뺐습니다.');}
     if(sx==='request'){
       const lines=cartLines();if(!lines.length)return;
-      if(lines.some(l=>!recommendable(l.offerId,S.tree.items?.[l.offerId]||{},S.tree.marks||{})))throw Error('검수 대기·추천 제외 품목이 있습니다. 기존 장바구니는 유지되며 검토 후 새 신청서를 요청하세요.');
+      if(pendingActions.has('order'))return;
+      const issues=orderProblems(lines,S.tree.items||{},S.tree.marks||{},S.tree.meta?.watcher||{},S.tree.reviewRequests||{});if(issues.length)throw Error('검수 대기: '+issues.join(' · '));pendingActions.add('order');
+      const duplicate=Object.values(S.tree.requests||{}).find(q=>['요청','처리중'].includes(q.status)&&JSON.stringify(Object.values(q.lines||{}).map(l=>[l.offerId,l.spec,l.qty,l.fingerprint,l.reviewResultId]).sort())===JSON.stringify(lines.map(l=>[l.offerId,l.spec,l.qty,skuSnapshot(l.offerId,S.tree.items[l.offerId],l.spec),S.tree.items[l.offerId].skuReviews[keyOfSpec(l.spec)].resultId]).sort()));
+      if(duplicate){pendingActions.delete('order');notify('같은 장바구니 신청서 요청이 이미 대기·처리 중입니다.');return;}
       const total=lines.reduce((a,l)=>a+num(l.price)*num(l.qty),0),rid='r'+Date.now().toString(36);
-      await send('PUT','requests/'+rid,{kind:'배대지 신청서',status:'요청',at:now(),summary:`${lines.length}줄 ${lines.reduce((a,l)=>a+num(l.qty),0)}개 · ${yuan(total)}`,lines:Object.fromEntries(lines.map(l=>[l.id,{offerId:l.offerId,spec:l.spec,ko:l.ko||'',qty:l.qty,price:l.price}]))});
+      try{await send('PUT','requests/'+rid,{policyVersion:POLICY_VERSION,kind:'배대지 신청서',status:'요청',at:now(),summary:`${lines.length}줄 ${lines.reduce((a,l)=>a+num(l.qty),0)}개 · ${yuan(total)}`,lines:Object.fromEntries(lines.map(l=>[l.id,{offerId:l.offerId,spec:l.spec,ko:l.ko||'',qty:l.qty,price:l.price,fingerprint:skuSnapshot(l.offerId,S.tree.items[l.offerId],l.spec),reviewResultId:S.tree.items[l.offerId].skuReviews[keyOfSpec(l.spec)].resultId}]))});}finally{pendingActions.delete('order');}
       notify('요청을 남겼습니다. Claude가 확인하면 신청서를 채웁니다.');
     }
   }catch(err){notify(err.message,true);}

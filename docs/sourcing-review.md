@@ -26,3 +26,45 @@
 - [SafetyKorea 안전확인 대상 어린이제품](https://www.safetykorea.kr/policy/targetsSafetyCheck3): 완구 등 대상·절차.
 - [생활법령 어린이용품 구입 주의사항](https://easylaw.go.kr/CSP/CnpClsMain.laf?ccfNo=4&cciNo=3&cnpClsNo=1&csmSeq=690&popMenu=ov): 제도 구분.
 - [식약처 수입식품정보마루](https://impfood.mfds.go.kr/CFAGG01F01): 현재 직접 열기는 권한 오류. 특정 품목 근거를 확인하지 못했다면 승인 근거로 쓰지 말고 보류.
+
+
+## Explicit preferences and selected-option review (2026-10-09)
+
+Exclusion reasons are multi-select design / purchasing conditions / sales risk plus a memo. The default scope excludes this original item only. Future selection opt-in requires explicit attribute values and a category scope; it does not infer dislike of a species from one product. Restoration disables only the preferences derived from that exclusion. Legacy exclusions without reasons remain intact. Sales risk is reviewed separately.
+
+The actual batch collector and every item put/update/push_round evaluate current active preferences, storing per-rule matched / not_matched / unknown / not_applicable, observed attribute and source. Unknown/free-text criteria remain on hold for the responsible operator. Publication re-evaluates rather than trusting collection-time data. It does not claim that an AI has interpreted a memo.
+
+Recommendation precheck remains required. Cart is selection intent. Selected-option detailed review is independent and binds the original item, supplier, exact option, selected and source images, main/option material, model, use and age. Results expire within seven days. A consider result requires image observation, classification and product/supplier/IP/regulatory evidence, reviewer/time, request/result IDs, matching policy/fingerprint and resolved risk flags. This records consideration within confirmed scope, not legal or safety certification.
+
+No automated AI operator is connected. The UI saves reviewRequests with manual_pending. The existing approved human/agent can read the request, perform the review, and call sourcing_db.complete_review(request_id, result). In-progress, need_info and not_recommended cannot execute. The intake rejects mismatched, expired, cancelled, superseded and changed-input results; exact completed replays are idempotent. Errors remain visible; no success is fabricated. No API keys or paid model calls are added.
+
+UI request creation requires a fresh watcher heartbeat whose version equals POLICY_VERSION. The currently running watcher is not restarted by this implementation, so the new UI blocks execution requests until operational activation. Requests bind result IDs and fingerprints. Fresh helper/selection conversion, watcher ledger check, live source comparison and pre-fill validation reject incomplete/stale/legacy/mixed requests. Direct bdj.fill_order validates the current ledger; bdj.submit requires revalidate_draft matching actual rows and a final current evidence check, as well as the separate existing user submission approval. No submission occurs in tests.
+
+These are client/helper gates, not new Firebase authorization rules. Privileged raw REST writes remain outside this enforcement; read-to-write concurrency is not a server transaction. Every later order validation rechecks current evidence, and any changed fingerprint remains blocked even if an old result record arrives. All tests use synthetic intercepted data. Production cart/quantities/marks/requests are preserved.
+
+
+## Follow-up fixes, policy `2026-10-09-sku2` (Claude, 2026-10-09)
+
+- **Separate production and dev code (D).** The PC helpers are not in git, so dev code was moved out of the production folder. `C:\Users\ilc57\mumutori-auto\*.py` is again the approved v1, which the scheduled watcher and fresh processes load. The v2 dev code with these fixes lives in `mumutori-auto\dev\sourcing-v2\`. To apply it, see `mumutori-auto\dev\README.md`; it needs explicit approval and a watcher restart. Until then, the watcher heartbeat reports the old version, so this UI keeps blocking execution requests.
+- **Live source check (A).** The watcher compares only fields that `s1688.detail()` actually returns:
+  - offer id and title,
+  - main image set (or only the main image for legacy items with no `sourceImages`),
+  - supplier name and URL,
+  - selected option existence and option image.
+
+  Material, model, age and use are not read from 1688. They are therefore never treated as "changed", and they are never treated as confirmed either; the review record must still carry them with evidence. Thumbnail suffixes and differences in URL scheme are normalised.
+- **Legacy free-text taste rules (B).** These still hold candidates, but now have a way out:
+  - `record_preference_check` stores an owner check per item and per rule. It requires a note, a checker and https evidence, and it goes stale when the rule or the item snapshot changes.
+  - `structure_rule` attaches an attribute and value with history. The original text and history are preserved; existing history entries cannot be changed or deleted, and risk kinds are refused.
+  - Nothing is released automatically, and `prefer` rules never hold.
+- **Options without an option photo (C).** These need option-specific evidence registered through `register_option_evidence`. A representative photo alone is refused. The review must record observing that evidence, and changing the evidence changes the fingerprint, so the option needs re-review.
+- **Queue writes (E).**
+  - Whole or empty `requests` and `reviewRequests` writes are refused, and so are deletes.
+  - Request fields are whitelisted. Review status follows fixed transitions.
+  - `skuReviews` can only be written together with the matching completion (`complete_review`).
+  - Order validation also requires a completed queue entry whose result ID matches.
+- **Times (F).** UTC `Z` and `+09:00` are parsed onto one axis. Unparseable times block conservatively.
+- **Concurrent writes (G, H).**
+  - G: a nested item write sends only the changed and derived paths, and re-reads the item before sending.
+  - H: a failed board save reverts only its own paths, and only if they still hold the value it wrote.
+- **Out-of-ledger re-orders.** Items not in the sourcing ledger keep their original scope through `bdj.fill_order` and old selection files: they can be drafted, and submission still needs the user's approval. Excluded items are still blocked. There is no bypass switch, because any item in the ledger is always gated.
