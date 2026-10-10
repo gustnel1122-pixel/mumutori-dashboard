@@ -4,7 +4,10 @@
 import {identity,originalUrl,exclusion,reviewProblems,recommendable,POLICY_VERSION,keyOfSpec,skuSnapshot,skuReviewProblems,orderProblems} from '../sourcing-policy.js';
 import {touchedPaths,remember,revertTouched} from '../sourcing-sync.js';
 const DB='https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.app/sourcing';
-const S={tree:null,status:'connecting',tab:'items',round:'',filter:'전체',cat:'',q:'',draft:{},err:'',quoteOpen:false};
+// 구글 로그인(2026-10-10 사장님 승인): 보드 읽기·다른 쓰기는 지금처럼 그대로, '선택 옵션 검수 요청'만 운영 계정(구글 로그인) 토큰으로 저장한다.
+// 실제 제한은 Firebase 규칙(reviewRequests: 운영 계정만 새로 만들기, 익명·삭제·결과 변경 금지)이 맡는다. 로그인 도구는 src/fbauth.js.
+const fbauth=await import(`../fbauth.js?v=${document.body.dataset.build}`);
+const S={tree:null,user:null,status:'connecting',tab:'items',round:'',filter:'전체',cat:'',q:'',draft:{},err:'',quoteOpen:false};
 let ctx=null,started=false,source=null,pollTimer=null,searchTimer=null;
 const STATUS={connecting:['연결 중','',''],ok:['실시간 연결됨 · 다른 기기·Claude와 같이 봅니다','ok',''],retry:['연결이 끊겨 다시 잇는 중','bad',''],poll:['실시간 연결이 안 돼 20초마다 새로 읽는 중','bad',''],denied:['Firebase 규칙이 아직 열리지 않았습니다','bad','']};
 const FILTERS=['전체','안 본 것','💗 좋아요','👎 디자인 별로','💸 가격 별로'];
@@ -81,10 +84,10 @@ function connect(){
   source.addEventListener('cancel',()=>{source.close();S.status='denied';refresh();});
   source.onerror=()=>{if(++failures>=3){source.close();poll();return;}S.status='retry';refresh();};
 }
-async function send(method,path,body){
+async function send(method,path,body,opts={}){
  const touched=touchedPaths(method,path,body),prior=remember(S.tree,touched);
  if(touched.length){for(const [p,v] of touched)setAt(p,v);refresh();}
- try{const r=await fetch(`${DB}/${path}.json`,{method,headers:{'Content-Type':'application/json'},body:method==='DELETE'?undefined:JSON.stringify(body)});if(!r.ok)throw Error(r.status===401?'Firebase 쓰기 권한이 없습니다.':'저장하지 못했습니다 ('+r.status+').');}
+ try{const target=opts.auth?await fbauth.dbUrl('sourcing/'+path):`${DB}/${path}.json`;const r=await fetch(target,{method,headers:{'Content-Type':'application/json'},body:method==='DELETE'?undefined:JSON.stringify(body)});if(!r.ok)throw Error(r.status===401?(opts.auth?'이 계정은 검수 요청 권한이 없습니다 — 운영 계정(구글)으로 로그인해 주세요.':'Firebase 쓰기 권한이 없습니다.'):'저장하지 못했습니다 ('+r.status+').');}
  catch(err){S.tree=revertTouched(S.tree,touched,prior);refresh();await readAll().catch(()=>{});throw err;}   // 실패 시 이번에 바꾼 칸만 되돌림(그 사이 실시간 변경 보존)
 }
 
@@ -245,7 +248,8 @@ function quoteBar(){
 }
 function view(){
   const [label,tone]=STATUS[S.status]||STATUS.connecting,t=S.tree||{};
-  const status=`<div class="sx-status ${tone}"><i></i>${esc(label)}${S.err?` · ${esc(S.err)}`:''}${t.meta?.updatedAt?` · Claude 마지막 갱신 ${esc(new Date(t.meta.updatedAt).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}))}`:''}</div>`;
+  const who=S.user?`<span class="sx-who">검수 요청 계정 ${esc(S.user.email)} · <button type="button" class="text" data-sx="logout">로그아웃</button></span>`:`<span class="sx-who"><button type="button" class="text" data-sx="login">구글 로그인(검수 요청용)</button></span>`;
+  const status=`<div class="sx-status ${tone}"><i></i>${esc(label)}${who}${S.err?` · ${esc(S.err)}`:''}${t.meta?.updatedAt?` · Claude 마지막 갱신 ${esc(new Date(t.meta.updatedAt).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}))}`:''}</div>`;
   if(S.status==='denied')return status+`<div class="note error">소싱 자료를 읽을 권한이 없습니다. Firebase 규칙에 <code>sourcing</code> 칸이 열려 있어야 합니다.</div>`;
   if(!S.tree)return status+`<div class="note">소싱 자료를 불러오는 중입니다.</div>`;
   const nCart=Object.keys(t.cart||{}).length,nRule=Object.values(t.taste||{}).filter(r=>r.active!==false).length;
@@ -279,8 +283,9 @@ async function saveReasons(e){e.preventDefault();const d=reasonDialog;if(!d||d.d
 }
 function skuStatus(l,it){const r=it.skuReviews?.[keyOfSpec(l.spec)]||{},problems=skuReviewProblems(l.offerId,it,l.spec),requests=Object.values(S.tree.reviewRequests||{}).filter(q=>q.offerId===l.offerId&&q.spec===l.spec&&q.fingerprint===skuSnapshot(l.offerId,it,l.spec));const pending=requests.find(q=>['manual_pending','in_review'].includes(q.status));if(pending)problems.unshift('수동 정밀검수 대기·진행 중');const disp=pending?.status==='manual_pending'?dispatchText(pending.dispatch):'';return `<div class="sx-sku-status"><span class="badge ${problems.length?'amber':'green'}">${esc(problems.length?({in_review:'검수 중',need_info:'추가 정보 필요',not_recommended:'권장하지 않음'})[r.status]||'선택 옵션 미검수·재검수':'확인 범위 내 진행 검토 가능')}</span><small>${esc(problems.join(' · '))}</small>${disp?'<small class="sx-dispatch">'+esc(disp)+'</small>':''}${r.by?'<small>검수자 '+esc(r.by)+' · '+esc(r.at||'')+' · 유효 '+esc(r.expiresAt||'')+'</small>':''}${Object.values(r.checks||{}).map(c=>'<p>'+esc(c.note||'')+' '+list(c.evidence).map(u=>'<a href="'+esc(/^https:\/\//.test(u)?u:'#')+'" target="_blank" rel="noopener">근거</a>').join(' ')+'</p>').join('')}<button type="button" data-sx="sku-review" data-id="${esc(l.id)}">${pending?'수동 검수 대기':'선택 옵션 검수 요청'}</button><small>Claude 전달은 검수 요청을 넘기는 것일 뿐 자동 승인이 아닙니다 · 담기는 주문 승인이 아닙니다.</small></div>`;}
 // 검수 요청 전달 상태(PC 감시기 → 소싱 담당 Claude 대화, 2026-10-09). 결과는 담당이 원문·사진을 본 뒤 기록한다.
-function dispatchText(d){const t=d?.at?new Date(d.at).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'';if(!d)return '전달 대기 — PC 감시기가 소싱 담당 Claude에게 보냅니다';if(d.status==='sending')return 'Claude에게 전달 중';if(d.status==='sent')return `소싱 담당 Claude에게 전달됨 ${t} · 검수 결과 대기`;if(d.status==='delivery_unknown')return '전달 여부 모름 — 담당이 받은 대화를 확인한 뒤 기록합니다(자동으로 다시 보내지 않음)';return '전달 못 함('+(d.note||d.status)+') — 수동 검수 대기';}
-async function requestSku(lid){if(pendingActions.has('review:'+lid))return;const l=S.tree.cart[lid],it=S.tree.items[l.offerId]||{},fingerprint=skuSnapshot(l.offerId,it,l.spec);if(!fingerprint)throw Error('장부에 없는 선택 옵션입니다.');const prior=Object.values(S.tree.reviewRequests||{}).find(q=>q.offerId===l.offerId&&q.spec===l.spec&&q.fingerprint===fingerprint&&['manual_pending','in_review'].includes(q.status));if(prior){notify('이미 검수 대기 중입니다.');return;}pendingActions.add('review:'+lid);try{const rid='v'+crypto.randomUUID();await send('PUT','reviewRequests/'+rid,{offerId:l.offerId,spec:l.spec,fingerprint,policyVersion:POLICY_VERSION,status:'manual_pending',operator:'수동 담당 검수',at:now(),image:list(it.options).find(o=>o.spec===l.spec)?.img||'',by:'사장님 보드'});notify('검수 요청 저장 · PC가 소싱 담당 Claude에게 전달합니다. 결과는 담당이 원문·사진을 확인한 뒤 기록합니다.');}finally{pendingActions.delete('review:'+lid);}}
+function dispatchText(d){const w=v=>v?new Date(v).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'';const t=w(d?.at);if(!d)return '전달 대기 — PC 감시기가 소싱 담당 Claude에게 보냅니다';if(d.status==='sending')return 'Claude에게 보내는 중';if(d.status==='sent')return `전송함 ${t} · 담당 수신 확인 전 · 검수 결과 대기`;if(d.status==='received')return `소싱 담당 Claude가 받음 ${w(d.receivedAt||d.at)} · 검수 중`;if(d.status==='held')return '수신 보류 — 받는 Claude 대화에서 허락이 필요해요(전송 완료 아님)';if(d.status==='refused')return '받는 Claude 대화가 거절 — 수동 검수 대기';if(d.status==='stale')return '요청 뒤 상품 정보가 바뀌어 전달하지 않았어요 — 다시 요청해 주세요';if(d.status==='delivery_unknown')return '전달 여부 모름 — 담당이 받은 대화를 확인한 뒤 기록합니다(자동으로 다시 보내지 않음)';return '전달 못 함('+(d.note||d.status)+') — 수동 검수 대기';}
+async function requestSku(lid){if(pendingActions.has('review:'+lid))return;const l=S.tree.cart[lid],it=S.tree.items[l.offerId]||{},fingerprint=skuSnapshot(l.offerId,it,l.spec);if(!fingerprint)throw Error('장부에 없는 선택 옵션입니다.');const prior=Object.values(S.tree.reviewRequests||{}).find(q=>q.offerId===l.offerId&&q.spec===l.spec&&q.fingerprint===fingerprint&&['manual_pending','in_review'].includes(q.status));if(prior){notify('이미 검수 대기 중입니다.');return;}if(!S.user){try{await fbauth.signIn();}catch(e){throw Error('검수 요청은 운영 계정(구글)으로 로그인해야 합니다 — '+(e.message||'로그인 실패'));}if(!S.user)S.user=fbauth.current();if(!S.user)throw Error('검수 요청은 운영 계정(구글)으로 로그인해야 합니다.');}
+pendingActions.add('review:'+lid);try{const rid='v'+crypto.randomUUID();await send('PUT','reviewRequests/'+rid,{offerId:l.offerId,spec:l.spec,fingerprint,policyVersion:POLICY_VERSION,status:'manual_pending',operator:'수동 담당 검수',at:now(),image:list(it.options).find(o=>o.spec===l.spec)?.img||'',by:S.user.email.slice(0,100)},{auth:true});notify('검수 요청 저장 · PC가 소싱 담당 Claude에게 전달합니다. 결과는 담당이 원문·사진을 확인한 뒤 기록합니다.');}finally{pendingActions.delete('review:'+lid);}}
 
 async function copyText(t){
   try{await navigator.clipboard.writeText(t);return true;}catch(e){}
@@ -293,6 +298,8 @@ async function onClick(e){
   try{
     if(sx==='tab'){S.tab=id;refresh();window.scrollTo({top:0});return;}
     if(sx==='zoom'){openZoom(el);return;}
+    if(sx==='login'){try{await fbauth.signIn();}catch(e){throw Error('로그인하지 못했습니다 — '+(e.message||''));}return;}
+    if(sx==='logout'){await fbauth.signOut();return;}
     if(sx==='quote'){S.quoteOpen=!S.quoteOpen;refresh();return;}
     if(sx==='copy'){const ok=await copyText(el.dataset.text||'');notify(ok?'1688 옵션명을 복사했습니다 — 1688 페이지에서 Ctrl+F(휴대폰은 페이지 내 찾기)로 붙여 넣어 찾으세요.':'복사하지 못했습니다 — 회색 글자를 길게 눌러 직접 복사해 주세요.',!ok);return;}
     if(sx==='sku-review'){await requestSku(id);return;}
@@ -362,6 +369,7 @@ export default function renderPage(c){
     started=true;
     document.addEventListener('click',onClick);document.addEventListener('change',onChange);document.addEventListener('input',onInput);document.addEventListener('submit',onSubmit,true);document.addEventListener('keydown',onKey);
     connect();
+    fbauth.onAuth(u=>{S.user=u;refresh();});   // 로그인 상태만 표시·검수 요청에 쓴다(읽기 연결은 그대로)
   }
   return ctx.head('소싱 보드','Claude가 1688에서 찾은 후보를 보고 💗·👎·💸와 한마디를 남기세요. 표시는 바로 저장되고, Claude가 다음 소싱과 발주에 반영합니다.',`<a class="inline-link" href="purchases.html">매입·원가로 ↗</a>`)+`<div id="sx-root">${view()}</div>`;
 }
