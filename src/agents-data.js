@@ -1,7 +1,7 @@
 // 무무토리 AI 조직도 — 공개 저장소이므로 역할·범위·연결 방식만 적는다.
 // 세션 ID·주소·파일 경로·원가 같은 내부 정보는 넣지 않는다(정본은 옵시디언 00_인덱스/에이전트 조직도).
 // 담당이 생기거나 바뀌면 총괄 Claude가 이 파일과 볼트 정본을 같은 날 함께 고친다.
-export const ORG_UPDATED='2026-10-11 18:05 KST';
+export const ORG_UPDATED='2026-10-11 23:30 KST';
 export const ORG_EDITOR='총괄 Claude';
 
 // status: active(연결·검증됨) | ready(켜면 쓸 수 있음) | pending(연결 시험 전) | idle(쉬는 중) | retired(종료)
@@ -20,16 +20,17 @@ export const AGENTS=[
    scope:['신청서 작성 요청 처리(신청하기 X)','검수 요청을 소싱 Claude에 전달'],
    out:['신청·결제'],channel:'소싱 보드 버튼 → 자동 실행',status:'active',checked:'2026-10-11 08:39',note:'로그 기준 연결 유지'},
   {id:'dotori',seat:'검증@무무토리',name:'도토리',kind:'ChatGPT',team:'검증·기록',role:'독립 검증·기록 정리',
-   scope:['다른 담당 결과 재검증','공동 기록 정리','지원사업 사이트','조사: 버터 집기 업체·도장/포장재 구매 리스트'],
+   scope:['다른 담당 결과 재검증','공동 기록 정리','지원사업 사이트','조사: 버터 집기 업체·도장/포장재·KC','일일 보고로 실행계획 작성'],
    out:['업체 연락·구매(사장님 승인 필요)'],channel:'ChatGPT 도토리 대화창에 총괄이 입력·확인',status:'active',checked:'2026-10-11 10:09',note:'10/11 조사 업무 추가 · 8시·19시 점검 예약 유지'},
   {id:'codex',seat:'검토@무무토리',name:'Codex',kind:'OpenAI Codex · PC 앱',team:'개발',role:'구현·테스트·코드 검토',
    scope:['범위를 정해 받은 코드 작업','읽기 전용 검토·회귀 시험'],
    out:['push·배포(사장님 승인 필요)'],channel:'PC Codex 앱(무무토리 프로젝트)에 총괄이 입력·확인',status:'active',checked:'2026-10-11 10:15',note:'연결 시험 통과(읽기 전용)'},
   {id:'coupang',seat:'쿠팡@무무토리',name:'쿠팡 담당 Claude',kind:'Claude Code · VS Code',team:'채널 판매',role:'쿠팡 윙·로켓그로스·광고 운영',
-   scope:['쿠팡 현황 파악','운영 가이드'],out:['광고·가격 변경(승인 필요)'],
+   scope:['쿠팡·스마트스토어·자사몰 현황','매일 아침 일일 보고(데이터·개선점·결정 거리)','운영 가이드'],out:['광고·가격 변경(승인 필요)'],
    channel:'원격 연결 화면으로 총괄이 지시·확인',status:'active',checked:'2026-10-11 10:22',note:'1순위: 집 재고 로켓그로스 입고 준비'},
-  {id:'github',seat:'저장소@무무토리',name:'GitHub 관리 Claude',kind:'Claude Code · VS Code',team:'개발',role:'저장소 점검·정리',
-   scope:['저장소 상태 점검'],out:[],channel:'원격 연결 자동 켜짐(시험 전)',status:'ready',checked:'2026-10-11 10:20',note:'총괄이 겸임 중'},
+  {id:'github',seat:'대시보드@무무토리',name:'대시보드 담당 Claude',kind:'Claude Code · VS Code',team:'개발',role:'채널 데이터 취합·재발주 준비·대시보드 반영',
+   scope:['판매처별 판매·재고·소진율 취합','판매 중인 상품 재발주 추천 수량','통합 대시보드 화면 반영','저장소 점검'],out:['발주 신청·장바구니 변경·결제'],
+   channel:'원격 연결 화면으로 총괄이 지시·확인',status:'active',checked:'2026-10-11 23:20',note:'10/11 대시보드 담당으로 지정(기존 GitHub 관리 대화)'},
 ];
 
 // 자리(seat): 대화가 바뀌어도 이름은 그대로 — 바뀐 대화 주소는 볼트 조직도에서만 갈아 끼운다.
@@ -42,7 +43,7 @@ export const PROJECTS=[
   {name:'소싱·초도 발주',lead:'sourcing',helpers:['watcher'],note:'KC 비대상 잡화·재발주 회차 → 장바구니·검수'},
   {name:'포장 기획',lead:'hub',helpers:['dotori','sourcing'],note:'발주 뒤 시작 · 도장·포장재 리스트는 도토리 조사'},
   {name:'레터서비스',lead:'hub',helpers:[],note:'담당 AI 미지정'},
-  {name:'통합 대시보드(ERP)',lead:'hub',helpers:['codex'],note:'코드 작업은 범위를 정해 배정'},
+  {name:'통합 대시보드(ERP)',lead:'github',helpers:['codex','coupang','sourcing'],note:'재발주 준비 표·채널 데이터 취합'},
   {name:'쿠팡·스마트스토어·자사몰',lead:'coupang',helpers:[],note:'쿠팡 결정 대기 12개'},
   {name:'사업지원',lead:'dotori',helpers:[],note:'현금 지원 공고만'},
 ];
