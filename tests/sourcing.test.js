@@ -224,10 +224,19 @@ const fixture=()=>{if(scenarioTree)return structuredClone(scenarioTree);const t=
  scenarioTree.items['555']=mockApprove('555',staged('555','분류 미확인 시험'));scenarioTree.items['555'].review.classification.regime='unknown';
  scenarioTree.items['666']=mockApprove('666',staged('666','변경 이미지 시험'));scenarioTree.items['666'].img='https://cbu01.alicdn.com/changed.jpg';
  scenarioTree.items['777']={name:'사진 없는 기존 선택',url:'https://detail.1688.com/offer/777.html',options:[{spec:'no-photo',ko:'사진 없음 옵션',price:1}],review:{status:'unreviewed'}};
+ scenarioTree.items['888']={...staged('888','같은 판단 묶음 하나'),warn:'KC: 봉제 인형 → 성인 키링으로 팔지? — 1688 표기가 봉제 인형'};scenarioTree.items['889']={...staged('889','같은 판단 묶음 둘'),warn:'KC: 봉제 인형 → 성인 키링으로 팔지? — 1688 표기가 봉제 인형'};
  scenarioTree.cart={'111~legacy':{offerId:'111',spec:'黄色>20cm',ko:'노랑 20cm',img:template.img,price:3.5,qty:2,weightG:40},'222~legacy':{offerId:'222',spec:'圆形',ko:'원형',img:scenarioTree.items['222'].img,price:5.8,qty:1},'777~legacy':{offerId:'777',spec:'no-photo',ko:'사진 없음 옵션',price:1,qty:1}};
  scenarioTree.requests={old:{status:'작성됨',summary:'preserve synthetic request'}};
  await page.goto(ORIGIN+'sourcing.html');await page.locator('.sx-card').first().waitFor();assert.equal(await page.locator('.sx-card').count(),2);
- await page.locator('[data-sx="tab"][data-id="review"]').click();assert.equal(await page.locator('.sx-review-card').count(),5);
+ await page.locator('[data-sx="tab"][data-id="review"]').click();assert.equal(await page.locator('.sx-review-card').count(),7);
+ // 사장님용 기본 모습: 같은 판단은 한 묶음(정할 것 한 줄), 내부 검수 문구는 '자세히'에 접힘, 검수 전 상품은 아래에 접힘
+ assert.equal(await page.locator('.sx-rv-group').count(),1);assert.equal(await page.locator('.sx-rv-group .sx-review-card').count(),2);
+ const groupHead=await page.locator('.sx-rv-group header').innerText();assert.match(groupHead,/KC: 봉제 인형 → 성인 키링으로 팔지\?/);assert.match(groupHead,/2개/);assert.match(groupHead,/1688 표기가 봉제 인형/);
+ assert.equal(await page.locator('.sx-rv-more[open]').count(),0,'internal review wording folded by default');
+ const shown=await page.locator('.sx-rv-group .sx-review-card').first().innerText();assert.match(shown,/같은 판단 묶음/);assert.match(shown,/¥3\.5/);assert.match(shown,/1688 원본/);assert.match(shown,/추천에서 제외/);assert.doesNotMatch(shown,/근거 부족|검수자|미검수/);
+ assert.equal(await page.locator('.sx-rv-rest[open]').count(),0);assert.equal(await page.locator('.sx-rv-rest .sx-review-card').count(),5);assert.match(await page.locator('.sx-rv-rest>summary').innerText(),/아직 검수 전 5개/);
+ await page.locator('.sx-rv-group .sx-rv-more summary').first().click();assert.match(await page.locator('.sx-rv-group .sx-review-card').first().innerText(),/미검수[\s\S]*검수자/);
+ for(const width of [390,1440]){await page.setViewportSize({width,height:900});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'review queue fits '+width);if(process.env.ERP_PROOF_DIR)await page.screenshot({path:path.join(process.env.ERP_PROOF_DIR,'review-queue-'+width+'.png'),fullPage:true});}
  const reviewText=await page.locator('.sx-review-list').textContent();assert.match(reviewText,/근거 없는 일반 후보/);assert.match(reviewText,/미해소 위험 신호/);assert.match(reviewText,/분류.*근거 부족/);assert.match(reviewText,/再検査|재검수/);
  assert.equal(await page.locator('.sx-review-card [data-sx="add"]').count(),0);
  await page.locator('.sx-q-head').click();const chosen=page.locator('.sx-q-item');
