@@ -12,7 +12,7 @@ const fixture=()=>C.migrate({products:[{id:'CHECK-01',name:'연결 검증 상품
  const go=async url=>{await page.goto(ORIGIN+url);await page.locator('h1').waitFor();};
  await go('index.html');await page.screenshot({path:'/tmp/mumutori-studio-home.png',fullPage:true,animations:'disabled'});
  let modules=[];page.on('request',r=>{if(r.url().includes('/src/pages/'))modules.push(new URL(r.url()).pathname);});
- for(const id of ['finance','bank','products','purchases','sales','stock','partners','audit','settings']){
+ for(const id of ['finance','bank','products','purchases','sales','stock','partners','audit','settings','agents']){
   modules=[];await go(id+'.html');assert.equal(await page.locator('body').getAttribute('data-page'),id);assert.equal(await page.locator('nav [aria-current="page"]').getAttribute('data-view'),id);assert.equal(modules.length,1);assert(modules[0].endsWith('/'+id+'.js'));
   assert.equal(await page.locator('iframe').count(),0);assert(await page.locator('h1').isVisible());
   if(['finance','products','stock'].includes(id))await page.screenshot({path:'/tmp/mumutori-studio-'+id+'.png',fullPage:true,animations:'disabled'});
@@ -45,7 +45,7 @@ const fixture=()=>C.migrate({products:[{id:'CHECK-01',name:'연결 검증 상품
  await page.evaluate(()=>localStorage.clear());
  for(const width of [390,768]){
   await page.setViewportSize({width,height:844});
-  for(const name of ['index','finance','products','purchases','sales','stock','bank','partners','audit','settings']){
+  for(const name of ['index','finance','products','purchases','sales','stock','bank','partners','audit','settings','agents']){
    await go(name+'.html');const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1);assert(!overflow,`Page overflow at ${width}: ${name}`);
    if(width===390&&['index','products','finance'].includes(name))await page.screenshot({path:'/tmp/mumutori-studio-mobile-'+name+'.png',fullPage:true,animations:'disabled'});
   }
