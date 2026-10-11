@@ -103,3 +103,5 @@ a{color:inherit;text-decoration:none}button,a,input,select,textarea{-webkit-tap-
 .org-status.warn{background:#fbf1de;color:#8a5a12}.org-status.warn i{background:#d08a1f}
 .org-pending,.org-idle{opacity:.92}
 @media (max-width:640px){.org-node{min-width:0;width:100%}.org-teams{grid-template-columns:1fr}}
+.org-seat{display:inline-block;margin-top:4px;font:10.5px/1.4 ui-monospace,Menlo,Consolas,monospace;color:#2d6650;background:#eef4ee;border-radius:4px;padding:1px 6px}
+.org-pair{margin-bottom:12px}
