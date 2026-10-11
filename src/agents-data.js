@@ -1,7 +1,7 @@
 // 무무토리 AI 조직도 — 공개 저장소이므로 역할·범위·연결 방식만 적는다.
 // 세션 ID·주소·파일 경로·원가 같은 내부 정보는 넣지 않는다(정본은 옵시디언 00_인덱스/에이전트 조직도).
 // 담당이 생기거나 바뀌면 총괄 Claude가 이 파일과 볼트 정본을 같은 날 함께 고친다.
-export const ORG_UPDATED='2026-10-11 09:50 KST';
+export const ORG_UPDATED='2026-10-11 10:00 KST';
 export const ORG_EDITOR='총괄 Claude';
 
 // status: active(연결·검증됨) | ready(켜면 쓸 수 있음) | pending(연결 시험 전) | idle(쉬는 중) | retired(종료)
@@ -21,7 +21,7 @@ export const AGENTS=[
    out:['신청·결제'],channel:'소싱 보드 버튼 → 자동 실행',status:'active',checked:'2026-10-11 08:39',note:'로그 기준 연결 유지'},
   {id:'dotori',name:'도토리',kind:'ChatGPT',team:'검증·기록',role:'독립 검증·기록 정리',
    scope:['다른 담당 결과 재검증','공동 기록 정리','지원사업 사이트'],
-   out:[],channel:'연결 시험 전',status:'pending',checked:'',note:'이전 총괄 역할을 Claude가 인수(10-11)'},
+   out:[],channel:'ChatGPT 도토리 대화창에 총괄이 입력·확인',status:'pending',checked:'2026-10-11 09:48',note:'메시지 수신 확인 · 역할 승인은 사장님 답 대기'},
   {id:'codex',name:'Codex',kind:'OpenAI Codex',team:'개발',role:'구현·테스트·코드 검토 후보',
    scope:['범위를 정해 받은 코드 작업','읽기 전용 검토·회귀 시험'],
    out:[],channel:'연결 시험 전',status:'pending',checked:'',note:'담당 세션 미확정'},
