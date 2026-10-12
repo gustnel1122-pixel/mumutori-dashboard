@@ -7,8 +7,11 @@ const DB='https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.
 // 구글 로그인(2026-10-10 사장님 승인): 보드 읽기·다른 쓰기는 지금처럼 그대로, '선택 옵션 검수 요청'만 운영 계정(구글 로그인) 토큰으로 저장한다.
 // 실제 제한은 Firebase 규칙(reviewRequests: 운영 계정만 새로 만들기, 익명·삭제·결과 변경 금지)이 맡는다. 로그인 도구는 src/fbauth.js.
 const fbauth=await import(`../fbauth.js?v=${document.body.dataset.build}`);
+// 재발주 준비 탭(대시보드 담당 2026-10-12): 표는 src/reorder-view.js, 자료는 장부 meta/reorderPrep. 이 파일에는 탭 연결만 둔다.
+const {reorderTab,reorderCount}=await import(`../reorder-view.js?v=${document.body.dataset.build}`);
 const S={tree:null,user:null,status:'connecting',tab:'items',round:'',filter:'전체',cat:'',q:'',draft:{},err:'',quoteOpen:false};
 let ctx=null,started=false,source=null,pollTimer=null,searchTimer=null;
+if(new URLSearchParams(location.search).get('tab')==='reorder')S.tab='reorder';   // 구매·원가 화면의 '재발주 준비' 링크로 들어온 경우
 const STATUS={connecting:['연결 중','',''],ok:['실시간 연결됨 · 다른 기기·Claude와 같이 봅니다','ok',''],retry:['연결이 끊겨 다시 잇는 중','bad',''],poll:['실시간 연결이 안 돼 20초마다 새로 읽는 중','bad',''],denied:['Firebase 규칙이 아직 열리지 않았습니다','bad','']};
 const FILTERS=['전체','안 본 것','💗 좋아요','👎 디자인 별로','💸 가격 별로'];
 
@@ -266,8 +269,8 @@ function view(){
   if(S.status==='denied')return status+`<div class="note error">소싱 자료를 읽을 권한이 없습니다. Firebase 규칙에 <code>sourcing</code> 칸이 열려 있어야 합니다.</div>`;
   if(!S.tree)return status+`<div class="note">소싱 자료를 불러오는 중입니다.</div>`;
   const nCart=Object.keys(t.cart||{}).length,nRule=Object.values(t.taste||{}).filter(r=>r.active!==false).length;
-  const tabs=`<div class="chips">${[['items','후보 '+itemRows().filter(isAdmitted).length],['cart','장바구니 '+nCart],['taste','취향 규칙 '+nRule],['review','검토 대기 '+itemRows().filter(r=>!exclusion(r.id,r,t.marks||{})&&!isAdmitted(r)).length],['excluded','삭제 내역 '+Object.values(t.marks||{}).filter(m=>m.exclusion?.active).length]].map(([id,l])=>`<button type="button" class="chip ${S.tab===id?'active':''}" data-sx="tab" data-id="${id}">${esc(l)}</button>`).join('')}</div>`;
-  return status+tabs+(S.tab==='cart'?cartTab():S.tab==='taste'?tasteTab():S.tab==='review'?reviewTab():S.tab==='excluded'?excludedTab():itemsTab())+quoteBar();
+  const tabs=`<div class="chips">${[['items','후보 '+itemRows().filter(isAdmitted).length],['cart','장바구니 '+nCart],['reorder','재발주 준비 '+reorderCount(t)],['taste','취향 규칙 '+nRule],['review','검토 대기 '+itemRows().filter(r=>!exclusion(r.id,r,t.marks||{})&&!isAdmitted(r)).length],['excluded','삭제 내역 '+Object.values(t.marks||{}).filter(m=>m.exclusion?.active).length]].map(([id,l])=>`<button type="button" class="chip ${S.tab===id?'active':''}" data-sx="tab" data-id="${id}">${esc(l)}</button>`).join('')}</div>`;
+  return status+tabs+(S.tab==='cart'?cartTab():S.tab==='taste'?tasteTab():S.tab==='review'?reviewTab():S.tab==='excluded'?excludedTab():S.tab==='reorder'?reorderTab(t,{img,yuan}):itemsTab())+quoteBar();
 }
 function refresh(){
   const root=document.getElementById('sx-root');if(!root)return;
