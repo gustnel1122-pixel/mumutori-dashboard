@@ -9,7 +9,12 @@ const DB='https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.
 const fbauth=await import(`../fbauth.js?v=${document.body.dataset.build}`);
 // 재발주 준비 탭(대시보드 담당 2026-10-12): 표는 src/reorder-view.js, 자료는 장부 meta/reorderPrep. 이 파일에는 탭 연결만 둔다.
 const {reorderTab,reorderCount}=await import(`../reorder-view.js?v=${document.body.dataset.build}`);
-const S={tree:null,user:null,status:'connecting',tab:'items',round:'',filter:'전체',cat:'',q:'',draft:{},err:'',quoteOpen:false};
+const S={tree:null,user:null,status:'connecting',tab:'items',round:'',filter:'전체',cat:'',q:'',draft:{},err:'',quoteOpen:false,showHidden:false};
+// 숨긴 상품 보기(2026-10-12 사장님: "부정적인 체크를 하면 추천에서 사라졌으면"): 👎·💸 표시한 상품은 후보 목록에서 가린다. 지우는 것이 아니라 화면에서만 가리고,
+// 표시를 풀면 다시 나온다. 장바구니에 담긴 상품은 가리지 않고 경고만 한다. '보기' 상태는 이 브라우저 탭에서만 기억한다(장부에 쓰지 않음).
+const HIDDEN_KEY='mmt-sx-show-hidden';
+try{S.showHidden=sessionStorage.getItem(HIDDEN_KEY)==='1';}catch(e){}
+const negative=r=>!!(r.mark?.design||r.mark?.price);
 let ctx=null,started=false,source=null,pollTimer=null,searchTimer=null;
 if(new URLSearchParams(location.search).get('tab')==='reorder')S.tab='reorder';   // 구매·원가 화면의 '재발주 준비' 링크로 들어온 경우
 const STATUS={connecting:['연결 중','',''],ok:['실시간 연결됨 · 다른 기기·Claude와 같이 봅니다','ok',''],retry:['연결이 끊겨 다시 잇는 중','bad',''],poll:['실시간 연결이 안 돼 20초마다 새로 읽는 중','bad',''],denied:['Firebase 규칙이 아직 열리지 않았습니다','bad','']};
@@ -142,8 +147,10 @@ function reviewTab(){
  return `<div class="note amber">여기 상품은 아직 담을 수 없어요. <b>정할 것</b>이 적힌 묶음만 보시면 됩니다(답은 총괄 보고판이나 Claude에게).<br><small>KC 기준: 14세 이상 성인용으로 팔면 KC 의무가 없지만 '14세 이상' 표기만으로 정해지지는 않아요 — 모양·광고·주 사용 대상을 함께 봅니다. 검수 기록은 판매 적법성이나 무위험 보증이 아닙니다.</small></div><div class="sx-review-list sx-rv">${[...groups].map(([w,g])=>{const [q,why]=ask(w);return `<section class="sx-rv-group"><header><span class="badge amber">정할 것</span><b>${esc(q)}</b><small>${g.length}개${why?' · '+esc(why):''}</small></header><div class="sx-rv-grid">${g.map(reviewCard).join('')}</div></section>`;}).join('')}${rest.length?`<details class="sx-rv-rest"${groups.size?'':' open'}><summary>아직 검수 전 ${rest.length}개 — Claude가 원문·사진을 확인할 차례(사장님이 하실 일 없음)</summary><div class="sx-rv-grid">${rest.map(reviewCard).join('')}</div></details>`:''}${rows.length?'':'<p>검토 대기 상품이 없습니다.</p>'}</div>`;
 }
 
+function hiddenRows(all){const cartIds=new Set(cartLines().map(l=>l.offerId));return {cartIds,hidden:all.filter(r=>negative(r)&&!cartIds.has(r.id))};}
 function card(r){
   const m=r.mark,st=markState(m),opts=list(r.options),inCart=cartLines().filter(l=>l.offerId===r.id);
+  const cartWarn=negative(r)&&inCart.length?`<p class="sx-cartwarn">⚠ 별로라고 표시했지만 장바구니에 ${inCart.length}줄 담겨 있어 숨기지 않았어요. 장바구니에서 빼면 추천에서 숨겨집니다.</p>`:'';
   const prices=opts.map(o=>num(o.price)).filter(Boolean),lo=prices.length?Math.min(...prices):num(r.priceMin),hi=prices.length?Math.max(...prices):num(r.priceMax);
   const meta=[r.moq?`최소 ${esc(r.moq)}${esc(r.unit||'개')}`:'',r.weightG?`${esc(r.weightG)}g`:'',r.shop?.years?`판매처 ${esc(r.shop.years)}년`:'',r.shop?.repeat?`재구매 ${esc(r.shop.repeat)}`:''].filter(Boolean).join(' · ');
   const mark=(k,label)=>`<button type="button" class="sx-mark ${m[k]?'on '+k:''}" data-sx="mark" data-id="${esc(r.id)}" data-k="${k}" aria-pressed="${!!m[k]}">${label}</button>`;
@@ -162,7 +169,7 @@ function card(r){
       <div class="sx-price"><b>${yuan(lo)}${hi>lo?'~'+yuan(hi).slice(1):''}</b> <span>≈ ${krw(toKrw(lo))}${hi>lo?'~':''}/개</span></div>
       ${meta?`<div class="sx-meta">${meta}</div>`:''}
       ${list(r.sizeImgs).length?`<div class="sx-sizes">${list(r.sizeImgs).map((s,i,a)=>zoom(s.url,`📏 크기·모양 안내${a.length>1?' '+(i+1):' 보기'}`,{cap:s.cap||'크기·모양 안내 (1688 상세페이지)',cls:'sx-sizebtn'})).join('')}</div>`:''}
-      <div class="sx-marks">${mark('like','💗 좋아요')}${mark('design','👎 디자인 별로')}${mark('price','💸 가격 별로')}</div><button type="button" class="sx-exclude" data-sx="exclude" data-id="${esc(r.id)}">추천에서 제외</button>
+      <div class="sx-marks">${mark('like','💗 좋아요')}${mark('design','👎 디자인 별로')}${mark('price','💸 가격 별로')}</div>${cartWarn}<button type="button" class="sx-exclude" data-sx="exclude" data-id="${esc(r.id)}">추천에서 제외</button>
       <input class="sx-note" id="sx-n-${esc(r.id)}" data-sx-note="${esc(r.id)}" maxlength="300" placeholder="한마디 (예: 링크 사진이 더 좋아)" value="${esc(m.note||'')}">
       ${optRows}
       <a class="sx-link" href="${esc(r.url)}" target="_blank" rel="noopener">1688에서 보기 ↗ <small>${esc(r.url)}</small></a>
@@ -180,28 +187,33 @@ function setCard(id,s,items){
     <input class="sx-note" id="sx-sn-${esc(id)}" data-sx-setnote="${esc(id)}" maxlength="300" placeholder="세트에 한마디" value="${esc(mk.note||'')}"></article>`;
 }
 function itemsTab(){
-  const t=S.tree||{},all=itemRows().filter(isAdmitted),rows=filtered(all),rounds=Object.entries(t.rounds||{}).sort((a,b)=>String(b[1].date||'').localeCompare(String(a[1].date||'')));
+  const t=S.tree||{},all=itemRows().filter(isAdmitted),{hidden,cartIds}=hiddenRows(all),wantNeg=S.filter==='👎 디자인 별로'||S.filter==='💸 가격 별로';
+  const rows=filtered(wantNeg?all:all.filter(r=>!hidden.includes(r))),hiddenShown=S.showHidden&&!wantNeg?filtered(hidden):[],rounds=Object.entries(t.rounds||{}).sort((a,b)=>String(b[1].date||'').localeCompare(String(a[1].date||'')));
   const cats=[...new Set(all.map(r=>r.cat).filter(Boolean))];
   const count=f=>all.filter(f).length;
-  const sum=`<div class="sx-summary">${[['후보',all.length],['💗',count(r=>r.mark.like)],['👎',count(r=>r.mark.design)],['💸',count(r=>r.mark.price)],['안 본 것',count(r=>!markState(r.mark))]].map(([a,b])=>`<span class="badge">${a} ${b}</span>`).join('')}</div>`;
+  const sum=`<div class="sx-summary">${[['후보',all.length-(S.showHidden?0:hidden.length)],['💗',count(r=>r.mark.like)],['👎',count(r=>r.mark.design)],['💸',count(r=>r.mark.price)],['안 본 것',count(r=>!markState(r.mark))]].map(([a,b])=>`<span class="badge">${a} ${b}</span>`).join('')}</div>`;
   const tools=`<div class="toolbar"><div class="filters"><input id="sx-search" class="search" data-sx-filter="q" aria-label="후보 검색" placeholder="이름·한마디 검색" value="${esc(S.q)}"><select data-sx-filter="round" aria-label="회차"><option value="">모든 회차</option>${rounds.map(([id,r])=>`<option value="${esc(id)}" ${S.round===id?'selected':''}>${esc(r.title||id)}</option>`).join('')}</select><select data-sx-filter="filter" aria-label="표시">${FILTERS.map(f=>`<option ${S.filter===f?'selected':''}>${f}</option>`).join('')}</select><select data-sx-filter="cat" aria-label="분류"><option value="">모든 분류</option>${cats.map(c=>`<option ${S.cat===c?'selected':''}>${esc(c)}</option>`).join('')}</select></div></div>`;
+  const hiddenBar=hidden.length?`<div class="sx-hiddenbar"><span>${S.showHidden?`👎·💸 표시해서 숨긴 상품 <b>${hidden.length}개</b>를 아래 '숨긴 상품'에 펼쳐 놓았어요. 표시를 풀면 추천으로 돌아갑니다.`:`👎·💸 표시한 상품 <b>${hidden.length}개</b>는 추천에서 숨겼어요. 표시를 풀면 다시 나옵니다.`}</span><button type="button" data-sx="toggle-hidden" aria-pressed="${S.showHidden}">${S.showHidden?'숨긴 상품 다시 숨기기':`숨긴 상품 ${hidden.length}개 보기`}</button></div>`:'';
+  const hiddenHtml=hiddenShown.length?`<div class="sx-section sx-hidden-head"><h2>숨긴 상품</h2><span>${hiddenShown.length}개 · 👎·💸 표시를 풀면 다시 추천에 나옵니다</span></div><div class="sx-grid sx-hidden-grid">${hiddenShown.map(card).join('')}</div>`:'';
+  const cardOf=r=>card(r,cartIds);
   const groups=[...new Set(rows.map(r=>r.cat||'기타'))];
-  const body=rows.length?groups.map(g=>`<div class="sx-section"><h2>${esc(g)}</h2><span>${rows.filter(r=>(r.cat||'기타')===g).length}개</span></div><div class="sx-grid">${rows.filter(r=>(r.cat||'기타')===g).map(card).join('')}</div>`).join(''):`<div class="note">${all.length?'조건에 맞는 후보가 없습니다.':'아직 후보가 없습니다. Claude가 1688에서 찾으면 여기에 올라옵니다.'}</div>`;
+  const body=rows.length?groups.map(g=>`<div class="sx-section"><h2>${esc(g)}</h2><span>${rows.filter(r=>(r.cat||'기타')===g).length}개</span></div><div class="sx-grid">${rows.filter(r=>(r.cat||'기타')===g).map(cardOf).join('')}</div>`).join(''):`<div class="note">${all.length?(hidden.length&&!S.showHidden&&S.filter==='전체'&&!S.q&&!S.cat&&!S.round?'보이는 후보가 없습니다. 👎·💸 표시한 상품은 위의 \'숨긴 상품 보기\'에서 볼 수 있어요.':'조건에 맞는 후보가 없습니다.'):'아직 후보가 없습니다. Claude가 1688에서 찾으면 여기에 올라옵니다.'}</div>`;
   const shownRounds=S.round?rounds.filter(([id])=>id===S.round):rounds;
-  const sets=Object.entries(t.sets||{}).filter(([,s])=>shownRounds.some(([rid])=>rid===s.round)&&list(s.parts).every(p=>t.items?.[p.offerId]&&recommendable(p.offerId,t.items[p.offerId],t.marks||{})));
+  const sets=Object.entries(t.sets||{}).filter(([,s])=>shownRounds.some(([rid])=>rid===s.round)&&list(s.parts).every(p=>t.items?.[p.offerId]&&recommendable(p.offerId,t.items[p.offerId],t.marks||{})&&(S.showHidden||!hidden.some(h=>h.id===p.offerId))));
   const setsHtml=sets.length?`<div class="sx-section"><h2>세트 제안</h2><span>Claude가 후보로 짠 구성 — 마음에 들면 💗</span></div><div class="sx-sets">${sets.map(([id,s])=>setCard(id,s,t.items||{})).join('')}</div>`:'';
   const roundNote=shownRounds.length&&S.round?`<div class="note">${esc(shownRounds[0][1].note||'')}</div>`:'';
-  return sum+tools+roundNote+body+setsHtml;
+  return sum+tools+hiddenBar+roundNote+body+hiddenHtml+setsHtml;
 }
 function cartTab(){
   const t=S.tree||{},items=t.items||{},lines=cartLines();
   const likedNoCart=itemRows().filter(r=>r.mark.like&&!lines.some(l=>l.offerId===r.id));
+  const badInCart=itemRows().filter(r=>negative(r)&&lines.some(l=>l.offerId===r.id));
   let totalY=0,weight=0,weightKnown=true;
   const rows=lines.map(l=>{const it=items[l.offerId]||{},sub=num(l.price)*num(l.qty);totalY+=sub;if(l.weightG)weight+=num(l.weightG)*num(l.qty);else weightKnown=false;
     return `<tr><td>${chosenVisual(l,it)}</td><td class="maincell"><b><a href="${esc(it.url||'#')}" target="_blank" rel="noopener">${esc(it.name||l.offerId)}</a></b><span class="sub">${esc(l.ko||'')}</span>${skuStatus(l,it)}<span class="sub sx-spec"><span lang="zh">${esc(l.spec)}</span> <button type="button" class="sx-copy" data-sx="copy" data-text="${esc(l.spec)}" aria-label="1688 옵션명 복사: ${esc(l.spec)}">복사</button></span></td><td><input type="number" min="1" step="1" class="sx-qty" id="sx-cq-${esc(l.id)}" data-sx-qty="${esc(l.id)}" aria-label="수량" value="${esc(l.qty)}"></td><td class="num">${yuan(l.price)}</td><td class="num"><b>${yuan(sub)}</b></td><td class="num">${krw(toKrw(sub))}</td><td>${`<button type="button" class="text danger" data-sx="remove" data-id="${esc(l.id)}">빼기</button>`}</td></tr>`;}).join('');
   const reqs=Object.entries(t.requests||{}).sort((a,b)=>String(b[1].at||'').localeCompare(String(a[1].at||''))).slice(0,5);
   const r=rate();
-  return `${likedNoCart.length?`<div class="note amber">💗만 누르고 수량을 안 담은 상품 ${likedNoCart.length}개: ${likedNoCart.map(x=>`<b>${esc(x.name)}</b>`).join(', ')} — 후보 탭에서 옵션·수량을 담아 주세요.</div>`:''}
+  return `${badInCart.length?`<div class="note amber sx-badcart">👎·💸 표시한 상품 ${badInCart.length}개가 장바구니에 담겨 있어요: ${badInCart.map(x=>`<b>${esc(x.name)}</b>`).join(', ')} — 그대로 두었으니 뺄지 확인해 주세요.</div>`:''}${likedNoCart.length?`<div class="note amber">💗만 누르고 수량을 안 담은 상품 ${likedNoCart.length}개: ${likedNoCart.map(x=>`<b>${esc(x.name)}</b>`).join(', ')} — 후보 탭에서 옵션·수량을 담아 주세요.</div>`:''}
     <div class="panel section-gap"><div class="tablewrap"><table class="table"><thead><tr><th>사진</th><th>상품 / 옵션</th><th>수량</th><th class="num">단가</th><th class="num">소계</th><th class="num">≈ 원화</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="7"><div class="empty"><b>장바구니가 비어 있습니다.</b>후보에서 💗 → 옵션·수량 담기</div></td></tr>`}</tbody></table></div>
     <div class="sx-total"><span>상품 ${lines.length}줄 · ${lines.reduce((a,l)=>a+num(l.qty),0)}개</span><span>합계 <b>${yuan(totalY)}</b> ≈ <b>${krw(toKrw(totalY))}</b></span><small>환율 ${r.rate}원 × 구매대행 수수료 ${Math.round(r.fee*100)}% 포함 · 1688 판매자 배송비·국제 배송비·관부가세 별도(배송비 포함 예상은 아래 견적 줄)${weight?` · 무게 약 ${(weight/1000).toFixed(2)}kg${weightKnown?'':'(일부 무게 모름)'}`:''}</small></div></div>
     <div class="sx-request"><div><b>배대지 신청서</b><p>선택 옵션 정밀검수 완료와 새 감시기 버전 확인 후 요청하면 PC의 자동 처리 프로그램이 이 장바구니로 아이템스카우트 배대지 신청서를 채우고 캡처합니다. <b>신청하기는 확인을 받은 뒤에</b> 누릅니다.</p><p><span class="badge ${watcher().on?'green':'amber'}">${watcher().label||(watcher().on?'켜짐':'꺼짐')}</span> ${esc(watcher().text)}</p></div><button type="button" class="primary" data-sx="request" ${lines.length?'':'disabled'}>검수 확인 후 신청서 작성 요청</button></div>
@@ -262,6 +274,7 @@ function quoteBar(){
     <button type="button" class="sx-q-cart" data-sx="tab" data-id="cart">장바구니에서 수량 바꾸기</button></div>`:'';
   return `<div class="sx-quote" role="region" aria-label="실시간 예상 견적">${head}${warns?`<div class="sx-q-warns">${warns}</div>`:''}${detail}</div>`;
 }
+function visibleCount(){const all=itemRows().filter(isAdmitted);return all.length-(S.showHidden?0:hiddenRows(all).hidden.length);}
 function view(){
   const [label,tone]=STATUS[S.status]||STATUS.connecting,t=S.tree||{};
   const who=S.user?`<span class="sx-who">검수 요청 계정 ${esc(S.user.email)} · <button type="button" class="text" data-sx="logout">로그아웃</button></span>`:`<span class="sx-who"><button type="button" class="text" data-sx="login">구글 로그인(검수 요청용)</button></span>`;
@@ -269,7 +282,7 @@ function view(){
   if(S.status==='denied')return status+`<div class="note error">소싱 자료를 읽을 권한이 없습니다. Firebase 규칙에 <code>sourcing</code> 칸이 열려 있어야 합니다.</div>`;
   if(!S.tree)return status+`<div class="note">소싱 자료를 불러오는 중입니다.</div>`;
   const nCart=Object.keys(t.cart||{}).length,nRule=Object.values(t.taste||{}).filter(r=>r.active!==false).length;
-  const tabs=`<div class="chips">${[['items','후보 '+itemRows().filter(isAdmitted).length],['cart','장바구니 '+nCart],['reorder','재발주 준비 '+reorderCount(t)],['taste','취향 규칙 '+nRule],['review','검토 대기 '+itemRows().filter(r=>!exclusion(r.id,r,t.marks||{})&&!isAdmitted(r)).length],['excluded','삭제 내역 '+Object.values(t.marks||{}).filter(m=>m.exclusion?.active).length]].map(([id,l])=>`<button type="button" class="chip ${S.tab===id?'active':''}" data-sx="tab" data-id="${id}">${esc(l)}</button>`).join('')}</div>`;
+  const tabs=`<div class="chips">${[['items','후보 '+visibleCount()],['cart','장바구니 '+nCart],['reorder','재발주 준비 '+reorderCount(t)],['taste','취향 규칙 '+nRule],['review','검토 대기 '+itemRows().filter(r=>!exclusion(r.id,r,t.marks||{})&&!isAdmitted(r)).length],['excluded','삭제 내역 '+Object.values(t.marks||{}).filter(m=>m.exclusion?.active).length]].map(([id,l])=>`<button type="button" class="chip ${S.tab===id?'active':''}" data-sx="tab" data-id="${id}">${esc(l)}</button>`).join('')}</div>`;
   return status+tabs+(S.tab==='cart'?cartTab():S.tab==='taste'?tasteTab():S.tab==='review'?reviewTab():S.tab==='excluded'?excludedTab():S.tab==='reorder'?reorderTab(t,{img,yuan}):itemsTab())+quoteBar();
 }
 function refresh(){
@@ -317,6 +330,7 @@ async function onClick(e){
     if(sx==='login'){try{await fbauth.signIn();}catch(e){throw Error('로그인하지 못했습니다 — '+(e.message||''));}return;}
     if(sx==='logout'){await fbauth.signOut();return;}
     if(sx==='quote'){S.quoteOpen=!S.quoteOpen;refresh();return;}
+    if(sx==='toggle-hidden'){S.showHidden=!S.showHidden;try{sessionStorage.setItem(HIDDEN_KEY,S.showHidden?'1':'0');}catch(e){}refresh();return;}
     if(sx==='copy'){const ok=await copyText(el.dataset.text||'');notify(ok?'1688 옵션명을 복사했습니다 — 1688 페이지에서 Ctrl+F(휴대폰은 페이지 내 찾기)로 붙여 넣어 찾으세요.':'복사하지 못했습니다 — 회색 글자를 길게 눌러 직접 복사해 주세요.',!ok);return;}
     if(sx==='sku-review'){await requestSku(id);return;}
     if(sx==='exclude'){openReasons(id,el);return;}
@@ -331,6 +345,7 @@ async function onClick(e){
       const m={...(S.tree?.marks?.[id]||{})},on=!m[k];
       const next={like:k==='like'?on:(on?false:!!m.like),design:k==='design'?on:(k==='like'&&on?false:!!m.design),price:k==='price'?on:(k==='like'&&on?false:!!m.price),at:now(),by:'대시보드'};
       await send('PATCH','marks/'+id,next);
+      if(on&&k!=='like'&&!S.showHidden)notify(cartLines().some(l=>l.offerId===id)?'표시했습니다. 장바구니에 담겨 있어 숨기지 않았어요.':'추천에서 숨겼습니다. 위의 \'숨긴 상품 보기\'에서 표시를 풀면 다시 나옵니다.');
     }
     if(sx==='set-mark'){
       const m={...(S.tree?.sets?.[id]?.mark||{})},on=!m[k];
