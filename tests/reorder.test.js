@@ -11,8 +11,11 @@ const prep=()=>({asOf:'2026-10-12T08:59',updatedAt:'2026-10-12T10:30:00+09:00',b
  rows:[{id:'a',name:'시험 감자 지갑',offer:'111',unit:'개',coupang:{d7:14,d30:30,d60:null,d90:null,stock:20,returnStock:2,soldout:false,hist:'그 전 4주 10개'},
    smartstore:{d30:0,d60:1,d90:2,regStock:'5'},own:{d30:0,d60:0,d90:1,regStock:'3'},rec:[{ko:'기본',qty:40}],recTotal:40,weak:false,urgent:true,
    urgentText:'최근 7일 속도면 10/23쯤 품절 — 오늘 발주해도 도착은 11/2쯤',runout:'10/23~11/3',recHigh:100,basis:'하루 1.0개 × 63일 = 63개 − 쿠팡 재고 22개 → 41개'},
-  {id:'b',name:'시험 말랑이',offer:'999',unit:'세트',coupang:{d7:0,d30:0,d60:null,d90:null,stock:0,returnStock:0,soldout:true,hist:'품절 전 닷새 3세트'},
-   smartstore:{d30:0,d60:3,d90:33,regStock:'—'},own:{d30:0,d60:0,d90:0,regStock:'—'},rec:[{ko:'기본색',qty:20},{ko:'진한색',qty:20}],recTotal:40,weak:true,urgent:false,runout:'품절 중',basis:'품절 전 속도로 계산'}],
+  {id:'b',name:'시험 말랑이',offer:'999',unit:'세트',coupang:{d7:0,d30:0,d60:0,d90:4,stock:0,returnStock:1,soldout:true,hist:'품절 전 닷새 3세트'},
+   smartstore:{d30:0,d60:3,d90:33,regStock:'—'},own:{d30:0,d60:0,d90:0,regStock:'—'},rec:[{ko:'기본색',qty:20},{ko:'진한색',qty:20}],recTotal:40,weak:true,urgent:false,runout:'품절 중',basis:'품절 전 속도로 계산',
+   note:'반품 재판매분(위 쿠팡 수량과 따로): 60일 1세트 · 90일 1세트'},
+  {id:'c',name:'시험 품절 키링',offer:'998',unit:'세트',coupang:{d7:0,d30:0,d60:null,d90:null,stock:0,returnStock:0,soldout:true,hist:'자료 없음'},
+   smartstore:{d30:0,d60:0,d90:0,regStock:'—'},own:{d30:0,d60:0,d90:0,regStock:'—'},rec:[{ko:'기본',qty:10}],recTotal:10,weak:true,urgent:false,runout:'품절 중',basis:'품절 전 속도로 계산'}],
  excluded:[{group:'최근 판매가 없음',items:[{name:'시험 연필꽂이',why:'30일 판매 0'},{name:'시험 손수건',why:'판매중지'}]}]});
 const tree=withPrep=>({items:{'111':{pid:'R09',cat:'재발주',name:'시험 감자 지갑',url:'https://detail.1688.com/offer/111.html',img:'https://cbu01.alicdn.com/img/ibank/a.jpg',priceMin:2.9,priceMax:2.9,moq:1,unit:'개',options:[{spec:'基本',ko:'기본',price:2.9}],rounds:{r9:true}}},
  rounds:{r9:{title:'시험 회차',date:'2026-10-12',items:{'111':true}}},meta:{rate:200,fee:0.05,...(withPrep?{reorderPrep:prep()}:{})}});
@@ -33,18 +36,24 @@ const tree=withPrep=>({items:{'111':{pid:'R09',cat:'재발주',name:'시험 감�
  const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
  await page.goto(ORIGIN+'sourcing.html?tab=reorder');await page.locator('.rp-table').waitFor();
  assert.equal(await page.locator('.chip.active[data-id="reorder"]').count(),1,'?tab=reorder opens the tab');
- assert.match(await page.locator('.chip[data-id="reorder"]').textContent(),/재발주 준비 2/);
- assert.equal(await page.locator('.rp-row').count(),2);assert.equal(await page.locator('.rp-row.rp-urgent').count(),1);
+ assert.match(await page.locator('.chip[data-id="reorder"]').textContent(),/재발주 준비 3/);
+ assert.equal(await page.locator('.rp-row').count(),3);assert.equal(await page.locator('.rp-row.rp-urgent').count(),1);
  const first=page.locator('.rp-row').first();
  assert.match(await first.textContent(),/시험 감자 지갑/);assert.match(await first.textContent(),/R09 · ¥2\.9 · 최소 1개/,'ledger price and minimum quantity are joined by offer id');
  assert.match(await first.locator('.rp-rec').textContent(),/40\s*기본/);assert.match(await first.textContent(),/급함/);
  assert.equal(await first.locator('.rp-na').count(),2,'Coupang 60/90-day cells show a dash until that data is read');
  assert.match(await page.locator('.rp-basis').first().textContent(),/10\/23쯤 품절/);assert.match(await page.locator('.rp-basis').first().textContent(),/최근 속도가 이어지면 100개/);
  const second=page.locator('.rp-row').nth(1);assert.match(await second.textContent(),/품절/);assert.match(await second.textContent(),/근거 약함/);
- assert.equal(await page.locator('.rp-table .rp-na').count(),4);   // 두 상품의 쿠팡 60·90일(아직 못 읽음)만 '—'
- assert.match(await page.locator('.rp-top').textContent(),/판매 중인 상품 2개 재발주 준비/);assert.match(await page.locator('.rp-top').textContent(),/급한 것 1개/);
+ assert.equal(await page.locator('.rp-table .rp-na').count(),4);   // 60·90일을 아직 못 읽은 두 상품(첫째·셋째)만 '—'
+ // 품절 상품의 쿠팡 수량에는 '재고 있던 기간 기준' 표시. 판매 중인 상품과, 60·90일 자료가 아직 없는 품절 상품에는 붙지 않는다.
+ assert.equal(await first.locator('.rp-stocked').count(),0);assert.match(await second.locator('.rp-stocked').textContent(),/재고 있던 기간 기준/);assert.match(await second.locator('td.num').first().textContent(),/0 · 0 · 0 · 4/);
+ assert.equal(await page.locator('.rp-row').nth(2).locator('.rp-stocked').count(),0);assert.equal(await page.locator('.rp-stocked').count(),1);
+ // 반품 재판매분은 쿠팡 수량에 섞이지 않고 근거 줄에 따로 나온다. 표 아래에 기준을 적어 둔다.
+ assert.match(await page.locator('.rp-basis').nth(1).textContent(),/반품 재판매분\(위 쿠팡 수량과 따로\): 60일 1세트 · 90일 1세트/);assert.match(await second.textContent(),/\+반품 재판매 1/);
+ assert.match(await page.locator('.rp-foot').textContent(),/쿠팡 수량은 새상품 기준/);assert.match(await page.locator('.rp-foot').textContent(),/재고가 있던 기간에만 팔린 값/);
+ assert.match(await page.locator('.rp-top').textContent(),/판매 중인 상품 3개 재발주 준비/);assert.match(await page.locator('.rp-top').textContent(),/급한 것 1개/);
  await page.locator('.rp-excluded summary').first().click();assert.match(await page.locator('.rp-excluded').first().textContent(),/시험 연필꽂이/);
- assert.equal(await page.locator('.sx-noimg.rp-img').count(),1,'a product missing from the ledger still renders');
+ assert.equal(await page.locator('.sx-noimg.rp-img').count(),2,'products missing from the ledger still render');
  console.log('PASS reorder tab renders channel sales, Coupang stock, recommended quantities, urgency and the excluded list from the ledger');
 
  await page.locator('.rp-top [data-sx="tab"][data-id="items"]').click();assert.equal(await page.locator('.chip.active[data-id="items"]').count(),1);
