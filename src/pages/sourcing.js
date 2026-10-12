@@ -9,13 +9,16 @@ const DB='https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.
 const fbauth=await import(`../fbauth.js?v=${document.body.dataset.build}`);
 // 재발주 준비 탭(대시보드 담당 2026-10-12): 표는 src/reorder-view.js, 자료는 장부 meta/reorderPrep. 이 파일에는 탭 연결만 둔다.
 const {reorderTab,reorderCount}=await import(`../reorder-view.js?v=${document.body.dataset.build}`);
+// 장바구니의 수량 구간·행사가 계산(대시보드 담당 2026-10-12): 계산은 src/sourcing-tiers.js, 자료는 장부 items/<상품>/priceInfo(소싱 담당이 넣음, 읽기만).
+const {tierPlan,tierLabel,promoOf,unitAt}=await import(`../sourcing-tiers.js?v=${document.body.dataset.build}`);
 const S={tree:null,user:null,status:'connecting',tab:'items',round:'',filter:'전체',cat:'',q:'',draft:{},err:'',quoteOpen:false,showHidden:false};
 // 숨긴 상품 보기(2026-10-12 사장님: "부정적인 체크를 하면 추천에서 사라졌으면"): 👎·💸 표시한 상품은 후보 목록에서 가린다. 지우는 것이 아니라 화면에서만 가리고,
 // 표시를 풀면 다시 나온다. 장바구니에 담긴 상품은 가리지 않고 경고만 한다. '보기' 상태는 이 브라우저 탭에서만 기억한다(장부에 쓰지 않음).
 const HIDDEN_KEY='mmt-sx-show-hidden';
 try{S.showHidden=sessionStorage.getItem(HIDDEN_KEY)==='1';}catch(e){}
 const negative=r=>!!(r.mark?.design||r.mark?.price);
-let ctx=null,started=false,source=null,pollTimer=null,searchTimer=null;
+let ctx=null,started=false,source=null,pollTimer=null,searchTimer=null,rendering=false;
+const committing=new Map();   // 저장 중인 수량(줄 → 수량) — 같은 값을 두 번 보내지 않는다
 if(new URLSearchParams(location.search).get('tab')==='reorder')S.tab='reorder';   // 구매·원가 화면의 '재발주 준비' 링크로 들어온 경우
 const STATUS={connecting:['연결 중','',''],ok:['실시간 연결됨 · 다른 기기·Claude와 같이 봅니다','ok',''],retry:['연결이 끊겨 다시 잇는 중','bad',''],poll:['실시간 연결이 안 돼 20초마다 새로 읽는 중','bad',''],denied:['Firebase 규칙이 아직 열리지 않았습니다','bad','']};
 const FILTERS=['전체','안 본 것','💗 좋아요','👎 디자인 별로','💸 가격 별로'];
@@ -204,13 +207,47 @@ function itemsTab(){
   const roundNote=shownRounds.length&&S.round?`<div class="note">${esc(shownRounds[0][1].note||'')}</div>`:'';
   return sum+tools+hiddenBar+roundNote+body+hiddenHtml+setsHtml;
 }
+// ---- 수량 구간·행사가(2026-10-12 사장님: "장바구니에 다 담았는데 여기서 수량별 할인을 확인하라고 했잖아").
+// 자료는 소싱 담당이 넣은 items/<상품>/priceInfo — 이 화면은 읽기만 한다. 구간은 같은 판매글에서 담은 옵션 수량의 합계로 정해진다.
+// 수량 칸에 입력하는 즉시(저장 전) 그 판매글의 줄들을 다시 계산해 보여 준다(liveTier). 단가와 장부는 여기서 고치지 않는다.
+const signed=(v,f)=>(v<0?'−':'+')+f(Math.abs(v));
+function tierBox(l,qtyOf=x=>num(x.qty),typing=false){
+  const info=S.tree?.items?.[l.offerId]?.priceInfo,attrs=`data-sx-tier="${esc(l.offerId)}" data-line="${esc(l.id)}"`;
+  if(!info||typeof info!=='object')return l.tierNote?`<div class="sx-tier sx-tier-flat" ${attrs}>💰 ${esc(l.tierNote)}</div>`:'';
+  const group=cartLines().filter(x=>x.offerId===l.offerId),total=group.reduce((a,x)=>a+qtyOf(x),0),qty=qtyOf(l),key=keyOfSpec(l.spec);
+  const plan=tierPlan(info,total),promo=promoOf(info,key,qty),unit=unitAt(info,key,total),parts=[];
+  const draft=typing?' <em>입력한 수량 기준 · 저장 전</em>':'',many=group.length>1?`이 판매글 ${group.length}줄 합계 `:'지금 ';
+  if(plan.kind==='tier'){
+    parts.push(`<div class="sx-tier-chips"><b>💰 수량 할인</b>${plan.tiers.map((t,i)=>`<span class="sx-tier-chip ${i===plan.index?'on':''}">${tierLabel(plan.tiers,i)} ${yuan(t.price)}</span>`).join('')}</div>`);
+    if(plan.below)parts.push(`<p class="sx-tier-now sx-tier-warn">${many}<b>${total.toLocaleString('ko-KR')}개</b> — 최소 ${plan.tiers[0].min.toLocaleString('ko-KR')}개부터 살 수 있어요(${plan.need.toLocaleString('ko-KR')}개 부족).${draft}</p>`);
+    else{
+      parts.push(`<p class="sx-tier-now">${many}<b>${total.toLocaleString('ko-KR')}개</b> → 개당 <b>${yuan(plan.current.price)}</b>${plan.next?'':' · 가장 싼 구간입니다'}${draft}</p>`);
+      if(plan.next)parts.push(`<p class="sx-tier-next ${plan.diff<=0?'good':''}">👉 <b>${plan.more.toLocaleString('ko-KR')}개 더 사면</b>(합계 ${plan.next.min.toLocaleString('ko-KR')}개) 개당 ${yuan(plan.current.price)} → <b>${yuan(plan.next.price)}</b> · 총액 <b>${signed(plan.diff,yuan)} ≈ ${signed(toKrw(plan.diff),krw)}</b>${plan.diff<=0?' — 더 사는 쪽이 총액도 쌉니다':''}${total===num(info.cartQty)&&info.next?.verdict&&num(info.next.at)===plan.next.min?` <span class="badge amber">소싱 담당 의견: ${esc(info.next.verdict)}</span>`:''}</p>`);
+      if(plan.keepMin&&plan.index>0)parts.push(`<p class="sx-tier-keep">${plan.keepMin.toLocaleString('ko-KR')}개까지 줄여도 개당 ${yuan(plan.current.price)} 그대로 · ${(plan.keepMin-1).toLocaleString('ko-KR')}개 이하면 ${yuan(plan.tiers[plan.index-1].price)}</p>`);   // 가장 낮은 구간에서는 줄여도 달라질 것이 없어 적지 않는다
+    }
+  }else if(!promo)parts.push(`<p class="sx-tier-now">💰 수량 할인 없음 · 몇 개를 사도 개당 <b>${yuan(unit??l.price)}</b></p>`);
+  if(promo?.kind==='limited')parts.push(`<p class="sx-tier-promo">⚠ 행사가 <b>${yuan(promo.promo)}</b>는 <b>${promo.limit.toLocaleString('ko-KR')}개까지만</b> — ${promo.within?`지금 ${qty.toLocaleString('ko-KR')}개는 행사가 대상일 수 있어요(소싱 담당 확인 필요)`:`지금 ${qty.toLocaleString('ko-KR')}개는 정가 ${yuan(promo.regular??l.price)}`}.${plan.kind==='tier'?'':' 수량 할인은 없습니다.'}${plan.kind==='tier'?'':draft}</p>`);
+  if(promo?.kind==='sale')parts.push(`<p class="sx-tier-promo">🏷 지금은 행사가 <b>${yuan(promo.price)}</b> (정가 ${yuan(promo.list)}) — 행사가 끝나면 오릅니다.${plan.kind==='tier'?'':' 수량 할인은 없습니다.'}</p>`);
+  if(unit!=null&&Math.abs(unit-num(l.price))>0.0005)parts.push(`<p class="sx-tier-warn">⚠ 이 수량이면 개당 ${yuan(unit)}인데 장바구니에는 ${yuan(l.price)}로 적혀 있어요. 아래 합계는 ${yuan(l.price)} 기준이라 실제와 다를 수 있고, 발주 전에 소싱 담당이 단가를 다시 맞춥니다.</p>`);
+  const flat=plan.kind!=='tier'&&!promo&&parts.length===1;
+  return `<div class="sx-tier ${flat?'sx-tier-flat':''}" ${attrs}>${parts.join('')}${info.readAt?`<small>1688 가격 확인 ${esc(new Date(info.readAt).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}))}</small>`:''}</div>`;
+}
+// 수량 칸에 입력하는 중: 같은 판매글의 줄들을 입력한 수량으로 다시 계산해 바꿔 끼운다(화면만 — 저장은 칸을 벗어날 때 기존처럼 수량만).
+function liveTier(el){
+  const root=document.getElementById('sx-root'),cart=S.tree?.cart||{},line=cart[el.dataset.sxQty];if(!root||!line)return;
+  const typed={};for(const i of root.querySelectorAll('input.sx-qty[data-sx-qty]')){const v=Math.round(num(i.value)),id=i.dataset.sxQty;if(cart[id]&&v>0&&v!==num(cart[id].qty))typed[id]=v;}
+  const qtyOf=x=>typed[x.id]??num(x.qty),lines=cartLines(),changed=lines.some(x=>x.offerId===line.offerId&&typed[x.id]!=null);
+  for(const box of [...root.querySelectorAll('[data-sx-tier]')]){const l=lines.find(x=>x.id===box.dataset.line);if(l&&l.offerId===line.offerId)box.outerHTML=tierBox(l,qtyOf,changed);}
+  const me=lines.find(x=>x.id===el.dataset.sxQty),row=el.closest('tr');
+  if(me&&row){const sub=num(me.price)*qtyOf(me),a=row.querySelector('[data-sx-sub]'),b=row.querySelector('[data-sx-krw]');if(a)a.innerHTML=`<b>${yuan(sub)}</b>`;if(b)b.textContent=krw(toKrw(sub));}
+}
 function cartTab(){
   const t=S.tree||{},items=t.items||{},lines=cartLines();
   const likedNoCart=itemRows().filter(r=>r.mark.like&&!lines.some(l=>l.offerId===r.id));
   const badInCart=itemRows().filter(r=>negative(r)&&lines.some(l=>l.offerId===r.id));
   let totalY=0,weight=0,weightKnown=true;
   const rows=lines.map(l=>{const it=items[l.offerId]||{},sub=num(l.price)*num(l.qty);totalY+=sub;if(l.weightG)weight+=num(l.weightG)*num(l.qty);else weightKnown=false;
-    return `<tr><td>${chosenVisual(l,it)}</td><td class="maincell"><b><a href="${esc(it.url||'#')}" target="_blank" rel="noopener">${esc(it.name||l.offerId)}</a></b><span class="sub">${esc(l.ko||'')}</span>${skuStatus(l,it)}<span class="sub sx-spec"><span lang="zh">${esc(l.spec)}</span> <button type="button" class="sx-copy" data-sx="copy" data-text="${esc(l.spec)}" aria-label="1688 옵션명 복사: ${esc(l.spec)}">복사</button></span></td><td><input type="number" min="1" step="1" class="sx-qty" id="sx-cq-${esc(l.id)}" data-sx-qty="${esc(l.id)}" aria-label="수량" value="${esc(l.qty)}"></td><td class="num">${yuan(l.price)}</td><td class="num"><b>${yuan(sub)}</b></td><td class="num">${krw(toKrw(sub))}</td><td>${`<button type="button" class="text danger" data-sx="remove" data-id="${esc(l.id)}">빼기</button>`}</td></tr>`;}).join('');
+    return `<tr><td>${chosenVisual(l,it)}</td><td class="maincell"><b><a href="${esc(it.url||'#')}" target="_blank" rel="noopener">${esc(it.name||l.offerId)}</a></b><span class="sub">${esc(l.koBase||l.ko||'')}</span>${tierBox(l)}${skuStatus(l,it)}<span class="sub sx-spec"><span lang="zh">${esc(l.spec)}</span> <button type="button" class="sx-copy" data-sx="copy" data-text="${esc(l.spec)}" aria-label="1688 옵션명 복사: ${esc(l.spec)}">복사</button></span></td><td><input type="number" min="1" step="1" class="sx-qty" id="sx-cq-${esc(l.id)}" data-sx-qty="${esc(l.id)}" aria-label="수량" value="${esc(l.qty)}"></td><td class="num">${yuan(l.price)}</td><td class="num" data-sx-sub="${esc(l.id)}"><b>${yuan(sub)}</b></td><td class="num" data-sx-krw="${esc(l.id)}">${krw(toKrw(sub))}</td><td>${`<button type="button" class="text danger" data-sx="remove" data-id="${esc(l.id)}">빼기</button>`}</td></tr>`;}).join('');
   const reqs=Object.entries(t.requests||{}).sort((a,b)=>String(b[1].at||'').localeCompare(String(a[1].at||''))).slice(0,5);
   const r=rate();
   return `${badInCart.length?`<div class="note amber sx-badcart">👎·💸 표시한 상품 ${badInCart.length}개가 장바구니에 담겨 있어요: ${badInCart.map(x=>`<b>${esc(x.name)}</b>`).join(', ')} — 그대로 두었으니 뺄지 확인해 주세요.</div>`:''}${likedNoCart.length?`<div class="note amber">💗만 누르고 수량을 안 담은 상품 ${likedNoCart.length}개: ${likedNoCart.map(x=>`<b>${esc(x.name)}</b>`).join(', ')} — 후보 탭에서 옵션·수량을 담아 주세요.</div>`:''}
@@ -257,7 +294,7 @@ function quoteBar(){
   const head=`<button type="button" class="sx-q-head" data-sx="quote" aria-expanded="${!!S.quoteOpen}" aria-controls="sx-q-detail"><span class="sx-q-title">🧾 예상 견적</span><span>${q.n}줄 ${q.qty.toLocaleString('ko-KR')}개</span><span>구매 ${yuan(q.purchaseCny)} ≈ ${krw(q.purchaseKrw)}</span><span>국제배송 ≈ ${krw(q.ship)} <small>(${q.billKg}kg)</small></span><b>합계 ≈ ${krw(q.total)}</b><em>${S.quoteOpen?'접기 ▴':'자세히 ▾'}</em></button>`;
   const row=(th,td,cls='')=>`<tr class="${cls}"><th>${th}</th><td>${td}</td></tr>`;
   const detail=S.quoteOpen?`<div class="sx-q-detail" id="sx-q-detail">
-    <div class="sx-q-sellers">${q.sellers.map(s=>`<div class="sx-q-seller"><b>${esc(s.shop)}</b>${s.lines.map(l=>`<div class="sx-q-line sx-q-item">${chosenVisual(l,l.it,'sx-cart-img')}<div class="sx-q-item-body"><b>${esc(l.name)} · ${esc(l.ko||l.spec)}</b><small lang="zh">${esc(l.spec)}</small><span>${num(l.qty).toLocaleString('ko-KR')}개 × ${yuan(l.price)}</span><label>수량 <input class="sx-q-qty" type="number" min="1" step="1" id="sx-qq-${esc(l.id)}" data-sx-qty="${esc(l.id)}" aria-label="${esc(l.name+' '+(l.ko||l.spec)+' 견적 수량')}" value="${esc(l.qty)}"></label><button type="button" class="text danger" data-sx="remove" data-id="${esc(l.id)}">장바구니에서 빼기</button></div><b>${yuan(l.sub)}</b></div>`).join('')}<div class="sx-q-line sub"><span>판매자 배송비</span><span></span><span>${yuan(s.freight)}</span></div></div>`).join('')}</div>
+    <div class="sx-q-sellers">${q.sellers.map(s=>`<div class="sx-q-seller"><b>${esc(s.shop)}</b>${s.lines.map(l=>`<div class="sx-q-line sx-q-item">${chosenVisual(l,l.it,'sx-cart-img')}<div class="sx-q-item-body"><b>${esc(l.name)} · ${esc(l.koBase||l.ko||l.spec)}</b><small lang="zh">${esc(l.spec)}</small><span>${num(l.qty).toLocaleString('ko-KR')}개 × ${yuan(l.price)}</span><label>수량 <input class="sx-q-qty" type="number" min="1" step="1" id="sx-qq-${esc(l.id)}" data-sx-qty="${esc(l.id)}" aria-label="${esc(l.name+' '+(l.koBase||l.ko||l.spec)+' 견적 수량')}" value="${esc(l.qty)}"></label><button type="button" class="text danger" data-sx="remove" data-id="${esc(l.id)}">장바구니에서 빼기</button></div><b>${yuan(l.sub)}</b></div>`).join('')}<div class="sx-q-line sub"><span>판매자 배송비</span><span></span><span>${yuan(s.freight)}</span></div></div>`).join('')}</div>
     <table class="sx-q-table"><tbody>
       ${row('상품 합계',yuan(q.goods))}${row(`1688 판매자 배송비 (${q.sellers.length}곳)`,yuan(q.freight))}${row(`구매대행 수수료 ${Math.round(q.r.fee*100)}%`,yuan(q.fee))}
       ${row('구매비 (예치금 결제)',`${yuan(q.purchaseCny)} ≈ ${krw(q.purchaseKrw)}<small>환율 ${q.r.rate}원</small>`,'sum')}
@@ -288,8 +325,11 @@ function view(){
 function refresh(){
   const root=document.getElementById('sx-root');if(!root)return;
   const a=document.activeElement,keep=a&&root.contains(a)&&a.id?{id:a.id,value:a.value,s:a.selectionStart,e:a.selectionEnd}:null;
-  root.innerHTML=view();
-  if(keep){const el=document.getElementById(keep.id);if(el){if('value' in el&&el.type!=='checkbox')el.value=keep.value;el.focus();try{if(keep.s!=null)el.setSelectionRange(keep.s,keep.e);}catch(e){}}}
+  rendering=true;try{root.innerHTML=view();}finally{rendering=false;}   // 입력 중인 칸이 지워질 때 브라우저가 내는 change·focusout 은 저장으로 받지 않는다(아래 commitQty)
+  if(keep){const el=document.getElementById(keep.id);if(el){if('value' in el&&el.type!=='checkbox')el.value=keep.value;el.focus();try{if(keep.s!=null)el.setSelectionRange(keep.s,keep.e);}catch(e){}
+    if(el.dataset.sxQty!=null){   // 수량 칸: 다른 줄 저장·소싱 담당의 장부 갱신으로 다시 그려져도 입력 흐름을 잇는다
+      if(el.value===String(S.tree?.cart?.[el.dataset.sxQty]?.qty??''))el.select();   // 아직 손대지 않은 칸은 전체 선택(탭으로 들어온 것처럼 — 바로 치면 숫자가 바뀐다)
+      else if(el.classList.contains('sx-qty'))liveTier(el);}}}                        // 입력 중인 칸은 입력한 수량 기준 계산을 유지
 }
 
 // ---- 조작
@@ -378,14 +418,29 @@ async function onChange(e){
     if(el.dataset.sxFilter&&el.dataset.sxFilter!=='q'){S[el.dataset.sxFilter]=el.value;refresh();return;}
     if(el.dataset.sxNote!=null){await send('PATCH','marks/'+el.dataset.sxNote,{note:el.value.trim(),at:now(),by:'대시보드'});notify('한마디를 저장했습니다.');}
     if(el.dataset.sxSetnote!=null){await send('PATCH','sets/'+el.dataset.sxSetnote+'/mark',{note:el.value.trim(),at:now()});notify('세트 한마디를 저장했습니다.');}
-    if(el.dataset.sxQty!=null){const q=Math.round(num(el.value));if(q<1)throw Error('수량을 1개 이상 입력하세요.');await send('PATCH','cart/'+el.dataset.sxQty,{qty:q,updatedAt:now()});}
+    if(el.dataset.sxQty!=null){if(!rendering)await commitQty(el.dataset.sxQty,el.value);return;}
     if(el.dataset.sxRule!=null){await send('PATCH','taste/'+el.dataset.sxRule,{active:el.checked,at:now()});}
   }catch(err){notify(err.message,true);}
+}
+// 수량 저장(장부에는 예전처럼 수량 한 칸만). 칸을 벗어나거나 Enter 를 누르면 저장한다.
+//  - 값이 장부와 같으면 보내지 않는다. 같은 값을 저장하는 중이면 다시 보내지 않는다.
+//  - 한 박자 늦춰 보낸다: 다음 칸으로 포커스가 넘어간 뒤에 다시 그려야 수량을 이어서 고칠 때 다음 칸의 포커스와 입력이 지워지지 않는다.
+//  - 화면이 다시 그려지며 입력 중인 칸이 바뀌면 브라우저가 change 를 내지 않을 수 있어 focusout 에서도 확인한다.
+async function commitQty(id,value){
+  const q=Math.round(num(value));if(q<1)throw Error('수량을 1개 이상 입력하세요.');
+  if(!S.tree?.cart?.[id]||q===num(S.tree.cart[id].qty)||committing.get(id)===q)return;
+  committing.set(id,q);
+  try{await new Promise(r=>setTimeout(r));if(S.tree?.cart?.[id])await send('PATCH','cart/'+id,{qty:q,updatedAt:now()});}finally{committing.delete(id);}
+}
+function onFocusOut(e){
+  const el=e.target;if(rendering||!el?.dataset||el.dataset.sxQty==null||!el.closest('#sx-root'))return;
+  commitQty(el.dataset.sxQty,el.value).catch(err=>{if(!/1개 이상/.test(err.message))notify(err.message,true);});   // 잘못된 수량 안내는 change 쪽에서 이미 했다
 }
 function onInput(e){
   const el=e.target;if(!el.closest('#sx-root'))return;
   if(el.dataset.sxFilter==='q'){S.q=el.value;clearTimeout(searchTimer);searchTimer=setTimeout(refresh,160);}
   if(el.dataset.sxDraft!=null)S.draft[el.dataset.sxDraft]=el.value;
+  if(el.dataset.sxQty!=null&&el.classList.contains('sx-qty'))liveTier(el);
 }
 async function onSubmit(e){
   const form=e.target.closest('[data-sx-form]');if(!form)return;e.preventDefault();
@@ -398,7 +453,7 @@ export default function renderPage(c){
   ctx=c;
   if(!started){
     started=true;
-    document.addEventListener('click',onClick);document.addEventListener('change',onChange);document.addEventListener('input',onInput);document.addEventListener('submit',onSubmit,true);document.addEventListener('keydown',onKey);
+    document.addEventListener('click',onClick);document.addEventListener('change',onChange);document.addEventListener('focusout',onFocusOut);document.addEventListener('input',onInput);document.addEventListener('submit',onSubmit,true);document.addEventListener('keydown',onKey);
     connect();
     fbauth.onAuth(u=>{S.user=u;refresh();});   // 로그인 상태만 표시·검수 요청에 쓴다(읽기 연결은 그대로)
   }
