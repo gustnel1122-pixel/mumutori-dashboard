@@ -12,8 +12,8 @@ const {reorderTab,reorderCount}=await import(`../reorder-view.js?v=${document.bo
 // 장바구니의 수량 구간·행사가 계산(대시보드 담당 2026-10-12): 계산은 src/sourcing-tiers.js, 자료는 장부 items/<상품>/priceInfo(소싱 담당이 넣음, 읽기만).
 const {tierPlan,tierLabel,promoOf,unitAt}=await import(`../sourcing-tiers.js?v=${document.body.dataset.build}`);
 // 장바구니의 발주 단계 표시(대시보드 담당 2026-10-12): 읽기는 src/sourcing-orders.js, 자료는 장부 orders/<발주일>·cart/<줄>/orderStage(소싱 담당이 적음).
-const {lineStage,orderSummaries}=await import(`../sourcing-orders.js?v=${document.body.dataset.build}`);
-const S={tree:null,user:null,status:'connecting',tab:'items',round:'',filter:'전체',cat:'',q:'',draft:{},err:'',quoteOpen:false,showHidden:false};
+const {lineStage,orderSummaries,orderLines}=await import(`../sourcing-orders.js?v=${document.body.dataset.build}`);
+const S={tree:null,user:null,status:'connecting',tab:'items',round:'',filter:'전체',cat:'',q:'',draft:{},err:'',quoteOpen:false,showHidden:false,orderOpen:{}};
 // 숨긴 상품 보기(2026-10-12 사장님: "부정적인 체크를 하면 추천에서 사라졌으면"): 👎·💸 표시한 상품은 후보 목록에서 가린다. 지우는 것이 아니라 화면에서만 가리고,
 // 표시를 풀면 다시 나온다. 장바구니에 담긴 상품은 가리지 않고 경고만 한다. '보기' 상태는 이 브라우저 탭에서만 기억한다(장부에 쓰지 않음).
 const HIDDEN_KEY='mmt-sx-show-hidden';
@@ -21,7 +21,7 @@ try{S.showHidden=sessionStorage.getItem(HIDDEN_KEY)==='1';}catch(e){}
 const negative=r=>!!(r.mark?.design||r.mark?.price);
 let ctx=null,started=false,source=null,pollTimer=null,searchTimer=null,rendering=false;
 const committing=new Map();   // 저장 중인 수량(줄 → 수량) — 같은 값을 두 번 보내지 않는다
-if(new URLSearchParams(location.search).get('tab')==='reorder')S.tab='reorder';   // 구매·원가 화면의 '재발주 준비' 링크로 들어온 경우
+if(['reorder','orders','cart'].includes(new URLSearchParams(location.search).get('tab')))S.tab=new URLSearchParams(location.search).get('tab');   // 구매·원가 화면의 '재발주 준비' 링크로 들어온 경우
 const STATUS={connecting:['연결 중','',''],ok:['실시간 연결됨 · 다른 기기·Claude와 같이 봅니다','ok',''],retry:['연결이 끊겨 다시 잇는 중','bad',''],poll:['실시간 연결이 안 돼 20초마다 새로 읽는 중','bad',''],denied:['Firebase 규칙이 아직 열리지 않았습니다','bad','']};
 const FILTERS=['전체','안 본 것','💗 좋아요','👎 디자인 별로','💸 가격 별로'];
 
@@ -118,6 +118,11 @@ function filtered(rows){
     &&(!q||[r.pid,r.name,r.desc,r.nameCn,r.cat,r.mark.note].join(' ').toLowerCase().includes(q)));
 }
 function cartLines(){return Object.entries(S.tree?.cart||{}).map(([id,l])=>({...l,id})).sort((a,b)=>String(a.at||'').localeCompare(String(b.at||'')));}
+// 발주로 넘어간 줄(발주 단계가 적힌 줄)은 장바구니가 아니라 '발주 진행' 탭에 보인다. 장부에서는 같은 cart 칸에 그대로 있고, 화면에서만 나눈다.
+// 장바구니 줄 수·합계·예상 견적·수량 구간·신청서 요청은 openLines()(아직 발주하지 않은 줄)만 센다.
+const isSent=l=>!!lineStage(l,S.tree?.orders);
+function openLines(){return cartLines().filter(l=>!isSent(l));}
+function sentLines(){return cartLines().filter(isSent);}
 
 
 // Resolve the chosen SKU first; old cart lines may have stored the representative image in img.
@@ -152,9 +157,9 @@ function reviewTab(){
  return `<div class="note amber">여기 상품은 아직 담을 수 없어요. <b>정할 것</b>이 적힌 묶음만 보시면 됩니다(답은 총괄 보고판이나 Claude에게).<br><small>KC 기준: 14세 이상 성인용으로 팔면 KC 의무가 없지만 '14세 이상' 표기만으로 정해지지는 않아요 — 모양·광고·주 사용 대상을 함께 봅니다. 검수 기록은 판매 적법성이나 무위험 보증이 아닙니다.</small></div><div class="sx-review-list sx-rv">${[...groups].map(([w,g])=>{const [q,why]=ask(w);return `<section class="sx-rv-group"><header><span class="badge amber">정할 것</span><b>${esc(q)}</b><small>${g.length}개${why?' · '+esc(why):''}</small></header><div class="sx-rv-grid">${g.map(reviewCard).join('')}</div></section>`;}).join('')}${rest.length?`<details class="sx-rv-rest"${groups.size?'':' open'}><summary>아직 검수 전 ${rest.length}개 — Claude가 원문·사진을 확인할 차례(사장님이 하실 일 없음)</summary><div class="sx-rv-grid">${rest.map(reviewCard).join('')}</div></details>`:''}${rows.length?'':'<p>검토 대기 상품이 없습니다.</p>'}</div>`;
 }
 
-function hiddenRows(all){const cartIds=new Set(cartLines().map(l=>l.offerId));return {cartIds,hidden:all.filter(r=>negative(r)&&!cartIds.has(r.id))};}
+function hiddenRows(all){const cartIds=new Set(openLines().map(l=>l.offerId));return {cartIds,hidden:all.filter(r=>negative(r)&&!cartIds.has(r.id))};}
 function card(r){
-  const m=r.mark,st=markState(m),opts=list(r.options),inCart=cartLines().filter(l=>l.offerId===r.id);
+  const m=r.mark,st=markState(m),opts=list(r.options),inCart=openLines().filter(l=>l.offerId===r.id),sent=sentLines().filter(l=>l.offerId===r.id);
   const cartWarn=negative(r)&&inCart.length?`<p class="sx-cartwarn">⚠ 별로라고 표시했지만 장바구니에 ${inCart.length}줄 담겨 있어 숨기지 않았어요. 장바구니에서 빼면 추천에서 숨겨집니다.</p>`:'';
   const prices=opts.map(o=>num(o.price)).filter(Boolean),lo=prices.length?Math.min(...prices):num(r.priceMin),hi=prices.length?Math.max(...prices):num(r.priceMax);
   const meta=[r.moq?`최소 ${esc(r.moq)}${esc(r.unit||'개')}`:'',r.weightG?`${esc(r.weightG)}g`:'',r.shop?.years?`판매처 ${esc(r.shop.years)}년`:'',r.shop?.repeat?`재구매 ${esc(r.shop.repeat)}`:''].filter(Boolean).join(' · ');
@@ -164,7 +169,7 @@ function card(r){
   const sameN={};opts.forEach(o=>{if(o.img)sameN[o.img]=(sameN[o.img]||0)+1;});
   const sameAny=opts.some(o=>o.img&&sameN[o.img]>1);
   const optImg=o=>zoom(o.img||r.img,o.img?img(o.img,120):`<span class="sx-optfb" title="1688에 이 옵션 사진이 없어 상품 대표 사진을 보여 줍니다">${img(r.img,120)}<em>대표</em></span>`,{cap:o.ko||o.spec,spec:o.spec,rep:!o.img,cls:o.img&&sameN[o.img]>1?'sx-sameimg':''});
-  const optRows=m.like&&opts.length?`<div class="sx-opts"><b>옵션·수량 담기</b><a class="sx-optlink" href="${esc(r.url)}" target="_blank" rel="noopener">1688에서 옵션 대조 ↗</a><small class="sx-opthelp">회색 글자 = 1688 옵션명 · '복사' 후 1688 페이지에서 Ctrl+F(휴대폰은 페이지 내 찾기)</small>${sameAny?`<small class="sx-samehint">⚠ 사진이 같은 옵션이 있어요 — 초록 글씨 치수·모양${list(r.sizeImgs).length?'과 크기·모양 안내':''}로 구분하세요</small>`:''}${opts.map(o=>{const lid=r.id+'~'+keyOf(o.spec),line=S.tree?.cart?.[lid];const dk=lid;const dims=dimsOf(o.spec);return `<div class="sx-opt">${optImg(o)}<span>${esc(o.ko||o.spec)}${dims.length?`<span class="sx-dims">${dims.map(d=>`<i>${esc(d)}</i>`).join('')}</span>`:''}${o.img&&sameN[o.img]>1?`<small class="sx-same">같은 사진 ${sameN[o.img]}개 · 모양·크기만 다름</small>`:''}${o.img?'':'<small class="sx-nofoto">옵션 사진 없음 · 대표 사진</small>'}<small class="sx-spec"><span lang="zh">${esc(o.spec)}</span> <button type="button" class="sx-copy" data-sx="copy" data-text="${esc(o.spec)}" aria-label="1688 옵션명 복사: ${esc(o.spec)}">복사</button></small><small>${yuan(o.price)}${o.weightG?' · '+esc(o.weightG)+'g':''}</small></span><input type="number" min="1" step="1" inputmode="numeric" aria-label="${esc((o.ko||o.spec)+' 수량')}" id="sx-q-${esc(dk)}" data-sx-draft="${esc(dk)}" value="${esc(S.draft[dk]??(line?.qty||r.qty||''))}"><button type="button" class="primary" data-sx="add" data-id="${esc(r.id)}" data-spec="${esc(o.spec)}">${line?'수정':'담기'}</button></div>`;}).join('')}${inCart.length?`<span class="sx-in">장바구니에 ${inCart.map(l=>esc((l.ko||l.spec)+' '+l.qty+'개')).join(', ')}</span>`:''}</div>`:'';
+  const optRows=m.like&&opts.length?`<div class="sx-opts"><b>옵션·수량 담기</b><a class="sx-optlink" href="${esc(r.url)}" target="_blank" rel="noopener">1688에서 옵션 대조 ↗</a><small class="sx-opthelp">회색 글자 = 1688 옵션명 · '복사' 후 1688 페이지에서 Ctrl+F(휴대폰은 페이지 내 찾기)</small>${sameAny?`<small class="sx-samehint">⚠ 사진이 같은 옵션이 있어요 — 초록 글씨 치수·모양${list(r.sizeImgs).length?'과 크기·모양 안내':''}로 구분하세요</small>`:''}${opts.map(o=>{const lid=r.id+'~'+keyOf(o.spec),line=S.tree?.cart?.[lid],sentAt=line?lineStage({...line,id:lid},S.tree?.orders):null;const dk=lid;const dims=dimsOf(o.spec);return `<div class="sx-opt">${optImg(o)}<span>${esc(o.ko||o.spec)}${dims.length?`<span class="sx-dims">${dims.map(d=>`<i>${esc(d)}</i>`).join('')}</span>`:''}${o.img&&sameN[o.img]>1?`<small class="sx-same">같은 사진 ${sameN[o.img]}개 · 모양·크기만 다름</small>`:''}${o.img?'':'<small class="sx-nofoto">옵션 사진 없음 · 대표 사진</small>'}<small class="sx-spec"><span lang="zh">${esc(o.spec)}</span> <button type="button" class="sx-copy" data-sx="copy" data-text="${esc(o.spec)}" aria-label="1688 옵션명 복사: ${esc(o.spec)}">복사</button></small><small>${yuan(o.price)}${o.weightG?' · '+esc(o.weightG)+'g':''}</small></span>${sentAt?`<span class="sx-sentopt" title="이미 발주한 옵션입니다 — 발주 진행 탭에서 단계를 봅니다">📦 ${esc(sentAt.label)} · ${esc(sentAt.stage)} · <b>${esc(line.qty)}개</b></span>`:`<input type="number" min="1" step="1" inputmode="numeric" aria-label="${esc((o.ko||o.spec)+' 수량')}" id="sx-q-${esc(dk)}" data-sx-draft="${esc(dk)}" value="${esc(S.draft[dk]??(line?.qty||r.qty||''))}"><button type="button" class="primary" data-sx="add" data-id="${esc(r.id)}" data-spec="${esc(o.spec)}">${line?'수정':'담기'}</button>`}</div>`;}).join('')}${inCart.length?`<span class="sx-in">장바구니에 ${inCart.map(l=>esc((l.koBase||l.ko||l.spec)+' '+l.qty+'개')).join(', ')}</span>`:''}${sent.length?`<span class="sx-in sx-in-sent">📦 발주 진행 ${sent.length}줄 · ${sent.reduce((a,l)=>a+num(l.qty),0).toLocaleString('ko-KR')}개</span>`:''}</div>`:'';
   return `<article class="sx-card ${st}">
     ${r.img?zoom(r.img,img(r.img,310),{cap:r.name,cls:'sx-img'}):`<a class="sx-img" href="${esc(r.url)}" target="_blank" rel="noopener">${img('',310)}</a>`}
     <div class="sx-body">
@@ -216,7 +221,7 @@ const signed=(v,f)=>(v<0?'−':'+')+f(Math.abs(v));
 function tierBox(l,qtyOf=x=>num(x.qty),typing=false){
   const info=S.tree?.items?.[l.offerId]?.priceInfo,attrs=`data-sx-tier="${esc(l.offerId)}" data-line="${esc(l.id)}"`;
   if(!info||typeof info!=='object')return l.tierNote?`<div class="sx-tier sx-tier-flat" ${attrs}>💰 ${esc(l.tierNote)}</div>`:'';
-  const group=cartLines().filter(x=>x.offerId===l.offerId),total=group.reduce((a,x)=>a+qtyOf(x),0),qty=qtyOf(l),key=keyOfSpec(l.spec);
+  const group=openLines().filter(x=>x.offerId===l.offerId),total=group.reduce((a,x)=>a+qtyOf(x),0),qty=qtyOf(l),key=keyOfSpec(l.spec);
   const plan=tierPlan(info,total),promo=promoOf(info,key,qty),unit=unitAt(info,key,total),parts=[];
   const draft=typing?' <em>입력한 수량 기준 · 저장 전</em>':'',many=group.length>1?`이 판매글 ${group.length}줄 합계 `:'지금 ';
   if(plan.kind==='tier'){
@@ -238,34 +243,45 @@ function tierBox(l,qtyOf=x=>num(x.qty),typing=false){
 function liveTier(el){
   const root=document.getElementById('sx-root'),cart=S.tree?.cart||{},line=cart[el.dataset.sxQty];if(!root||!line)return;
   const typed={};for(const i of root.querySelectorAll('input.sx-qty[data-sx-qty]')){const v=Math.round(num(i.value)),id=i.dataset.sxQty;if(cart[id]&&v>0&&v!==num(cart[id].qty))typed[id]=v;}
-  const qtyOf=x=>typed[x.id]??num(x.qty),lines=cartLines(),changed=lines.some(x=>x.offerId===line.offerId&&typed[x.id]!=null);
+  const qtyOf=x=>typed[x.id]??num(x.qty),lines=openLines(),changed=lines.some(x=>x.offerId===line.offerId&&typed[x.id]!=null);
   for(const box of [...root.querySelectorAll('[data-sx-tier]')]){const l=lines.find(x=>x.id===box.dataset.line);if(l&&l.offerId===line.offerId)box.outerHTML=tierBox(l,qtyOf,changed);}
   const me=lines.find(x=>x.id===el.dataset.sxQty),row=el.closest('tr');
   if(me&&row){const sub=num(me.price)*qtyOf(me),a=row.querySelector('[data-sx-sub]'),b=row.querySelector('[data-sx-krw]');if(a)a.innerHTML=`<b>${yuan(sub)}</b>`;if(b)b.textContent=krw(toKrw(sub));}
 }
-// ---- 발주 단계(2026-10-12 사장님: "발주접수니까 표시해둬야지 그리고 발주단계도 기록해놔야해"). 자료는 소싱 담당이 장부에 적는다 — 읽기만.
-// 원가·신청 번호는 공개 화면에 내지 않는다: src/sourcing-orders.js 가 단계·날짜·수량 칸만 읽는다.
+// ---- 발주 진행(2026-10-12 사장님: "장바구니에는 왜 계속 담겨져있지? 발주하지 않았나?" → 발주한 줄은 장바구니가 아니라 이 탭에).
+// 자료는 소싱 담당이 장부에 적는다 — 읽기만. 원가·신청 번호는 공개 화면에 내지 않는다: src/sourcing-orders.js 가 단계·날짜·수량·줄 번호만 읽는다.
+const SENT_PREFIX=/^✅\s*\d{1,2}\/\d{1,2}\s*발주\s*접수\s*·\s*/;   // 소싱 담당이 옵션 이름 앞에 붙여 둔 글 — 단계 배지가 있으면 이름에서 뺀다
 function stageBadge(s){
   return s?`<span class="sx-stage ${s.done?'done':''}" title="${esc(s.history.map(([name,d])=>name+' '+d).join(' → '))}">📦 ${esc(s.label)} · <b>${esc(s.stage)}</b>${s.date?` ${esc(s.date)}`:''}${s.next?`<small>다음 ${esc(s.next)}</small>`:''}</span>`:'';
 }
-function orderBar(lines){
-  const orders=S.tree?.orders,list=orderSummaries(orders);if(!list.length)return '';
-  const waiting=lines.filter(l=>!lineStage(l,orders)).length;
-  return `<div class="sx-orders">${list.map(o=>`<section class="sx-orderbar ${o.done?'done':''}" data-order="${esc(o.key)}"><div class="sx-order-head"><b>📦 ${esc(o.label)}</b><span>${o.lines.toLocaleString('ko-KR')}줄 · ${o.qty.toLocaleString('ko-KR')}개</span></div>
-    <ol class="sx-order-steps">${o.steps.map(s=>`<li class="${s.count?'on':s.date?'passed':''}"><span>${esc(s.stage)}</span><b>${s.count.toLocaleString('ko-KR')}줄</b><small>${s.date?esc(s.date):'—'}</small></li>`).join('')}</ol></section>`).join('')}
-    <p class="sx-order-note">${waiting?`장바구니 ${waiting}줄은 아직 발주에 들어가지 않았습니다. `:''}단계는 소싱 담당이 진행될 때마다 적습니다. 원가·신청 번호는 이 화면에 표시하지 않습니다.</p></div>`;
+function ordersTab(){
+  const t=S.tree||{},items=t.items||{},orders=t.orders||{},cart=t.cart||{},groups=orderSummaries(orders),covered=new Set();
+  const row=l=>{const it=items[l.offerId]||{},stage=lineStage(l,orders),opt=String(l.koBase||l.ko||list(it.options).find(o=>o.spec===l.spec)?.ko||'').replace(SENT_PREFIX,'');
+    return `<tr><td>${chosenVisual({...l,ko:opt},it)}</td><td class="maincell"><b><a href="${esc(it.url||'#')}" target="_blank" rel="noopener">${esc(it.name||l.offerId)}</a></b><span class="sub">${esc(opt)}</span><span class="sub sx-spec"><span lang="zh">${esc(l.spec||'')}</span></span></td><td class="num"><b>${num(l.qty).toLocaleString('ko-KR')}</b>개</td><td>${stageBadge(stage)||'<span class="sub">단계 미기록</span>'}</td></tr>`;};
+  const table=rows=>`<div class="tablewrap sx-order-lines"><table class="table"><thead><tr><th>사진</th><th>상품 / 옵션</th><th class="num">수량</th><th>단계</th></tr></thead><tbody>${rows.map(row).join('')}</tbody></table></div>`;
+  const now=o=>{const at=o.steps.filter(s=>s.count);return at.length===1?`${at[0].stage}${at[0].date?' '+at[0].date:''}`:at.map(s=>`${s.stage} ${s.count}줄`).join(' · ')||'단계 미기록';};
+  const sections=groups.map((o,i)=>{
+    // 그 발주의 표시가 붙은 장바구니 줄이면 그 줄을, 아니면(장바구니에서 지워졌거나 같은 옵션을 새로 담은 경우) 발주 기록의 값을 쓴다 — 새로 담은 줄과 섞지 않는다.
+    const rows=orderLines(orders[o.key]).map(x=>{const mine=cart[x.id];if(mine&&String(mine.orderBatch||'')===o.key){covered.add(x.id);return {...mine,id:x.id};}return {...x,orderBatch:o.key};});
+    const open=S.orderOpen[o.key]??i===0;
+    return `<section class="sx-orderbar ${o.done?'done':''}" data-order="${esc(o.key)}"><div class="sx-order-head"><b>📦 ${esc(o.label)}</b><span>${o.lines.toLocaleString('ko-KR')}줄 · ${o.qty.toLocaleString('ko-KR')}개</span><span class="sx-order-now">지금 단계 <b>${esc(now(o))}</b></span><button type="button" class="text" data-sx="order-toggle" data-id="${esc(o.key)}" aria-expanded="${open}">${open?'발주한 줄 접기 ▴':`발주한 줄 ${rows.length}개 보기 ▾`}</button></div>
+      <ol class="sx-order-steps">${o.steps.map(s=>`<li class="${s.count?'on':s.date?'passed':''}"><span>${esc(s.stage)}</span><b>${s.count.toLocaleString('ko-KR')}줄</b><small>${s.date?esc(s.date):'—'}</small></li>`).join('')}</ol>${open?table(rows):''}</section>`;}).join('');
+  const loose=sentLines().filter(l=>!covered.has(l.id));   // 단계는 적혀 있는데 발주 묶음 기록에 없는 줄
+  if(!groups.length&&!loose.length)return `<div class="empty"><b>발주한 상품이 아직 없습니다.</b>장바구니에서 신청서를 내면 여기에 단계별로 나옵니다.</div>`;
+  return `<div class="note sx-order-note">발주한 상품입니다. 여기 있는 줄은 장바구니 합계와 예상 견적에 들어가지 않습니다. 단계는 소싱 담당이 진행될 때마다 적습니다. 원가·신청 번호는 이 화면에 표시하지 않습니다.</div>
+    <div class="sx-orders">${sections}${loose.length?`<section class="sx-orderbar" data-order="loose"><div class="sx-order-head"><b>📦 발주 묶음 기록이 없는 줄</b><span>${loose.length}줄 · ${loose.reduce((a,l)=>a+num(l.qty),0).toLocaleString('ko-KR')}개</span></div>${table(loose)}</section>`:''}</div>`;
 }
 function cartTab(){
-  const t=S.tree||{},items=t.items||{},lines=cartLines();
-  const likedNoCart=itemRows().filter(r=>r.mark.like&&!lines.some(l=>l.offerId===r.id));
+  const t=S.tree||{},items=t.items||{},lines=openLines(),sent=sentLines(),everyLine=cartLines();
+  const likedNoCart=itemRows().filter(r=>r.mark.like&&!everyLine.some(l=>l.offerId===r.id));   // 이미 발주한 상품은 '안 담은 상품'으로 세지 않는다
   const badInCart=itemRows().filter(r=>negative(r)&&lines.some(l=>l.offerId===r.id));
   let totalY=0,weight=0,weightKnown=true;
-  const rows=lines.map(l=>{const it=items[l.offerId]||{},sub=num(l.price)*num(l.qty),stage=lineStage(l,t.orders),optName=String(l.koBase||l.ko||'').replace(stage?/^✅\s*\d{1,2}\/\d{1,2}\s*발주\s*접수\s*·\s*/:/$^/,'');totalY+=sub;if(l.weightG)weight+=num(l.weightG)*num(l.qty);else weightKnown=false;
-    return `<tr><td>${chosenVisual(l,it)}</td><td class="maincell"><b><a href="${esc(it.url||'#')}" target="_blank" rel="noopener">${esc(it.name||l.offerId)}</a></b><span class="sub">${esc(optName)}</span>${stageBadge(stage)}${tierBox(l)}${skuStatus(l,it)}<span class="sub sx-spec"><span lang="zh">${esc(l.spec)}</span> <button type="button" class="sx-copy" data-sx="copy" data-text="${esc(l.spec)}" aria-label="1688 옵션명 복사: ${esc(l.spec)}">복사</button></span></td><td><input type="number" min="1" step="1" class="sx-qty" id="sx-cq-${esc(l.id)}" data-sx-qty="${esc(l.id)}" aria-label="수량" value="${esc(l.qty)}"></td><td class="num">${yuan(l.price)}</td><td class="num" data-sx-sub="${esc(l.id)}"><b>${yuan(sub)}</b></td><td class="num" data-sx-krw="${esc(l.id)}">${krw(toKrw(sub))}</td><td>${`<button type="button" class="text danger" data-sx="remove" data-id="${esc(l.id)}">빼기</button>`}</td></tr>`;}).join('');
+  const rows=lines.map(l=>{const it=items[l.offerId]||{},sub=num(l.price)*num(l.qty),optName=String(l.koBase||l.ko||'');totalY+=sub;if(l.weightG)weight+=num(l.weightG)*num(l.qty);else weightKnown=false;
+    return `<tr><td>${chosenVisual(l,it)}</td><td class="maincell"><b><a href="${esc(it.url||'#')}" target="_blank" rel="noopener">${esc(it.name||l.offerId)}</a></b><span class="sub">${esc(optName)}</span>${tierBox(l)}${skuStatus(l,it)}<span class="sub sx-spec"><span lang="zh">${esc(l.spec)}</span> <button type="button" class="sx-copy" data-sx="copy" data-text="${esc(l.spec)}" aria-label="1688 옵션명 복사: ${esc(l.spec)}">복사</button></span></td><td><input type="number" min="1" step="1" class="sx-qty" id="sx-cq-${esc(l.id)}" data-sx-qty="${esc(l.id)}" aria-label="수량" value="${esc(l.qty)}"></td><td class="num">${yuan(l.price)}</td><td class="num" data-sx-sub="${esc(l.id)}"><b>${yuan(sub)}</b></td><td class="num" data-sx-krw="${esc(l.id)}">${krw(toKrw(sub))}</td><td>${`<button type="button" class="text danger" data-sx="remove" data-id="${esc(l.id)}">빼기</button>`}</td></tr>`;}).join('');
   const reqs=Object.entries(t.requests||{}).sort((a,b)=>String(b[1].at||'').localeCompare(String(a[1].at||''))).slice(0,5);
   const r=rate();
-  return `${orderBar(lines)}${badInCart.length?`<div class="note amber sx-badcart">👎·💸 표시한 상품 ${badInCart.length}개가 장바구니에 담겨 있어요: ${badInCart.map(x=>`<b>${esc(x.name)}</b>`).join(', ')} — 그대로 두었으니 뺄지 확인해 주세요.</div>`:''}${likedNoCart.length?`<div class="note amber">💗만 누르고 수량을 안 담은 상품 ${likedNoCart.length}개: ${likedNoCart.map(x=>`<b>${esc(x.name)}</b>`).join(', ')} — 후보 탭에서 옵션·수량을 담아 주세요.</div>`:''}
-    <div class="panel section-gap"><div class="tablewrap"><table class="table"><thead><tr><th>사진</th><th>상품 / 옵션</th><th>수량</th><th class="num">단가</th><th class="num">소계</th><th class="num">≈ 원화</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="7"><div class="empty"><b>장바구니가 비어 있습니다.</b>후보에서 💗 → 옵션·수량 담기</div></td></tr>`}</tbody></table></div>
+  return `${sent.length?`<div class="note sx-sentnote"><span>📦 발주로 넘어간 <b>${sent.length}줄</b>은 <button type="button" class="text" data-sx="tab" data-id="orders">발주 진행에서 보기 →</button></span> <small>장바구니에는 아직 발주하지 않은 것만 남습니다.</small></div>`:''}${badInCart.length?`<div class="note amber sx-badcart">👎·💸 표시한 상품 ${badInCart.length}개가 장바구니에 담겨 있어요: ${badInCart.map(x=>`<b>${esc(x.name)}</b>`).join(', ')} — 그대로 두었으니 뺄지 확인해 주세요.</div>`:''}${likedNoCart.length?`<div class="note amber">💗만 누르고 수량을 안 담은 상품 ${likedNoCart.length}개: ${likedNoCart.map(x=>`<b>${esc(x.name)}</b>`).join(', ')} — 후보 탭에서 옵션·수량을 담아 주세요.</div>`:''}
+    <div class="panel section-gap"><div class="tablewrap"><table class="table"><thead><tr><th>사진</th><th>상품 / 옵션</th><th>수량</th><th class="num">단가</th><th class="num">소계</th><th class="num">≈ 원화</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="7"><div class="empty"><b>장바구니가 비어 있습니다.</b>${sent.length?'발주한 상품은 발주 진행 탭에 있습니다. 새로 살 것은 ':''}후보에서 💗 → 옵션·수량 담기</div></td></tr>`}</tbody></table></div>
     <div class="sx-total"><span>상품 ${lines.length}줄 · ${lines.reduce((a,l)=>a+num(l.qty),0)}개</span><span>합계 <b>${yuan(totalY)}</b> ≈ <b>${krw(toKrw(totalY))}</b></span><small>환율 ${r.rate}원 × 구매대행 수수료 ${Math.round(r.fee*100)}% 포함 · 1688 판매자 배송비·국제 배송비·관부가세 별도(배송비 포함 예상은 아래 견적 줄)${weight?` · 무게 약 ${(weight/1000).toFixed(2)}kg${weightKnown?'':'(일부 무게 모름)'}`:''}</small></div></div>
     <div class="sx-request"><div><b>배대지 신청서</b><p>선택 옵션 정밀검수 완료와 새 감시기 버전 확인 후 요청하면 PC의 자동 처리 프로그램이 이 장바구니로 아이템스카우트 배대지 신청서를 채우고 캡처합니다. <b>신청하기는 확인을 받은 뒤에</b> 누릅니다.</p><p><span class="badge ${watcher().on?'green':'amber'}">${watcher().label||(watcher().on?'켜짐':'꺼짐')}</span> ${esc(watcher().text)}</p></div><button type="button" class="primary" data-sx="request" ${lines.length?'':'disabled'}>검수 확인 후 신청서 작성 요청</button></div>
     ${reqs.length?`<div class="sx-reqs">${reqs.map(([id,q])=>`<div><span class="badge ${REQ_TONE[q.status]||'amber'}">${esc(q.status||'요청')}</span> ${esc(new Date(q.at).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}))} · ${esc(q.summary||'')}${q.reply?` — <b>${esc(q.reply)}</b>`:''}</div>`).join('')}<small>'작성됨'이면 PC 크롬의 [작성본] 탭과 드라이브 구매대행/요청작성본에서 확인하고, 신청하려면 Claude에게 "신청해줘"라고 말해 주세요. '확인 필요'는 사유를 보고 Claude에게 맡겨 주세요.</small></div>`:''}`;
@@ -286,7 +302,7 @@ function tasteTab(){
 const SHIP_DEFAULT={mode:'항공',grade:'Gold(사업자)',base05:5990,per05:1820,fixed:19500,boxPack:3000,cjMid:3900,cjLarge:4900,midMaxKg:5,boxMaxKg:15,multiBox:2000,originPer:60,originCap:30000,packRate:0.1,boxKg:0.5};
 const shipCfg=()=>({...SHIP_DEFAULT,...(S.tree?.meta?.ship||{})});
 function quote(){
-  const t=S.tree||{},items=t.items||{},lines=cartLines();if(!lines.length)return null;
+  const t=S.tree||{},items=t.items||{},lines=openLines();if(!lines.length)return null;
   const r=rate(),c=shipCfg(),sellers={},perOffer={};let goods=0,qty=0,weightG=0,unknownW=0;
   for(const l of lines){
     const it=items[l.offerId]||{},q=num(l.qty),sub=num(l.price)*q;goods+=sub;qty+=q;perOffer[l.offerId]=(perOffer[l.offerId]||0)+q;
@@ -332,9 +348,9 @@ function view(){
   const status=`<div class="sx-status ${tone}"><i></i>${esc(label)}${who}${S.err?` · ${esc(S.err)}`:''}${t.meta?.updatedAt?` · Claude 마지막 갱신 ${esc(new Date(t.meta.updatedAt).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}))}`:''}</div>`;
   if(S.status==='denied')return status+`<div class="note error">소싱 자료를 읽을 권한이 없습니다. Firebase 규칙에 <code>sourcing</code> 칸이 열려 있어야 합니다.</div>`;
   if(!S.tree)return status+`<div class="note">소싱 자료를 불러오는 중입니다.</div>`;
-  const nCart=Object.keys(t.cart||{}).length,nRule=Object.values(t.taste||{}).filter(r=>r.active!==false).length;
-  const tabs=`<div class="chips">${[['items','후보 '+visibleCount()],['cart','장바구니 '+nCart],['reorder','재발주 준비 '+reorderCount(t)],['taste','취향 규칙 '+nRule],['review','검토 대기 '+itemRows().filter(r=>!exclusion(r.id,r,t.marks||{})&&!isAdmitted(r)).length],['excluded','삭제 내역 '+Object.values(t.marks||{}).filter(m=>m.exclusion?.active).length]].map(([id,l])=>`<button type="button" class="chip ${S.tab===id?'active':''}" data-sx="tab" data-id="${id}">${esc(l)}</button>`).join('')}</div>`;
-  return status+tabs+(S.tab==='cart'?cartTab():S.tab==='taste'?tasteTab():S.tab==='review'?reviewTab():S.tab==='excluded'?excludedTab():S.tab==='reorder'?reorderTab(t,{img,yuan}):itemsTab())+quoteBar();
+  const nCart=openLines().length,nSent=sentLines().length,nRule=Object.values(t.taste||{}).filter(r=>r.active!==false).length;
+  const tabs=`<div class="chips">${[['items','후보 '+visibleCount()],['cart','장바구니 '+nCart],['orders','발주 진행 '+nSent],['reorder','재발주 준비 '+reorderCount(t)],['taste','취향 규칙 '+nRule],['review','검토 대기 '+itemRows().filter(r=>!exclusion(r.id,r,t.marks||{})&&!isAdmitted(r)).length],['excluded','삭제 내역 '+Object.values(t.marks||{}).filter(m=>m.exclusion?.active).length]].map(([id,l])=>`<button type="button" class="chip ${S.tab===id?'active':''}" data-sx="tab" data-id="${id}">${esc(l)}</button>`).join('')}</div>`;
+  return status+tabs+(S.tab==='cart'?cartTab():S.tab==='orders'?ordersTab():S.tab==='taste'?tasteTab():S.tab==='review'?reviewTab():S.tab==='excluded'?excludedTab():S.tab==='reorder'?reorderTab(t,{img,yuan}):itemsTab())+quoteBar();
 }
 function refresh(){
   const root=document.getElementById('sx-root');if(!root)return;
@@ -384,6 +400,7 @@ async function onClick(e){
     if(sx==='login'){try{await fbauth.signIn();}catch(e){throw Error('로그인하지 못했습니다 — '+(e.message||''));}return;}
     if(sx==='logout'){await fbauth.signOut();return;}
     if(sx==='quote'){S.quoteOpen=!S.quoteOpen;refresh();return;}
+    if(sx==='order-toggle'){const first=orderSummaries(S.tree?.orders)[0]?.key;S.orderOpen[id]=!(S.orderOpen[id]??id===first);refresh();return;}
     if(sx==='toggle-hidden'){S.showHidden=!S.showHidden;try{sessionStorage.setItem(HIDDEN_KEY,S.showHidden?'1':'0');}catch(e){}refresh();return;}
     if(sx==='copy'){const ok=await copyText(el.dataset.text||'');notify(ok?'1688 옵션명을 복사했습니다 — 1688 페이지에서 Ctrl+F(휴대폰은 페이지 내 찾기)로 붙여 넣어 찾으세요.':'복사하지 못했습니다 — 회색 글자를 길게 눌러 직접 복사해 주세요.',!ok);return;}
     if(sx==='sku-review'){await requestSku(id);return;}
@@ -399,7 +416,7 @@ async function onClick(e){
       const m={...(S.tree?.marks?.[id]||{})},on=!m[k];
       const next={like:k==='like'?on:(on?false:!!m.like),design:k==='design'?on:(k==='like'&&on?false:!!m.design),price:k==='price'?on:(k==='like'&&on?false:!!m.price),at:now(),by:'대시보드'};
       await send('PATCH','marks/'+id,next);
-      if(on&&k!=='like'&&!S.showHidden)notify(cartLines().some(l=>l.offerId===id)?'표시했습니다. 장바구니에 담겨 있어 숨기지 않았어요.':'추천에서 숨겼습니다. 위의 \'숨긴 상품 보기\'에서 표시를 풀면 다시 나옵니다.');
+      if(on&&k!=='like'&&!S.showHidden)notify(openLines().some(l=>l.offerId===id)?'표시했습니다. 장바구니에 담겨 있어 숨기지 않았어요.':'추천에서 숨겼습니다. 위의 \'숨긴 상품 보기\'에서 표시를 풀면 다시 나옵니다.');
     }
     if(sx==='set-mark'){
       const m={...(S.tree?.sets?.[id]?.mark||{})},on=!m[k];
@@ -408,14 +425,15 @@ async function onClick(e){
     if(sx==='add'){
       if(!recommendable(id,S.tree.items[id]||{},S.tree.marks||{}))throw Error('추천 제외 또는 검수 대기 상품은 새로 담을 수 없습니다.');
       const it=S.tree.items[id],o=list(it.options).find(x=>x.spec===spec),lid=id+'~'+keyOf(spec);
+      if(S.tree?.cart?.[lid]&&isSent({...S.tree.cart[lid],id:lid}))throw Error('이 옵션은 이미 발주에 들어가 있습니다(발주 진행 탭). 발주 기록을 덮어쓰지 않도록 여기서는 다시 담을 수 없어요 — 더 사려면 소싱 담당에게 말해 주세요.');
       const qty=Math.round(num(S.draft[lid]??document.getElementById('sx-q-'+lid)?.value));
       if(qty<1)throw Error('수량을 1개 이상 입력하세요.');
       await send('PUT','cart/'+lid,{offerId:id,spec,ko:o?.ko||'',price:num(o?.price),img:o?.img||'',imageSource:o?.img?'option':it.img?'representative':'none',weightG:o?.weightG||it.weightG||null,qty,at:S.tree?.cart?.[lid]?.at||now(),updatedAt:now()});
       delete S.draft[lid];notify(`장바구니에 담았습니다 — ${it.name} ${o?.ko||spec} ${qty}개`);
     }
-    if(sx==='remove'){await send('DELETE','cart/'+id);notify('장바구니에서 뺐습니다.');}
+    if(sx==='remove'){if(S.tree?.cart?.[id]&&isSent({...S.tree.cart[id],id}))throw Error('발주에 들어간 줄은 여기서 뺄 수 없습니다.');await send('DELETE','cart/'+id);notify('장바구니에서 뺐습니다.');}
     if(sx==='request'){
-      const lines=cartLines();if(!lines.length)return;
+      const lines=openLines();if(!lines.length)return;
       if(pendingActions.has('order'))return;
       const issues=orderProblems(lines,S.tree.items||{},S.tree.marks||{},S.tree.meta?.watcher||{},S.tree.reviewRequests||{});if(issues.length)throw Error('검수 대기: '+issues.join(' · '));pendingActions.add('order');
       const duplicate=Object.values(S.tree.requests||{}).find(q=>['요청','처리중'].includes(q.status)&&JSON.stringify(Object.values(q.lines||{}).map(l=>[l.offerId,l.spec,l.qty,l.fingerprint,l.reviewResultId]).sort())===JSON.stringify(lines.map(l=>[l.offerId,l.spec,l.qty,skuSnapshot(l.offerId,S.tree.items[l.offerId],l.spec),S.tree.items[l.offerId].skuReviews[keyOfSpec(l.spec)].resultId]).sort()));
@@ -443,6 +461,7 @@ async function onChange(e){
 async function commitQty(id,value){
   const q=Math.round(num(value));if(q<1)throw Error('수량을 1개 이상 입력하세요.');
   if(!S.tree?.cart?.[id]||q===num(S.tree.cart[id].qty)||committing.get(id)===q)return;
+  if(isSent({...S.tree.cart[id],id}))throw Error('발주에 들어간 줄의 수량은 여기서 바꿀 수 없습니다.');
   committing.set(id,q);
   try{await new Promise(r=>setTimeout(r));if(S.tree?.cart?.[id])await send('PATCH','cart/'+id,{qty:q,updatedAt:now()});}finally{committing.delete(id);}
 }

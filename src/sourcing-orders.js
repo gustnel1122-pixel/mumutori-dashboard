@@ -26,6 +26,10 @@ export function lineStage(line,orders){
   return {batch,label:batchLabel(batch),stage,date:md(stages[stage]),index,next:index>=0?steps[index+1]||'':'',done:index===steps.length-1,
     history:steps.filter(s=>day(stages[s])).map(s=>[s,md(stages[s])])};
 }
+// 그 발주에 들어간 줄(장바구니에서 지워진 뒤에도 보여 줄 수 있게). 줄 번호·상품 번호·옵션 원문·수량만 읽는다 — 이름·메모 같은 글은 읽지 않는다.
+export function orderLines(order){
+  return Object.entries(obj(order?.items)||{}).filter(([,it])=>obj(it)).map(([id,it])=>({id,offerId:text(it.offerId)||id.split('~')[0],spec:text(it.spec),qty:Number(it.qty)>0?Number(it.qty):0}));
+}
 // 발주별 요약: 단계마다 지금 그 단계에 있는 줄 수와, 그 단계에 들어선 가장 최근 날짜. 최근 발주가 앞.
 export function orderSummaries(orders){
   return Object.entries(obj(orders)||{}).filter(([,o])=>obj(o)&&obj(o.items)).sort((a,b)=>b[0].localeCompare(a[0])).map(([key,o])=>{
