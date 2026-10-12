@@ -6,7 +6,7 @@
   const BANK_CATEGORIES = ['매출 수금','채널 정산','자금 충전','대여금 회수','자금입금·용도 확인','차입금 입금','상품 매입','배송·통관','운영비','광고비','기타 사업지출','매입 예치금 충전','대여금 지급','차입금 상환','개인자금 인출','개인 대납비 상환','계좌이체','이자','캐시백','기타','미분류','기록'];
   const STATUS = ['판매 중','판매 준비','판매 중단','품절','자재','확인 필요'];
   const MOVE_TYPES = ['실사','입고','출고','반품입고','반품출고','폐기','창고이동'];
-  // 브랜딩 도구 기록(도장·잉크·포장재) — 이 장부의 erp.branding 에만 둔다. 공개 목록(src/branding-data.js)에는 주문번호·결제액·도안 원본 위치를 넣지 않는다.
+  // 브랜딩 도구 기록(도장·잉크·포장재) — 이 장부의 erp.branding 에만 둔다. 공개 목록(src/branding-data.json)에는 주문번호·결제액·도안 원본 위치를 넣지 않는다.
   // 처음 저장할 때 칸을 만든다(브랜딩을 쓰지 않는 장부는 그대로).
   const BRAND_STATUS = [['unregistered','미등록'],['candidate','후보'],['recommended','권고'],['ordered','주문 완료'],['received','수령'],['inuse','사용 중'],['retired','단종·대체']];
   const BRAND_KINDS = ['도장','잉크','포장재','기타'];
@@ -106,6 +106,16 @@
     if(row.status==='received'&&!row.receivedDate)throw Error('수령으로 바꾸려면 수령일을 입력하세요.');
     if(row.status==='inuse'&&!row.receivedDate&&!row.useEvidence?.trim())throw Error('사용 중으로 바꾸려면 수령일이나 사용 근거(예: 언제부터 쓰는지)를 입력하세요.');
     if(row.orderDate&&row.receivedDate&&row.receivedDate<row.orderDate)throw Error('수령일이 발주일보다 빠릅니다.');
+  }
+  // 백업 가져오기·병합으로 들어오는 브랜딩 기록에도 직접 등록과 같은 검증을 적용한다(증거 없는 주문 완료·수령·사용 중은 받지 않는다).
+  // 하나라도 어긋나면 가져오기 전체를 거절한다 — 현재 장부는 그대로 두고, 어느 기록의 무엇이 문제인지 알려 준다.
+  function validateBrandingRows(rows) {
+    if(rows==null)return;
+    if(!Array.isArray(rows))throw Error('백업의 브랜딩 기록 형식이 올바르지 않습니다.');
+    for(const r of rows){
+      if(!r||typeof r!=='object'||Array.isArray(r))throw Error('백업의 브랜딩 기록 형식이 올바르지 않습니다.');
+      try{validateBranding(r);}catch(e){throw Error('백업의 브랜딩 기록 「'+String(r.id??'').slice(0,40)+'」: '+e.message+' 백업 파일에서 이 기록의 상태나 날짜를 바로잡은 뒤 다시 가져오세요. 현재 자료는 바뀌지 않았습니다.');}
+    }
   }
   function purchases(d) {
     const evidence=d.finance.purchaseEvidence||[];
@@ -273,6 +283,7 @@
     const before=clone(row);row.voided=!row.voided;row.voidReason=reason;row.updatedAt=new Date().toISOString();
     if(!row.voided&&type==='sale')validateSale(row,next);
     if(!row.voided&&type==='bank')validateBank(row,next);
+    if(!row.voided&&type==='branding')validateBranding(row);
     if(type==='movement'){
       if(!row.voided)validateMovement(row,next);
       else{
@@ -295,7 +306,7 @@
   }
   function validateBackup(raw) {
     if(!raw||!Array.isArray(raw.products)||!Array.isArray(raw.bankTransactions)||!raw.finance)throw Error('무무토리 전체 백업 JSON을 선택하세요.');
-    if(raw.erp?.branding!=null&&!Array.isArray(raw.erp.branding))throw Error('백업의 브랜딩 기록 형식이 올바르지 않습니다.');
+    validateBrandingRows(raw.erp?.branding);
     for(const rows of [raw.products,raw.bankTransactions,raw.purchaseLines||[],raw.finance.channelTransactions||[],raw.erp?.movements||[],raw.erp?.branding||[]]){
       const ids=new Set();for(const r of rows){if(!r.id||ids.has(r.id))throw Error('백업에 중복되거나 비어 있는 관리번호가 있습니다.');ids.add(r.id);}
     }
@@ -314,6 +325,7 @@
     for(const key of ['channelTransactions','channelCosts','channelCostDetails','sourceFiles'])next.finance[key]=merge(next.finance[key],incoming.finance[key]);
     next.finance.purchaseEvidence=merge(next.finance.purchaseEvidence,incoming.finance.purchaseEvidence,'orderNo');
     for(const key of ['accounts','partners','movements'])next.erp[key]=merge(next.erp[key],incoming.erp[key]);
+    validateBrandingRows(incoming.erp.branding);
     if(incoming.erp.branding?.length){brandRows(next);next.erp.branding=merge(next.erp.branding,incoming.erp.branding);}
     next.erp.warehouses=[...new Set([...next.erp.warehouses,...incoming.erp.warehouses])];
     next.finance.bankTransactions=next.bankTransactions;

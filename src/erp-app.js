@@ -277,7 +277,7 @@ const { createStore } = await import(`./store.js?v=${document.body.dataset.build
       const el=e.target;
       if(el.dataset.filter&&el.dataset.filter!=='query'){state[el.dataset.filter]=el.type==='checkbox'?el.checked:el.value;state.page=1;render();return;}
       if(el.id==='mobile-nav'){navigate(el.value);return;}
-      if(el.id==='backup-file'){await backupPreview(el.files[0]);el.value='';return;}
+      if(el.id==='backup-file'){try{await backupPreview(el.files[0]);}finally{el.value='';}return;}
       if(el.id==='csv-file'){
         modal.preview=null;modal.text='';$('#import-preview').textContent='파일을 확인하고 있습니다.';
         const file=el.files[0];if(!file)return;if(file.size>10*1024*1024)throw Error('10MB 이하 CSV 파일을 선택하세요.');

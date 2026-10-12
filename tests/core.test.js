@@ -84,3 +84,25 @@ test('backup and merge carry branding records without touching other ledgers',()
   const dup=C.clone(withBrand);dup.erp.branding.push(C.clone(dup.erp.branding[0]));assert.throws(()=>C.validateBackup(dup),/중복/);
   const bad=C.clone(base);bad.erp.branding='x';assert.throws(()=>C.validateBackup(bad),/브랜딩/);
 });
+test('backup import applies the same branding evidence rules as direct entry and leaves the ledger untouched on refusal',()=>{
+  const base=C.record(fixture(),'branding',brand({option:'검정'}),{isNew:true}),snapshot=JSON.stringify(base);
+  const withRows=rows=>{const b=C.clone(base);b.erp.branding=rows;return b;};
+  const unproven={id:'SYN-UNPROVEN',name:'Synthetic unproven use',kind:'도장',status:'inuse'};
+  assert.throws(()=>C.record(base,'branding',unproven,{isNew:true}),/수령일이나 사용 근거/,'직접 등록은 거절');
+  assert.throws(()=>C.validateBackup(withRows([unproven])),/SYN-UNPROVEN[\s\S]*수령일이나 사용 근거[\s\S]*현재 자료는 바뀌지 않았습니다/,'가져오기 검사도 같은 이유로 거절하고 어느 기록인지 알려 준다');
+  assert.throws(()=>C.mergeBackup(base,C.migrate(withRows([unproven]))),/SYN-UNPROVEN/,'검사를 건너뛰고 병합을 불러도 거절');
+  assert.throws(()=>C.mergeBackup(base,C.migrate(withRows([unproven])),true),/SYN-UNPROVEN/,'가져온 자료 우선으로 병합해도 거절');
+  assert.throws(()=>C.mergeBackup(base,C.migrate(withRows([...base.erp.branding,unproven]))),/SYN-UNPROVEN/,'정상 기록과 섞여 있어도 전체를 거절');
+  assert.equal(JSON.stringify(base),snapshot,'거절되면 현재 장부는 글자 하나 바뀌지 않는다');
+  for(const [row,re] of [[{...unproven,id:'SYN-ORD',status:'ordered'},/발주일/],[{...unproven,id:'SYN-RCV',status:'received'},/수령일/],[{...unproven,id:'SYN-URL',status:'candidate',url:'javascript:alert(1)'},/주소/],
+    [{...unproven,id:'bad id',status:'candidate'},/품목 ID/],[{...unproven,id:'SYN-VOID',voided:true},/사용 근거/],[{...unproven,id:'SYN-KIND',status:'candidate',kind:'없는 종류'},/종류/],[null,/형식/],['x',/형식/],[[],/형식/]])
+    assert.throws(()=>C.validateBackup(withRows([row])),re);
+  // 호환: 정상 기록은 예전 규칙 그대로 병합되고, 모르는 칸은 보존된다. 브랜딩이 없는 예전 백업은 그대로 통과한다.
+  const proven={...unproven,id:'SYN-PROVEN',useEvidence:'2026-09부터 사용',futureField:{keep:1}},good=withRows([...base.erp.branding,proven]);
+  const merged=C.mergeBackup(base,C.validateBackup(good));assert.equal(merged.report.added,1);assert.equal(merged.report.conflicts,0);assert.deepEqual(merged.data.erp.branding.find(r=>r.id==='SYN-PROVEN').futureField,{keep:1});
+  assert.equal(merged.data.erp.branding.find(r=>r.id==='STAMP-T1').option,'검정');assert.deepEqual(merged.data.products,base.products);
+  const noBrand=fixture();assert.equal(C.validateBackup(C.clone(noBrand)).erp.branding,undefined);assert.equal(C.mergeBackup(base,noBrand).data.erp.branding.length,1);
+  const empty=fixture();empty.erp.branding=[];assert.deepEqual(C.validateBackup(C.clone(empty)).erp.branding,[]);
+  // 취소해 둔 기록을 복구할 때도 같은 검증
+  const stale=C.clone(base);stale.erp.branding.push({...unproven,id:'SYN-STALE',voided:true,voidReason:'x'});assert.throws(()=>C.toggleVoid(stale,'branding','SYN-STALE'),/사용 근거/);
+});

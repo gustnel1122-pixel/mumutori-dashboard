@@ -1,2 +1,4 @@
 ﻿.claude/
 사입정보추출.ps1
+__pycache__/
+*.pyc

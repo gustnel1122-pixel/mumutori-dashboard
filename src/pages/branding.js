@@ -1,8 +1,11 @@
 // 브랜딩 도구 — 도장·잉크·포장재를 무엇으로 쓰는지, 고장 나면 같은 판매처·같은 옵션으로 다시 살 정보.
 // 자료는 두 군데에서 온다.
-//  ① 공개 목록 src/branding-data.js — 판매처 상품 사양·후보/권고·표시 가격·제작 규칙. 공개 저장소에 있으므로 아래 pub()에 적힌 칸만 읽는다.
+//  ① 공개 목록 src/branding-data.json — 판매처 상품 사양·후보/권고·표시 가격·제작 규칙. 공개 저장소에 있으므로 아래 pub()에 적힌 칸만 읽는다.
+//     (빌드할 때 brand_public_check.py 가 허용한 칸·형식·값만 있는지 검사한다.)
 //  ② 내 기록 — 이 브라우저의 비공개 장부(erp.branding). 주문번호·결제액·도안 원본 위치·시험 결과는 여기에만 있고, 공개 목록에서는 읽지 않는다.
-const D=await import(`../branding-data.js?v=${document.body.dataset.build}`);
+const listed=await fetch(new URL(`../branding-data.json?v=${document.body.dataset.build}`,import.meta.url));
+if(!listed.ok)throw Error('브랜딩 공개 목록을 불러오지 못했습니다.');
+const D=await listed.json();
 const won=n=>n==null||n===''?'':Number(n).toLocaleString('ko-KR')+'원';
 const text=v=>typeof v==='string'||typeof v==='number'?String(v):'';
 const PUBLIC_STATUS=['unregistered','candidate','recommended'];   // 주문 완료·수령·사용 중은 증거(발주일·수령일)가 있는 내 기록에서만 나온다
@@ -16,10 +19,11 @@ function pub(it){
     priceTotal:Number.isFinite(price.total)?price.total:null,priceNote:[lines.join(' + '),text(price.note)].filter(Boolean).join(' · '),priceChecked:text(price.checked),
     artNote:text(it.art?.rule),pending:(Array.isArray(it.pending)?it.pending:[]).map(text).filter(Boolean).join('\n'),caution:text(it.caution)};
 }
-const CATALOG=(Array.isArray(D.ITEMS)?D.ITEMS:[]).filter(it=>it&&/^[A-Za-z0-9가-힣_-]{1,40}$/.test(text(it.id))).map(pub);
+const CATALOG=(Array.isArray(D.items)?D.items:[]).filter(it=>it&&/^[A-Za-z0-9가-힣_-]{1,40}$/.test(text(it.id))).map(pub);
 export default function renderPage(ctx){
   const {C,data,state,esc,head,badge,btn,filters,matches,link}=ctx;
-  const {BRAND_UPDATED,BRAND_EDITOR,BRAND_BASIS,STATUS_RULE,DONT,MAKER_RULES,ART_PLAN,REORDER_STEPS,PRIVATE_NOTE}=D;
+  const strs=v=>(Array.isArray(v)?v:[]).map(text).filter(Boolean);
+  const BRAND_UPDATED=text(D.updated),BRAND_EDITOR=text(D.editor),BRAND_BASIS=text(D.basis),STATUS_RULE=text(D.statusRule),DONT=strs(D.dont),MAKER_RULES=strs(D.makerRules),ART_PLAN=text(D.artPlan),REORDER_STEPS=strs(D.reorderSteps),PRIVATE_NOTE=text(D.privateNote);
   const LABEL=Object.fromEntries(C.BRAND_STATUS),TONE={candidate:'amber',recommended:'green',ordered:'green',received:'green',inuse:'green'};
   const blank='<span class="br-blank">확인 전</span>',none='<span class="br-blank">기록 없음</span>';
   const val=v=>v==null||v===''?blank:esc(v),mineVal=v=>v==null||v===''?none:esc(v);
