@@ -2,6 +2,7 @@
 from pathlib import Path
 import hashlib
 import gzip
+import re
 R=Path(__file__).resolve().parent
 # Existing published seed is byte-preserved. Rebuilding never appends data.
 seed=R/'data/seed.json'
@@ -17,6 +18,14 @@ AUTH_CONNECT=' https://identitytoolkit.googleapis.com https://securetoken.google
 AUTH_SCRIPT=' https://apis.google.com'
 AUTH_FRAME='https://mumutori-letter.firebaseapp.com https://accounts.google.com'
 AUTH_TAGS='<script src="assets/vendor/firebase/firebase-app-compat.js"></script><script src="assets/vendor/firebase/firebase-auth-compat.js"></script>'
+# 브랜딩 공개 목록(src/branding-data.js)은 공개 저장소·공개 화면으로 나간다. 비공개 칸 이름·드라이브/문서 링크·개인 경로가 들어오면 빌드를 멈춘다.
+# (주문번호·결제액·도안 원본 위치는 화면의 내 기록 = 브라우저 장부 erp.branding 에만 둔다.)
+BRAND_BLOCK=[('드라이브·문서 링크',r'drive\.google|docs\.google|/file/d/|/folders/'),('개인 경로',r'[A-Za-z]:[\\/]+Users|/Users/|내 드라이브'),
+    ('비공개 칸',r'\b(order|orderNo|orderUrl|orderDate|receivedDate|paid|qty|artSource|artVersion|artMirror|source|number|useEvidence|testDate|testResult|testNote|reorderNote)\s*:')]
+brand_text=(R/'src/branding-data.js').read_text(encoding='utf-8')
+for what,pattern in BRAND_BLOCK:
+    hit=re.search(pattern,brand_text)
+    if hit: raise SystemExit(f'빌드 중단: src/branding-data.js 에 {what}({hit.group(0)})가 있습니다. 비공개 자료는 화면의 내 기록(브라우저 장부)에만 적습니다.')
 for filename,(page,title) in pages.items():
     extra_img,extra_connect=EXTRA.get(page,('',''))
     auth=page in AUTH

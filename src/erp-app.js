@@ -12,7 +12,7 @@ const { createStore } = await import(`./store.js?v=${document.body.dataset.build
   const btn=(text,action,args={},className='')=>`<button type="button" class="${className}" data-action="${action}" ${Object.entries(args).map(([k,v])=>`data-${k}="${esc(v)}"`).join(' ')}>${esc(text)}</button>`;
   const options=(values,selected,empty)=>`${empty!=null?`<option value="">${esc(empty)}</option>`:''}${values.map(v=>{const [id,label]=Array.isArray(v)?v:[v,v];return `<option value="${esc(id)}" ${String(id)===String(selected)?'selected':''}>${esc(label)}</option>`;}).join('')}`;
   const NAV=DEPARTMENTS.map(d=>[d.id,d.label,d.icon]);
-  const TYPE_LABEL={product:'상품',bank:'통장 거래',sale:'매출',purchase:'매입',movement:'입출고',partner:'거래처',account:'계좌',backup:'백업',warehouse:'창고'};
+  const TYPE_LABEL={product:'상품',bank:'통장 거래',sale:'매출',purchase:'매입',movement:'입출고',partner:'거래처',account:'계좌',branding:'브랜딩 기록',backup:'백업',warehouse:'창고'};
   const store=createStore(C);
   let data,savedRaw=null,loadError='',toastTimer,modal=null,priorFocus=null,filterTimer;
   let currentPage=null,hasRendered=false;
@@ -85,9 +85,13 @@ const { createStore } = await import(`./store.js?v=${document.body.dataset.build
     if(type==='movement')old=data.erp.movements.find(x=>x.id===id);
     if(type==='partner')old=data.erp.partners.find(x=>x.id===id);
     if(type==='account')old=data.erp.accounts.find(x=>x.id===id);
-    if(id&&!old)throw Error('기록을 찾지 못했습니다.');
+    if(type==='branding')old=(Array.isArray(data.erp.branding)?data.erp.branding:[]).find(x=>x.id===id);
+    // 아직 저장된 줄이 없는 기록의 기본값은 화면 모듈이 줄 수 있다(브랜딩: 공개 목록의 품목 — 공개해도 되는 칸만 넘어온다).
+    const seed=id&&!old?currentPage?.seed?.(type,id)||null:null;
+    if(id&&!old&&!seed)throw Error('기록을 찾지 못했습니다.');
     const date=C.today(),now=new Date().toISOString();
     let sku='PRD-001',n=1;while(data.products.some(p=>p.id===sku))sku='PRD-'+String(++n).padStart(3,'0');
+    let brandId='BRAND-01',b=1;if(type==='branding')while((Array.isArray(data.erp.branding)?data.erp.branding:[]).some(x=>x.id===brandId)||currentPage?.seed?.(type,brandId))brandId='BRAND-'+String(++b).padStart(2,'0');
     const defaults={
       product:{id:sku,name:'',salesStatus:'판매 준비',type:'판매상품',price:null,safetyStock:0,memo:'',imageData:'',createdAt:now},
       bank:{id:C.uid('bank'),date,accountLabel:data.erp.accounts[0]?.id||'',direction:'출금',amount:'',category:'운영비',description:'',memo:'',createdAt:now},
@@ -95,9 +99,10 @@ const { createStore } = await import(`./store.js?v=${document.body.dataset.build
       purchase:{orderNo:'BUY-'+date.replace(/-/g,'')+'-'+C.uid('').slice(-5),date,vendor:'',status:'발주',purchase:null,shipping:null,customs:null,vatCredit:0,lines:[{id:C.uid('pl'),sku:'',qty:1,amountKRW:null}],createdAt:now},
       movement:{id:C.uid('move'),date,sku:'',type:'입고',qty:1,warehouse:state.warehouse||'기본 창고',memo:'',sourceType:'',sourceId:'',createdAt:now},
       partner:{id:C.uid('partner'),name:'',type:'구매처',businessNo:'',contact:'',memo:''},
-      account:{id:C.uid('account'),name:'',mode:'수동 기록',memo:''}
+      account:{id:C.uid('account'),name:'',mode:'수동 기록',memo:''},
+      branding:{id:brandId,kind:'도장',name:'',use:'',status:'candidate',createdAt:now}
     };
-    return {draft:C.clone(old||{...defaults[type],...prefill}),isNew:!old};
+    return {draft:C.clone(old||{...defaults[type],...seed,...prefill}),isNew:!old,seeded:!!seed};
   }
   function modalMarkup(title,body,{wide=false,saveLabel='저장',subtitle='',footer='저장을 눌러야 원장에 반영됩니다.'}={}){
     return `<div class="overlay"><section class="modal ${wide?'wide':''}" role="dialog" aria-modal="true" aria-labelledby="dialog-title"><div class="modal-head"><div><h2 id="dialog-title">${esc(title)}</h2>${subtitle?`<p>${esc(subtitle)}</p>`:''}</div><button type="button" aria-label="닫기" data-action="modal-close">×</button></div><form id="editor-form"><div class="modal-body">${body}<div id="form-error" class="form-error" role="alert"></div></div><div class="modal-footer"><span>${esc(footer)}</span><div class="actions">${btn('취소','modal-close')}<button type="submit" class="primary" id="submit-record">${esc(saveLabel)}</button></div></div></form></section></div>`;
@@ -129,11 +134,21 @@ const { createStore } = await import(`./store.js?v=${document.body.dataset.build
       return `<div class="formgrid">${r.sourceId?`<div class="note">연결된 ${r.sourceType==='purchase'?'매입':'매출'}: ${esc(r.sourceId)}<br>같은 문서의 입출고 수량을 합산하여 초과 등록을 막습니다.</div>`:''}${field('date','기록일',r.date,{type:'date',required:true})}${field('type','입출고 구분',r.type,{options:r.sourceType?[r.sourceType==='purchase'?'입고':'출고']:C.MOVE_TYPES})}${field('sku','상품',r.sku,{options:permitted,empty:'상품 선택',required:true,full:true})}${field('warehouse',r.type==='창고이동'?'출발 창고':'창고',r.warehouse,{options:data.erp.warehouses})}${field('qty',r.type==='실사'?'실제로 센 현재 수량':'이동 수량',r.qty,{type:'number',min:r.type==='실사'?0:1,step:1,required:true})}${r.type==='창고이동'?field('toWarehouse','도착 창고',r.toWarehouse,{options:data.erp.warehouses,empty:'도착 창고 선택',required:true}):''}<div class="note ${s.known?'':'amber'}">${r.type==='실사'?'이 날짜의 기준 수량을 등록합니다. 이후 입출고로 재고를 계산합니다.':s.known?'현재 장부 재고: '+won(s.qty)+'개':'아직 실사 기준이 없습니다. 입출고 이력은 보관되며 재고는 실사 등록 후 확정됩니다.'}</div>${field('memo','사유 / 메모',r.memo,{textarea:true,full:true})}</div>`;
     }
     if(type==='partner')return `<div class="formgrid">${field('name','거래처명',r.name,{required:true})}${field('type','구분',r.type,{options:['구매처','판매처','물류사','기타']})}${field('businessNo','사업자등록번호',r.businessNo)}${field('contact','담당자 / 연락처',r.contact)}${field('memo','정산 조건 / 메모',r.memo,{full:true,textarea:true})}</div>`;
+    if(type==='branding'){
+      const group=(title,body,sub='')=>`<div class="section-gap"><h3>${esc(title)}${sub?` <small class="br-local">${esc(sub)}</small>`:''}</h3><div class="formgrid">${body}</div></div>`,local='이 브라우저에만 저장';
+      return `<div class="note">${modal.seeded?'공개 목록에 있는 품목입니다. 저장하면 이 브라우저의 장부에 내 기록이 생기고, 그 뒤로는 내 기록이 화면에 나옵니다. ':''}주문번호·결제액·도안 원본 위치는 이 브라우저의 장부에만 저장되며 공개 화면 자료·저장소에는 올라가지 않습니다.</div>`+
+        group('품목',field('id','품목 ID',r.id,{required:true,disabled:!modal.isNew||modal.seeded,maxLength:40,help:'등록 후 고정됩니다. 예: STAMP-PAPER-01'})+field('kind','종류',r.kind,{options:C.BRAND_KINDS})+field('name','이름',r.name,{required:true,full:true,maxLength:120})+field('use','용도',r.use)+field('status','상태',r.status,{options:C.BRAND_STATUS,help:'주문 완료는 발주일, 수령은 수령일, 사용 중은 수령일이나 사용 근거가 있어야 저장됩니다.'}))+
+        group('같은 것을 다시 살 정보',field('vendor','판매처',r.vendor)+field('productNo','상품번호',r.productNo)+field('url','상품 주소',r.url,{type:'url',full:true,placeholder:'https://'})+field('model','모델',r.model)+field('shape','형태',r.shape)+field('option','옵션·색',r.option,{full:true})+field('sku','옵션 SKU',r.sku)+field('printSize','인쇄(인각) 크기',r.printSize)+field('artSize','실제 도안 크기',r.artSize,{full:true})+field('inkMaker','잉크 제조사',r.inkMaker)+field('inkModel','잉크 정확한 모델',r.inkModel)+field('inkVolume','잉크 용량',r.inkVolume)+field('inkCompat','호환 근거',r.inkCompat,{full:true})+field('priceTotal','확인한 금액 · 배송비 포함 (원)',r.priceTotal,optionalAmount)+field('priceChecked','가격 확인일',r.priceChecked,{type:'date'})+field('priceNote','금액 내역',r.priceNote,{full:true,placeholder:'예: 본품 29,000원 + 기본 배송 3,000원'}))+
+        group('도안',field('artSource','도안 원본 위치',r.artSource,{full:true,help:'폴더 이름이나 링크. 공개 화면 자료에는 들어가지 않습니다.'})+field('artVersion','제출한 도안 버전',r.artVersion,{placeholder:'예: v01'})+field('artMirror','좌우 반전(미러링)',r.artMirror,{options:C.BRAND_MIRROR,empty:'기록 없음'})+field('artNote','도안 메모',r.artNote,{full:true,textarea:true}),local)+
+        group('주문·수령',field('orderDate','발주일',r.orderDate,{type:'date'})+field('orderNo','주문번호',r.orderNo)+field('orderUrl','주문 내역 주소',r.orderUrl,{type:'url',full:true,placeholder:'https://'})+field('qty','수량',r.qty,optionalAmount)+field('paid','실제 결제액 (원)',r.paid,optionalAmount)+field('receivedDate','수령일',r.receivedDate,{type:'date'})+field('useEvidence','사용 근거',r.useEvidence,{placeholder:'예: 2026-11부터 매장 포장에 사용'}),local)+
+        group('수령 후 샘플 시험',field('testDate','시험일',r.testDate,{type:'date'})+field('testResult','결과',r.testResult,{options:C.BRAND_TESTS,empty:'기록 없음'})+field('testMaterial','시험한 소재·묶음',r.testMaterial,{full:true,placeholder:'예: 지금 쓰는 OPP 봉투 10×15cm'})+field('testNote','건조·문지름·구김·겹침 결과',r.testNote,{full:true,textarea:true}),local)+
+        group('메모',field('pending','남은 확인 (한 줄에 하나)',r.pending,{full:true,textarea:true})+field('caution','주의',r.caution,{full:true})+field('reorderNote','재주문 메모',r.reorderNote,{full:true,textarea:true,placeholder:'마지막으로 성공한 조합, 바꾸면 안 되는 것, 필요한 수량'}));
+    }
     if(type==='account')return `<div class="formgrid">${field('name','계좌 표시 이름',r.name,{required:true,full:true,placeholder:'예: 매출 통장 ·1234'})}${field('memo','용도 / 메모',r.memo,{full:true,textarea:true})}<div class="note">계좌를 등록하면 통장 거래를 직접 입력하거나 CSV로 가져올 수 있습니다. 은행 자동 연동 기능은 연결되어 있지 않습니다.</div></div>`;
     return '';
   }
   function refreshEditor(){
-    displayModal(modalMarkup(TYPE_LABEL[modal.type]+(modal.isNew?' 등록':' 수정'),editorBody(),{wide:['sale','purchase'].includes(modal.type),subtitle:modal.isNew?'새 기록을 입력합니다.':modal.type==='purchase'?modal.draft.orderNo:modal.draft.id}));
+    displayModal(modalMarkup(TYPE_LABEL[modal.type]+(modal.isNew?' 등록':' 수정'),editorBody(),{wide:['sale','purchase','branding'].includes(modal.type),subtitle:modal.seeded?modal.draft.id+' · 공개 목록의 품목에 내 기록을 만듭니다.':modal.isNew?'새 기록을 입력합니다.':modal.type==='purchase'?modal.draft.orderNo:modal.draft.id}));
   }
   function openEditor(type,id,prefill={}){priorFocus=document.activeElement;const r=recordDraft(type,id,prefill);modal={kind:'editor',type,...r,dirty:false};refreshEditor();}
   function readForm(){
@@ -151,16 +166,17 @@ const { createStore } = await import(`./store.js?v=${document.body.dataset.build
   function formError(e){$('#form-error').textContent=e.message||String(e);$('#form-error').scrollIntoView({block:'nearest'});}
   function prepareRow(){
     readForm();const r=C.clone(modal.draft);
-    const numeric={product:['price','safetyStock'],bank:['amount','balance'],sale:['quantity','salesGross','feeNet','feeVAT','settlementBase','supplyAmount','vatAmount'],purchase:['purchase','shipping','customs','vatCredit'],movement:['qty']};
+    const numeric={product:['price','safetyStock'],bank:['amount','balance'],sale:['quantity','salesGross','feeNet','feeVAT','settlementBase','supplyAmount','vatAmount'],purchase:['purchase','shipping','customs','vatCredit'],movement:['qty'],branding:['priceTotal','paid','qty']};
     for(const k of numeric[modal.type]||[])r[k]=r[k]==null||r[k]===''?null:Number(r[k]);
     if(modal.type==='product'){r.name=r.name.trim();r.id=r.id.trim();r.active=r.salesStatus!=='판매 중단';if(r.salesStatus==='자재')r.type='부자재';}
     if(modal.type==='bank'){r.description=r.description.trim();r.account=r.accountLabel;r.categoryReviewed=true;}
     if(modal.type==='movement'&&r.type!=='창고이동')delete r.toWarehouse;
+    if(modal.type==='branding')for(const k of Object.keys(r))if(typeof r[k]==='string')r[k]=r[k].trim();
     if(modal.type==='purchase')r.lines=r.lines.map(l=>({...l,qty:Number(l.qty),amountKRW:l.amountKRW===''||l.amountKRW==null?null:Number(l.amountKRW),productName:findProduct(l.sku)?.name||l.productName}));
     return r;
   }
   function openVoid(type,id){
-    const rows={bank:data.bankTransactions,sale:data.finance.channelTransactions,purchase:data.finance.purchaseEvidence,movement:data.erp.movements}[type];
+    const rows={bank:data.bankTransactions,sale:data.finance.channelTransactions,purchase:data.finance.purchaseEvidence,movement:data.erp.movements,branding:Array.isArray(data.erp.branding)?data.erp.branding:[]}[type];
     const row=rows?.find(r=>(type==='purchase'?r.orderNo:r.id)===id);if(!row)throw Error('기록을 찾을 수 없습니다.');
     if(row.voided){commit(C.toggleVoid(data,type,id),'기록을 복구했습니다.');return;}
     priorFocus=document.activeElement;modal={kind:'void',type,id,dirty:false};

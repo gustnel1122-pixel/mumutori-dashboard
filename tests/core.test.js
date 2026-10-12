@@ -47,3 +47,40 @@ test('CSV accepts display names, quoted amounts and deduplicates; owner names st
   assert.throws(()=>C.csvImport('날짜,계좌,구분,금액,내용\n2026-99-99,사업 통장,입금,1000,판매',fixture()),/날짜/);
 });
 test('backup merge keeps current edits unless explicit overwrite is selected',()=>{const d=fixture(),other=C.clone(d);other.products[0].name='다른 이름';assert.equal(C.mergeBackup(d,other).data.products[0].name,'상품 A');assert.equal(C.mergeBackup(d,other,true).data.products[0].name,'다른 이름');assert.equal(C.validateBackup(d).products.length,2);});
+
+const brand=(over={})=>({id:'STAMP-T1',kind:'도장',name:'시험 도장',status:'candidate',...over});
+test('branding records live in the private ledger: created lazily, validated, audited by field name only',()=>{
+  let d=fixture();assert.equal(d.erp.branding,undefined,'브랜딩을 쓰지 않는 장부에는 칸을 만들지 않는다');
+  const others=x=>JSON.stringify({products:x.products,bank:x.bankTransactions,partners:x.erp.partners,accounts:x.erp.accounts,movements:x.erp.movements});
+  const before=others(d);
+  d=C.record(d,'branding',brand({orderNo:'ORD-SECRET-1',artSource:'private-folder/logo-v01.ai'}),{isNew:true,action:'등록'});
+  assert.equal(d.erp.branding.length,1);assert.equal(others(d),before,'다른 장부는 그대로');
+  assert.equal(d.erp.audit[0].type,'branding');assert.ok(d.erp.audit[0].fields.includes('orderNo'));
+  assert.ok(!JSON.stringify(d.erp.audit).includes('ORD-SECRET-1')&&!JSON.stringify(d.erp.audit).includes('private-folder'),'변경 이력에는 칸 이름만 남고 값은 남지 않는다');
+  assert.throws(()=>C.record(d,'branding',brand(),{isNew:true}),/이미 존재/);
+  assert.throws(()=>C.record(d,'branding',brand({id:'bad id'}),{isNew:true}),/품목 ID/);
+  assert.throws(()=>C.record(d,'branding',brand({id:'X1',name:' '}),{isNew:true}),/이름/);
+  assert.throws(()=>C.record(d,'branding',brand({id:'X1',url:'javascript:alert(1)'}),{isNew:true}),/주소/);
+  assert.throws(()=>C.record(d,'branding',brand({id:'X1',kind:'없는 종류'}),{isNew:true}),/종류/);
+  assert.throws(()=>C.record(d,'branding',brand({id:'X1',paid:-1}),{isNew:true}),/실제 결제액/);
+  assert.throws(()=>C.record(d,'branding',brand({status:'ordered'})),/발주일/);
+  assert.throws(()=>C.record(d,'branding',brand({status:'received',orderDate:'2026-10-20'})),/수령일/);
+  assert.throws(()=>C.record(d,'branding',brand({status:'inuse'})),/수령일이나 사용 근거/);
+  assert.throws(()=>C.record(d,'branding',brand({status:'received',orderDate:'2026-10-20',receivedDate:'2026-10-19'})),/빠릅니다/);
+  assert.equal(C.record(d,'branding',brand({status:'inuse',useEvidence:'2026-09부터 매장 포장에 사용'})).erp.branding[0].status,'inuse','지금 쓰는 물건은 사용 근거로 기록할 수 있다');
+  d=C.record(d,'branding',brand({status:'inuse',orderDate:'2026-10-20',receivedDate:'2026-10-24',testResult:'합격',paid:34000}));
+  assert.equal(d.erp.branding[0].status,'inuse');assert.equal(d.erp.branding[0].orderNo,'ORD-SECRET-1','수정해도 앞서 적은 칸은 남는다');
+  d=C.toggleVoid(d,'branding','STAMP-T1','잘못 등록');assert.equal(d.erp.branding[0].voided,true);d=C.toggleVoid(d,'branding','STAMP-T1');assert.equal(d.erp.branding[0].voided,false);
+  assert.equal(C.migrate(d).erp.branding.length,1,'다시 읽어도 보존');
+  const odd=fixture();odd.erp.branding={unknown:true};assert.throws(()=>C.record(odd,'branding',brand(),{isNew:true}),/형식/);assert.deepEqual(C.migrate(odd).erp.branding,{unknown:true},'모르는 형식은 덮어쓰지 않는다');
+});
+test('backup and merge carry branding records without touching other ledgers',()=>{
+  const base=fixture(),withBrand=C.record(base,'branding',brand({option:'검정'}),{isNew:true});
+  const restored=C.mergeBackup(base,C.validateBackup(C.clone(withBrand)));assert.equal(restored.data.erp.branding.length,1);assert.equal(restored.report.added,1);assert.deepEqual(restored.data.products,base.products);
+  const changed=C.record(withBrand,'branding',brand({option:'청색'}));
+  assert.equal(C.mergeBackup(withBrand,changed).data.erp.branding[0].option,'검정');assert.equal(C.mergeBackup(withBrand,changed,true).data.erp.branding[0].option,'청색');
+  assert.equal(C.mergeBackup(withBrand,base).data.erp.branding.length,1,'브랜딩 기록이 없는 백업을 병합해도 내 기록은 남는다');
+  assert.equal(C.mergeBackup(base,base).data.erp.branding,undefined,'양쪽에 없으면 칸을 만들지 않는다');
+  const dup=C.clone(withBrand);dup.erp.branding.push(C.clone(dup.erp.branding[0]));assert.throws(()=>C.validateBackup(dup),/중복/);
+  const bad=C.clone(base);bad.erp.branding='x';assert.throws(()=>C.validateBackup(bad),/브랜딩/);
+});

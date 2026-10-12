@@ -6,6 +6,12 @@
   const BANK_CATEGORIES = ['매출 수금','채널 정산','자금 충전','대여금 회수','자금입금·용도 확인','차입금 입금','상품 매입','배송·통관','운영비','광고비','기타 사업지출','매입 예치금 충전','대여금 지급','차입금 상환','개인자금 인출','개인 대납비 상환','계좌이체','이자','캐시백','기타','미분류','기록'];
   const STATUS = ['판매 중','판매 준비','판매 중단','품절','자재','확인 필요'];
   const MOVE_TYPES = ['실사','입고','출고','반품입고','반품출고','폐기','창고이동'];
+  // 브랜딩 도구 기록(도장·잉크·포장재) — 이 장부의 erp.branding 에만 둔다. 공개 목록(src/branding-data.js)에는 주문번호·결제액·도안 원본 위치를 넣지 않는다.
+  // 처음 저장할 때 칸을 만든다(브랜딩을 쓰지 않는 장부는 그대로).
+  const BRAND_STATUS = [['unregistered','미등록'],['candidate','후보'],['recommended','권고'],['ordered','주문 완료'],['received','수령'],['inuse','사용 중'],['retired','단종·대체']];
+  const BRAND_KINDS = ['도장','잉크','포장재','기타'];
+  const BRAND_TESTS = ['합격','보류','불합격'];
+  const BRAND_MIRROR = ['판매자 확인 전','필요','불필요'];
   const clone = value => JSON.parse(JSON.stringify(value));
   const num = value => Number(value) || 0;
   const active = rows => (rows || []).filter(x => !x.voided);
@@ -79,6 +85,27 @@
     if(!STATUS.includes(row.salesStatus))throw Error('판매 상태를 선택하세요.');
     finite(row.price,'판매가',{min:0,integer:true,required:false});
     finite(row.safetyStock,'안전재고',{min:0,integer:true,required:false});
+  }
+  function brandRows(d) {
+    if(d.erp.branding==null)d.erp.branding=[];
+    if(!Array.isArray(d.erp.branding))throw Error('브랜딩 기록 칸의 형식이 예상과 다릅니다. 전체 백업을 내려받아 확인하세요.');
+    return d.erp.branding;
+  }
+  function validateBranding(row) {
+    if(!row.id?.trim()||!row.name?.trim())throw Error('품목 ID와 이름을 입력하세요.');
+    if(!/^[A-Za-z0-9가-힣_-]{1,40}$/.test(row.id))throw Error('품목 ID는 글자, 숫자, -와 _로 40자 안에서 입력하세요.');
+    if(!BRAND_KINDS.includes(row.kind))throw Error('종류를 선택하세요.');
+    if(!BRAND_STATUS.some(s=>s[0]===row.status))throw Error('상태를 선택하세요.');
+    for(const key of ['url','orderUrl'])if(row[key]&&!/^https?:\/\/[^\s"'<>]+$/.test(row[key]))throw Error('주소는 http:// 또는 https:// 로 시작하는 한 줄로 입력하세요.');
+    for(const [key,label] of [['priceChecked','가격 확인일'],['orderDate','발주일'],['receivedDate','수령일'],['testDate','시험일']])if(row[key])validDate(row[key],label);
+    for(const [key,label] of [['priceTotal','확인한 금액'],['paid','실제 결제액'],['qty','수량']])finite(row[key],label,{min:0,integer:true,required:false});
+    if(row.testResult&&!BRAND_TESTS.includes(row.testResult))throw Error('시험 결과를 선택하세요.');
+    if(row.artMirror&&!BRAND_MIRROR.includes(row.artMirror))throw Error('좌우 반전 여부를 선택하세요.');
+    // 증거 없이 상태를 올리지 않는다: 주문 완료는 발주일, 수령은 수령일, 사용 중은 수령일이나 사용 근거가 있어야 한다.
+    if(row.status==='ordered'&&!row.orderDate)throw Error('주문 완료로 바꾸려면 발주일을 입력하세요.');
+    if(row.status==='received'&&!row.receivedDate)throw Error('수령으로 바꾸려면 수령일을 입력하세요.');
+    if(row.status==='inuse'&&!row.receivedDate&&!row.useEvidence?.trim())throw Error('사용 중으로 바꾸려면 수령일이나 사용 근거(예: 언제부터 쓰는지)를 입력하세요.');
+    if(row.orderDate&&row.receivedDate&&row.receivedDate<row.orderDate)throw Error('수령일이 발주일보다 빠릅니다.');
   }
   function purchases(d) {
     const evidence=d.finance.purchaseEvidence||[];
@@ -202,7 +229,7 @@
       if(moved(d,'purchase',row.orderNo,sku)>sum(row.lines.filter(l=>l.sku===sku),'qty'))throw Error('이미 입고한 수량보다 매입 수량을 줄일 수 없습니다. 입고 내역을 먼저 수정하세요.');
     }
   }
-  const collections={product:d=>d.products,bank:d=>d.bankTransactions,sale:d=>d.finance.channelTransactions,purchase:d=>d.finance.purchaseEvidence,movement:d=>d.erp.movements,partner:d=>d.erp.partners,account:d=>d.erp.accounts};
+  const collections={product:d=>d.products,bank:d=>d.bankTransactions,sale:d=>d.finance.channelTransactions,purchase:d=>d.finance.purchaseEvidence,movement:d=>d.erp.movements,partner:d=>d.erp.partners,account:d=>d.erp.accounts,branding:brandRows};
   const keyOf=(type,r)=>type==='purchase'?r.orderNo:r.id;
   function record(d,type,row,{isNew=false,action='저장'}={}) {
     const next=clone(d),rows=collections[type](next),key=keyOf(type,row),index=rows.findIndex(r=>keyOf(type,r)===key);
@@ -216,6 +243,7 @@
     if(type==='movement')validateMovement(normalized,d);
     if(type==='partner'&&!normalized.name?.trim())throw Error('거래처명을 입력하세요.');
     if(type==='account'&&!normalized.name?.trim())throw Error('계좌 이름을 입력하세요.');
+    if(type==='branding')validateBranding(normalized);
     if(type==='purchase'){
       normalized.lines=normalized.lines.map((l,i)=>({...l,id:l.id||uid('pl'),orderNo:normalized.orderNo,lineNo:i+1,qty:num(l.qty),amountKRW:l.amountKRW===''?null:l.amountKRW}));
       next.purchaseLines=next.purchaseLines.filter(l=>l.orderNo!==normalized.orderNo).concat(normalized.lines);
@@ -267,7 +295,8 @@
   }
   function validateBackup(raw) {
     if(!raw||!Array.isArray(raw.products)||!Array.isArray(raw.bankTransactions)||!raw.finance)throw Error('무무토리 전체 백업 JSON을 선택하세요.');
-    for(const rows of [raw.products,raw.bankTransactions,raw.purchaseLines||[],raw.finance.channelTransactions||[],raw.erp?.movements||[]]){
+    if(raw.erp?.branding!=null&&!Array.isArray(raw.erp.branding))throw Error('백업의 브랜딩 기록 형식이 올바르지 않습니다.');
+    for(const rows of [raw.products,raw.bankTransactions,raw.purchaseLines||[],raw.finance.channelTransactions||[],raw.erp?.movements||[],raw.erp?.branding||[]]){
       const ids=new Set();for(const r of rows){if(!r.id||ids.has(r.id))throw Error('백업에 중복되거나 비어 있는 관리번호가 있습니다.');ids.add(r.id);}
     }
     for(const t of raw.bankTransactions){validDate(t.date);finite(t.amount,'백업 거래 금액',{min:0});}
@@ -285,6 +314,7 @@
     for(const key of ['channelTransactions','channelCosts','channelCostDetails','sourceFiles'])next.finance[key]=merge(next.finance[key],incoming.finance[key]);
     next.finance.purchaseEvidence=merge(next.finance.purchaseEvidence,incoming.finance.purchaseEvidence,'orderNo');
     for(const key of ['accounts','partners','movements'])next.erp[key]=merge(next.erp[key],incoming.erp[key]);
+    if(incoming.erp.branding?.length){brandRows(next);next.erp.branding=merge(next.erp.branding,incoming.erp.branding);}
     next.erp.warehouses=[...new Set([...next.erp.warehouses,...incoming.erp.warehouses])];
     next.finance.bankTransactions=next.bankTransactions;
     for(const s of active(next.finance.channelTransactions).filter(s=>(s.linkedBankIds||[]).length))validateSale(s,next);
@@ -320,7 +350,7 @@
     }
     return result;
   }
-  const api={VERSION,STORAGE_KEY,PEOPLE,BANK_CATEGORIES,STATUS,MOVE_TYPES,clone,num,active,today,uid,sum,person,isTransfer,bankCategory,allowedCategories,normalizeBank,migrate,validDate,finite,
+  const api={VERSION,STORAGE_KEY,PEOPLE,BANK_CATEGORIES,STATUS,MOVE_TYPES,BRAND_STATUS,BRAND_KINDS,BRAND_TESTS,BRAND_MIRROR,validateBranding,clone,num,active,today,uid,sum,person,isTransfer,bankCategory,allowedCategories,normalizeBank,migrate,validDate,finite,
     purchases,purchaseCost,allocation,stock,moved,validateMovement,eligibleBank,saleTotals,record,toggleVoid,financeSummary,validateBackup,mergeBackup,parseCSV,csvImport,appendAudit};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.MumutoriERP=api;
 })(typeof window!=='undefined'?window:globalThis);
