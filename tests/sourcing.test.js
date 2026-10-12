@@ -59,7 +59,10 @@ const fixture=()=>{if(scenarioTree)return structuredClone(scenarioTree);const t=
   assert.ok(P.orderProblems(line,{'111':synthetic},{},null,{odd:{offerId:'111',spec:'黄色>20cm',status:'completed',at:'2026-10-09T11:00:00'}}).includes('검수 요청 시각 확인 불가'));}
  console.log('PASS no-photo options need option-specific evidence; failed save reverts only its own paths');
  const browser=await chromium.launch({headless:true,executablePath:process.env.ERP_CHROME,args:['--no-sandbox']});
- const context=await browser.newContext({viewport:{width:1440,height:1080}});const errors=[],writes=[];
+ const context=await browser.newContext({viewport:{width:1440,height:1080}});
+ /* 숨긴(👎·💸) 상품도 보이는 상태로 기존 시험 진행 — 기본 숨김 동작은 hide-negative.test.js가 검증 */
+ await context.addInitScript(()=>{try{sessionStorage.setItem('mmt-sx-show-hidden','1');}catch(e){}});
+ const errors=[],writes=[];
  const authUrls=[];await context.addInitScript(a=>{window.__MMT_TEST_AUTH__=a;},{email:'gustnel1122@gmail.com',token:'test-operator-token'});   // 시험용 가짜 로그인(실제 권한은 Firebase 규칙이 막는다)
  await context.route('https://mumutori.test/**',route=>{const name=new URL(route.request().url()).pathname.replace('/mumutori-dashboard/','')||'index.html';const file=path.join(ROOT,name);const ext=path.extname(file);return route.fulfill({status:fs.existsSync(file)?200:404,contentType:({'.html':'text/html','.js':'application/javascript','.json':'application/json','.css':'text/css','.svg':'image/svg+xml','.gz':'application/gzip'})[ext]||'text/plain',body:fs.existsSync(file)?fs.readFileSync(file):'Not found'});});
  await context.route('https://cbu01.alicdn.com/**',route=>route.fulfill({status:200,contentType:'image/png',body:PIXEL}));
