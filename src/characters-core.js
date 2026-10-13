@@ -26,7 +26,7 @@ export function emptyCharacter(id,name='',role=''){
   return {id,name,role,traits:['','',''],voice:'',likes:'',dislikes:'',look:{colors:'',ratio:'',must:'',never:''},relations:'',memo:'',
     images:Object.fromEntries(SLOT_IDS.map(s=>[s,{status:'todo',link:'',note:'',thumb:''}])),cover:'web-3d',lock:null,log:[]};
 }
-export function defaultBoard(){return {schema:SCHEMA,characters:STARTERS.map(([id,name,role])=>emptyCharacter(id,name,role))};}
+export function defaultBoard(){return {schema:SCHEMA,savedAt:'',characters:STARTERS.map(([id,name,role])=>emptyCharacter(id,name,role))};}
 
 // 저장된 자료·가져온 파일을 정해진 모양으로 맞춘다. 모르는 칸은 버리고, 길이는 자른다.
 export function normalizeCharacter(raw,index=0){
@@ -48,7 +48,7 @@ export function normalizeBoard(raw){
   if(!list)return defaultBoard();
   const seen=new Set(),characters=[];
   list.slice(0,60).forEach((r,i)=>{const c=normalizeCharacter(r,i);while(seen.has(c.id))c.id+='x';seen.add(c.id);characters.push(c);});
-  return {schema:SCHEMA,characters};
+  return {schema:SCHEMA,savedAt:iso(obj(raw).savedAt).slice(0,16),characters};
 }
 
 export const isLocked=c=>!!c.lock;

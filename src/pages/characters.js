@@ -1,6 +1,7 @@
 // 캐릭터 만들기 — 캐릭터마다 프로필과 그림을 채우고, 다 되면 확정(고정)한다. 사장님이 아닌 분이 쓰는 화면이라 글은 쉬운 말로.
 // 저장: 이 브라우저(localStorage 의 캐릭터 전용 칸)에만. 운영 장부·공용 장부(Firebase)·보안 규칙은 건드리지 않는다.
-// 넘기기: '확정 목록 내보내기' 파일(확정된 캐릭터만) → 자사몰 목업 담당이 읽는다. 다른 컴퓨터로 옮길 때는 '전체 저장 파일'.
+// 넘기기: '확정 목록 내보내기' 파일(확정된 캐릭터만)을 드라이브 '무무토리 > 캐릭터 > 확정' 폴더에 넣으면 자사몰 목업 담당이 읽는다.
+// 보여 주기·옮기기: '파일로 내보내기'(전부) → 다른 브라우저에서 '파일 불러오기'.
 // 참고 그림(src/character-ref)은 줄인 미리보기다. 원본·드라이브 주소는 저장소에 넣지 않는다.
 const B=document.body.dataset.build;
 const K=await import(`../characters-core.js?v=${B}`);
@@ -22,10 +23,13 @@ function load(){
 // 저장은 처음 무언가를 바꿨을 때부터 한다(열어 보기만 해서는 아무것도 남기지 않는다).
 function save(){
   clearTimeout(saveTimer);
-  try{localStorage.setItem(STORAGE_KEY,JSON.stringify(board));stored=true;stamp('이 브라우저에 저장했습니다 · '+now().slice(11));return true;}
-  catch(e){say('이 브라우저의 저장 공간이 가득 찼습니다. 미리보기 그림을 몇 장 지우거나, 아래에서 전체 저장 파일을 받아 두세요.',true);return false;}
+  const before=board.savedAt;board.savedAt=now();
+  try{localStorage.setItem(STORAGE_KEY,JSON.stringify(board));stored=true;stamp(savedText());return true;}
+  catch(e){board.savedAt=before;say('이 브라우저의 저장 공간이 가득 찼습니다. 미리보기 그림을 몇 장 지우거나, 위의 파일로 내보내기로 파일을 받아 두세요.',true);return false;}
 }
-const later=()=>{clearTimeout(saveTimer);saveTimer=setTimeout(save,400);stamp('저장하는 중…');};
+// 적는 즉시 저장한다(글자를 치는 동안에는 0.15초만 모았다가 한 번에).
+const later=()=>{clearTimeout(saveTimer);saveTimer=setTimeout(save,150);stamp('저장하는 중…');};
+const savedText=()=>board.savedAt?'마지막 저장 '+board.savedAt.replace('T',' '):'아직 저장한 내용이 없습니다';
 const stamp=t=>{const el=document.getElementById('cb-saved');if(el)el.textContent=t;};
 function say(text,error=false){msg={text,error};const el=document.getElementById('cb-msg');if(el){el.className='note cb-msg'+(error?' error':'');el.textContent=text;el.hidden=false;}}
 const swatches=text=>(String(text).match(/#[0-9A-Fa-f]{6}\b/g)||[]).slice(0,8).map(h=>`<i class="cb-swatch" style="background:${h}" title="${h}"></i>`).join('');
@@ -96,16 +100,25 @@ function refs(){
 }
 function handoff(){
   const n=board.characters.filter(c=>c.lock).length;
-  return `<section class="panel"><div class="panelhead"><h2>넘기기 · 보관</h2></div><div class="panelbody">
-    <div class="note"><b>이 화면에 적은 내용은 지금 쓰는 이 컴퓨터의 이 브라우저에만 저장됩니다.</b> 다른 컴퓨터나 다른 브라우저에서는 보이지 않습니다. 일을 마칠 때마다 <b>전체 저장 파일</b>을 받아 두면 안전합니다.</div>
-    <div class="cb-hand"><div><b>확정한 캐릭터 넘기기</b><p>확정된 캐릭터 ${n}명의 프로필과 대표 그림 미리보기가 파일 하나로 나옵니다. 이 파일을 담당자에게 보내 주세요.</p><button type="button" class="primary" data-cb="export" ${n?'':'disabled'}>확정 목록 내보내기</button></div>
-      <div><b>전체 저장 파일 받기</b><p>만드는 중인 것까지 전부 들어 있는 파일입니다. 보관하거나 다른 컴퓨터로 옮길 때 씁니다.</p><button type="button" data-cb="backup">전체 저장 파일 받기</button></div>
-      <div><b>파일에서 가져오기</b><p>받아 둔 전체 저장 파일을 다시 엽니다. 지금 화면의 내용은 파일 내용으로 바뀝니다.</p><label class="cb-upload">전체 저장 파일 고르기<input type="file" accept="application/json,.json" data-cb-import></label></div></div>
+  return `<section class="panel"><div class="panelhead"><h2>확정한 캐릭터 넘기는 방법</h2></div><div class="panelbody"><ol class="cb-steps">
+    <li>캐릭터를 <b>확정(고정)</b>합니다. 지금 확정된 캐릭터는 <b>${n}명</b>입니다.</li>
+    <li>화면 맨 위의 <b>확정 목록 내보내기</b>를 누르면 파일 하나가 내려받아집니다.</li>
+    <li>그 파일을 구글 드라이브의 <b>무무토리 &gt; 캐릭터 &gt; 확정</b> 폴더에 넣어 주세요. 그림 원본 파일도 같은 폴더에 함께 넣어 주세요.</li>
+    <li>자사몰 담당이 이 폴더를 읽어 홈페이지의 캐릭터 그림을 바꿉니다. 폴더가 보이지 않으면 담당자에게 알려 주세요.</li></ol>
+    <div class="note">만드는 중인 내용까지 사장님이나 다른 분께 보여 주려면 맨 위의 <b>파일로 내보내기</b>로 받은 파일을 보내 주세요. 받은 분은 이 화면에서 <b>파일 불러오기</b>로 열어 볼 수 있습니다.</div>
   </div></section>`;
+}
+function topbar(){
+  const n=board.characters.filter(c=>c.lock).length;
+  return `<div class="cb-top"><div class="cb-topinfo"><b id="cb-saved" class="cb-saved" role="status">${savedText()}</b>
+      <span>적는 즉시 저장됩니다. 이 내용은 <b>지금 쓰는 이 브라우저에만</b> 있어서, 브라우저나 컴퓨터를 바꾸면 보이지 않습니다. 일을 마칠 때 파일로 내보내 두세요.</span></div>
+    <div class="cb-topact"><button type="button" class="primary cb-big" data-cb="backup">파일로 내보내기</button>
+      <label class="cb-upload cb-big">파일 불러오기<input type="file" accept="application/json,.json" data-cb-import></label>
+      <button type="button" class="cb-big" data-cb="export" ${n?'':'disabled'} title="${n?'':'확정된 캐릭터가 있어야 누를 수 있습니다'}">확정 목록 내보내기${n?' ('+n+'명)':''}</button></div></div>`;
 }
 function view(){
   const c=cur();
-  return `<div class="note cb-guide"><b>이렇게 쓰세요</b> ① 아래에서 캐릭터를 고릅니다 → ② 프로필을 적습니다 → ③ 그림을 하나씩 만들어 상태를 바꿉니다 → ④ 다 되면 <b>확정(고정)</b>을 누릅니다. <span id="cb-saved" class="cb-saved" role="status">${stored?'이 브라우저에 저장된 내용을 불러왔습니다':'아직 저장된 내용이 없습니다 — 적기 시작하면 저장됩니다'}</span></div>
+  return `${topbar()}<div class="note cb-guide"><b>이렇게 쓰세요</b> ① 아래에서 캐릭터를 고릅니다 → ② 프로필을 적습니다 → ③ 그림을 하나씩 만들어 상태를 바꿉니다 → ④ 다 되면 <b>확정(고정)</b>을 누릅니다.</div>
     <div id="cb-msg" class="note cb-msg${msg?.error?' error':''}" role="status" ${msg?'':'hidden'}>${esc(msg?.text||'')}</div>
     ${roster()}${c?detail(c):'<div class="empty"><b>캐릭터가 없습니다</b>위의 ＋ 캐릭터 추가를 눌러 주세요.</div>'}${refs()}${handoff()}`;
 }
@@ -146,8 +159,8 @@ function onClick(e){
     if(act==='remove'){if(c.lock)throw Error('확정된 캐릭터는 뺄 수 없습니다. 먼저 잠금을 풀어 주세요.');if(!confirm(`'${c.name||'이름 없음'}'을(를) 목록에서 뺍니다. 적어 둔 프로필과 미리보기 그림도 함께 사라집니다. 계속할까요?`))return;board.characters.splice(at,1);sel=board.characters[0]?.id||'';save();refresh();say('캐릭터를 목록에서 뺐습니다.');return;}
     if(act==='cover'){if(c.lock)throw Error('확정된 캐릭터는 대표 그림을 바꿀 수 없습니다. 먼저 잠금을 풀어 주세요.');c.cover=el.dataset.slot;save();refresh();return;}
     if(act==='clear'){if(K.slotLocked(c,el.dataset.slot))throw Error('잠긴 대표 그림입니다. 먼저 잠금을 풀어 주세요.');c.images[el.dataset.slot].thumb='';save();refresh();return;}
-    if(act==='export'){const data=K.exportConfirmed(board,now());if(!data.characters.length)throw Error('확정된 캐릭터가 아직 없습니다.');download(data,`mumutori-characters-confirmed-${day(now()).replace(/-/g,'')}.json`);say(`확정된 캐릭터 ${data.characters.length}명을 파일로 내보냈습니다. 이 파일을 담당자에게 보내 주세요.`);return;}
-    if(act==='backup'){download(K.exportAll(board,now()),`mumutori-characters-all-${day(now()).replace(/-/g,'')}.json`);say('전체 저장 파일을 받았습니다.');return;}
+    if(act==='export'){const data=K.exportConfirmed(board,now());if(!data.characters.length)throw Error('확정된 캐릭터가 아직 없습니다.');download(data,`mumutori-characters-confirmed-${day(now()).replace(/-/g,'')}.json`);say(`확정된 캐릭터 ${data.characters.length}명을 파일로 내보냈습니다. 이 파일을 구글 드라이브의 '무무토리 > 캐릭터 > 확정' 폴더에 넣어 주세요.`);return;}
+    if(act==='backup'){download(K.exportAll(board,now()),`mumutori-characters-all-${day(now()).replace(/-/g,'')}.json`);say('지금까지 적은 내용을 파일로 내보냈습니다. 이 파일은 파일 불러오기로 다시 열 수 있습니다.');return;}
   }catch(err){say(err.message,true);}
 }
 function onInput(e){

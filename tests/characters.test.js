@@ -53,6 +53,10 @@ const walk=dir=>fs.readdirSync(dir,{withFileTypes:true}).flatMap(e=>e.isDirector
  assert.deepEqual(await page.locator('.cb-slot[data-slot^="sheet"] .cb-slothead b').allTextContents(),['정면','비스듬히(3/4)','옆','뒤']);
  assert.deepEqual(await page.locator('[data-cb-status="sheet-front"] option').allTextContents(),['할 일','작업 중','확정']);
  assert.equal(await saved(),null,'열어 보기만 해서는 저장하지 않는다');
+ assert.equal((await page.locator('.cb-top #cb-saved').textContent()).trim(),'아직 저장한 내용이 없습니다');
+ assert(/이 브라우저에만.*브라우저나 컴퓨터를 바꾸면 보이지 않습니다/.test(await page.locator('.cb-topinfo').textContent()),'브라우저를 바꾸면 안 보인다는 안내');
+ assert.deepEqual((await page.locator('.cb-topact .cb-big').allTextContents()).map(t=>t.trim()),['파일로 내보내기','파일 불러오기','확정 목록 내보내기']);
+ assert(/무무토리 > 캐릭터 > 확정/.test(await page.locator('.cb-steps').textContent()),'확정 파일을 넣을 드라이브 폴더 안내');
  await page.locator('.cb-ref img').first().scrollIntoViewIfNeeded();
  assert.equal(await page.locator('.cb-ref img').count(),6);assert(await page.locator('.cb-ref img').evaluateAll(l=>l.every(i=>i.complete&&i.naturalWidth>0)),'참고 그림 6장이 보인다');
  const refNote=await page.locator('.cb-refs').locator('xpath=preceding-sibling::div[1]').textContent();
@@ -64,14 +68,16 @@ const walk=dir=>fs.readdirSync(dir,{withFileTypes:true}).flatMap(e=>e.isDirector
  await field('trait0').fill('느긋함');await field('trait1').fill('호기심');await field('trait2').fill('다정함');
  await field('voice').fill('안녕, 나는 도토리야.\n오늘은 뭐 하고 놀까?');await field('likes').fill('낮잠');await field('dislikes').fill('비 오는 날');
  await field('look.colors').fill('몸 #F2C58B, 모자 #6A3906');await field('look.ratio').fill('머리와 몸이 1:1');await field('look.must').fill('모자 꼭지');await field('look.never').fill('눈썹 그리지 않기');
- await field('relations').fill('씨앗 친구들의 대장');await field('memo').fill('메모입니다');await flush();
+ await field('relations').fill('씨앗 친구들의 대장');await field('memo').fill('메모');await field('memo').pressSequentially('입니다');await page.waitForTimeout(400);
+ assert.equal((await saved()).characters[0].memo,'메모입니다','칸을 벗어나지 않아도 적는 즉시 저장된다');
+ assert(/^마지막 저장 \d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test((await page.locator('#cb-saved').textContent()).trim()),'마지막 저장 시각이 위에 보인다');await flush();
  assert.equal(await page.locator('#cb-swatches .cb-swatch').count(),2,'HEX 색을 적으면 색 견본이 보인다');
  let s=await saved();assert.equal(s.schema,'mumutori-characters/1');assert.equal(s.characters.length,6);
  assert.deepEqual(s.characters[0].traits,['느긋함','호기심','다정함']);assert.equal(s.characters[0].look.colors,'몸 #F2C58B, 모자 #6A3906');assert.equal(s.characters[0].voice,'안녕, 나는 도토리야.\n오늘은 뭐 하고 놀까?');
  await page.locator('.cb-pick').nth(1).click();await field('name').fill('해든');await flush();
  assert.equal(await page.locator('.cb-pick').nth(1).locator('b').textContent(),'해든','이름을 고치면 위 목록에도 반영');
  await A.go();assert.equal(await field('memo').inputValue(),'메모입니다');assert.equal(await field('look.never').inputValue(),'눈썹 그리지 않기');
- assert.equal(await page.locator('.cb-pick').nth(1).locator('b').textContent(),'해든');assert(/저장된 내용을 불러왔습니다/.test(await page.locator('#cb-saved').textContent()));
+ assert.equal(await page.locator('.cb-pick').nth(1).locator('b').textContent(),'해든');assert(/^마지막 저장 \d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test((await page.locator('#cb-saved').textContent()).trim()),'새로고침 뒤에도 마지막 저장 시각이 보인다');
  console.log('PASS 3 프로필: 적는 대로 저장, 색 견본, 새로고침 뒤에도 남음');
 
  // 4) 그림 칸
@@ -130,6 +136,7 @@ const walk=dir=>fs.readdirSync(dir,{withFileTypes:true}).flatMap(e=>e.isDirector
  assert.equal(c0.cover.slot,'web-3d');assert(c0.cover.thumb.startsWith('data:image/'));assert.equal(c0.cover.link,'도토리_3D_v1.png');
  assert(!('log' in c0)&&!conf.text.includes('해든'),'확정하지 않은 캐릭터와 작업 기록은 넣지 않는다');
  assert.deepEqual(c0.images.map(i=>i.slot).sort(),['face-2','sheet-front','sheet-side','web-3d'].sort(),'상태를 바꿨거나 파일 위치를 적은 그림 칸만 목록에');
+ assert(/무무토리 > 캐릭터 > 확정/.test(await msg()),'내보낸 뒤 어디에 넣는지 알려 준다');
  const all=await grab('[data-cb="backup"]');assert(/^mumutori-characters-all-\d{8}\.json$/.test(all.name));assert.equal(JSON.parse(all.text).characters.length,6);
  const Bx=await open();Bx.page.on('dialog',d=>d.accept());await Bx.go();
  const pick=async text=>{await Bx.page.locator('[data-cb-import]').setInputFiles({name:'x.json',mimeType:'application/json',buffer:Buffer.from(text)});await Bx.page.waitForTimeout(150);};
