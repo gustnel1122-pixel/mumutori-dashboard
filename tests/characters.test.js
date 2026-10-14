@@ -173,5 +173,44 @@ const walk=dir=>fs.readdirSync(dir,{withFileTypes:true}).flatMap(e=>e.isDirector
  assert(!await M.page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),'모바일 폭에서 가로로 넘치지 않는다');
  assert.equal(await M.page.locator('.cb-slot').count(),14);assert.equal(M.errors.length,0);await M.context.close();
  console.log('PASS 9 모바일 폭 · 쉬운 말 · 운영 장부 그대로 · 화면 오류 0 · 바깥 요청 0');
+
+ // 10) 처음이면 읽기 — 가이드(화면 글만). 칸 이름은 화면의 실제 칸 이름과 같아야 하고, 사장님이 꼭 넣으라고 한 것이 다 있어야 한다.
+ const G=await open();await G.go();const g=G.page.locator('#cb-help');
+ assert.equal(await g.evaluate(e=>e.open),true,'처음 열면 펼쳐져 있다');assert(/처음이면 읽기/.test(await g.locator('summary').textContent()));
+ assert(await G.page.evaluate(()=>!!(document.getElementById('cb-help').compareDocumentPosition(document.getElementById('cb-root'))&Node.DOCUMENT_POSITION_FOLLOWING)),'가이드는 캐릭터 목록보다 위에 있다');
+ assert.deepEqual(await g.locator('.cb-help-steps > li > b').allTextContents(),['캐릭터 고르기','프로필 칸 채우기','기준 이미지 만들기(AI)','사장님 확인',"'확정'으로 잠그기",'자사몰 교체용으로 넘기기'],'전체 순서 6단계');
+ const stepText=await g.locator('#cb-help-steps').innerText();for(const must of ['＋ 캐릭터 추가','미리보기 올리기','파일 위치','확정하는 분 이름','확정(고정)하기','확정 목록 내보내기','무무토리 > 캐릭터 > 확정'])assert(stepText.includes(must),'순서 설명에 실제 단추·칸 이름: '+must);
+ const labels=await G.page.evaluate(()=>[...document.querySelectorAll('.cb-form > .field > span:first-child')].map(e=>e.textContent.trim()).filter(t=>t!=='생김새 규칙'));
+ assert.equal(labels.length,12);assert.deepEqual(await g.locator('.cb-help-fields dt').allTextContents(),labels,'가이드의 칸 이름 = 화면의 프로필 칸 이름(순서까지)');
+ assert(await g.locator('.cb-help-fields dd').evaluateAll(l=>l.length===12&&l.every(e=>e.textContent.trim().length>1)),'칸마다 예시가 하나씩');assert(/지어낸 예시/.test(await g.locator('#cb-help-fields').innerText()));
+ const ai=await g.locator('#cb-help-ai').innerText();
+ for(const must of ['투명','입체 3D 오브젝트','#EFE9E4','#FDE9BE','#6A3906','한 번에 3장까지만','기준 시트를 먼저','첨부','캐릭터이름_칸이름_v번호.png','무무토리 > 캐릭터 > 작업중','무무토리 > 캐릭터 > 확정','.png','바둑판무늬'])assert(ai.includes(must),'AI 쓰는 법에 있어야 함: '+must);
+ const prompts=await g.locator('.cb-help-prompt pre').allTextContents();assert.equal(prompts.length,3);
+ assert(/\[캐릭터 이름\]/.test(prompts[0])&&/다듬어/.test(prompts[0])&&/지어내지 말 것/.test(prompts[0]),'프로필 다듬기 요청 글');
+ assert(/정면 · 옆 · 뒤/.test(prompts[1])&&/모두 3장/.test(prompts[1])&&/완전히 투명/.test(prompts[1])&&/3D 오브젝트/.test(prompts[1])&&/#EFE9E4/.test(prompts[1])&&/닮지 않은/.test(prompts[1]),'기준 시트 요청 글');
+ assert(/첨부한 그림과 똑같은 캐릭터/.test(prompts[2])&&/모두 3장/.test(prompts[2])&&/완전히 투명/.test(prompts[2]),'이어서 요청하는 글');
+ await G.page.evaluate(()=>{window.__copied=[];navigator.clipboard.writeText=async t=>{window.__copied.push(t);};});
+ await g.locator('[data-cb-copy="cb-prompt-sheet"]').click();await G.page.waitForFunction(()=>window.__copied.length===1);
+ assert.equal(await G.page.evaluate(()=>window.__copied[0]),prompts[1],'복사 단추는 요청 글을 그대로 복사한다');assert.equal(await g.locator('[data-cb-copy="cb-prompt-sheet"]').textContent(),'복사했습니다');
+ const dont=await g.locator('.cb-help-dont > li > b').allTextContents();assert.equal(dont.length,4);
+ assert(/다른 회사 캐릭터/.test(dont[0])&&/유명 캐릭터나 브랜드 이름/.test(dont[1])&&/확정\(🔒\)된 프로필/.test(dont[2])&&/개인정보.*원가/.test(dont[3]),'하지 말 것 네 가지: '+dont.join(' | '));
+ const ask=await g.locator('#cb-help-ask').innerText();assert(/사장님께 메시지로 묻습니다/.test(ask)&&/보고판/.test(ask)&&/캡처/.test(ask)&&/메모/.test(ask),'막히면 누구에게 어떻게');
+ const guideWords=await g.innerText();for(const jargon of ['localStorage','JSON','Firebase','스키마','캐시','동기화','schema','프롬프트'])assert(!guideWords.includes(jargon),'가이드에 어려운 말: '+jargon);
+ // 안내가 맞는지: 투명 PNG 를 올리면 미리보기 모서리가 투명하다(바둑판무늬가 비친다)
+ const clear=Buffer.from((await G.page.evaluate(()=>{const c=document.createElement('canvas');c.width=600;c.height=600;const x=c.getContext('2d');x.fillStyle='#fde9be';x.beginPath();x.arc(300,300,200,0,7);x.fill();return c.toDataURL('image/png');})).split(',')[1],'base64');
+ await G.page.locator('[data-cb-file="sheet-34"]').setInputFiles({name:'도토리_비스듬히_v1.png',mimeType:'image/png',buffer:clear});await G.page.locator('.cb-slot[data-slot="sheet-34"] .cb-thumb img').waitFor();
+ const alpha=await G.page.locator('.cb-slot[data-slot="sheet-34"] .cb-thumb img').evaluate(async i=>{await i.decode();const c=document.createElement('canvas');c.width=i.naturalWidth;c.height=i.naturalHeight;const x=c.getContext('2d');x.drawImage(i,0,0);return [x.getImageData(1,1,1,1).data[3],x.getImageData(c.width>>1,c.height>>1,1,1).data[3]];});
+ assert(alpha[0]===0&&alpha[1]===255,'투명 PNG 의 미리보기는 모서리가 투명하다: '+alpha);assert(/conic-gradient/.test(await G.page.locator('.cb-slot[data-slot="sheet-34"] .cb-thumb').evaluate(e=>getComputedStyle(e).backgroundImage)),'미리보기 칸 바탕은 바둑판무늬');
+ // 화면을 다시 그려도 가이드는 그대로이고, 접어 두면 다음에도 접혀 있다
+ assert.equal(await g.evaluate(e=>e.open),true,'그림을 올려 화면이 다시 그려져도 펼친 채로');
+ await g.locator('[data-cb-help-close]').click();assert.equal(await g.evaluate(e=>e.open),false,"맨 아래 '이 안내 접기'로도 접힌다");await G.go();assert.equal(await G.page.locator('#cb-help').evaluate(e=>e.open),false,'접어 두면 다음에도 접혀 있다');
+ await G.page.locator('#cb-help summary').click();await G.go();assert.equal(await G.page.locator('#cb-help').evaluate(e=>e.open),true,'다시 펼치면 다음에도 펼쳐져 있다');
+ assert.equal(G.errors.length,0,G.errors.join(' | '));assert.equal(G.outside.length,0);await G.context.close();
+ const GM=await open({width:390,height:844});await GM.go();
+ assert.equal(await GM.page.locator('#cb-help').evaluate(e=>e.open),true);assert(!await GM.page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),'모바일 폭에서 가이드가 가로로 넘치지 않는다');
+ assert(await GM.page.evaluate(()=>[...document.querySelectorAll('#cb-help pre,#cb-help dl,#cb-help li,#cb-help code')].every(e=>{const r=e.getBoundingClientRect();return r.left>=-1&&r.right<=innerWidth+1;})),'요청 글·예시 표·목록이 화면 안에 들어온다');
+ assert(await GM.page.locator('#cb-help .cb-help-fields > div').first().evaluate(e=>getComputedStyle(e).gridTemplateColumns.split(' ').length===1),'좁은 화면에서는 칸 이름 아래에 예시가 온다');
+ assert.equal(GM.errors.length,0);await GM.context.close();
+ console.log('PASS 10 처음이면 읽기: 순서 6단계 · 칸별 예시 12개(실제 칸 이름) · AI 요청 글 3개와 복사 · 저장 규칙 · 하지 말 것 4가지 · 막히면 · 접기 기억 · 모바일');
  await browser.close();
 })().catch(e=>{console.error(e);process.exit(1);});

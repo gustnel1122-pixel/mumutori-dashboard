@@ -6,6 +6,7 @@
 const B=document.body.dataset.build;
 const K=await import(`../characters-core.js?v=${B}`);
 const {STORAGE_KEY,STATUS,GROUPS,SLOTS}=K;
+const GUIDE=await import(`../characters-guide.js?v=${B}`);   // '처음이면 읽기' 가이드(화면 글만)
 const REFS=[['dotori','도토리'],['sunflower','해바라기씨'],['chickpea','병아리콩'],['peanut','땅콩'],['seed','작은 씨앗']];
 const FIELDS=[['name','이름','예: 도토리',30],['role','역할','예: 주인공, 씨앗 친구',40]];
 const LONG=[['voice','말투 · 대사 예시','이 캐릭터가 할 법한 말을 두세 줄 적어 주세요',600],['likes','좋아하는 것','',200],['dislikes','싫어하는 것','',200],['relations','세계관 속 관계','다른 캐릭터와 어떤 사이인지',600],['memo','메모','더 적어 둘 것',1000]];
@@ -191,5 +192,5 @@ export default function renderPage(c){
   if(!started){started=true;load();document.addEventListener('click',onClick);document.addEventListener('input',onInput);document.addEventListener('change',onChange);
     // 다른 창에서 같은 자료를 고쳤으면 다시 읽는다(입력 중인 칸이 없을 때만 화면을 다시 그린다)
     addEventListener('storage',e=>{if(e.key!==STORAGE_KEY||!e.newValue)return;const keep=sel;load();if(board.characters.some(x=>x.id===keep))sel=keep;if(!document.getElementById('cb-root')?.contains(document.activeElement))refresh();});}
-  return ctx.head('캐릭터 만들기','캐릭터마다 프로필과 그림을 채우고, 다 되면 확정(고정)합니다. 확정한 캐릭터는 파일로 내보내 자사몰에 넣습니다.','')+`<div id="cb-root">${view()}</div>`;
+  return ctx.head('캐릭터 만들기','캐릭터마다 프로필과 그림을 채우고, 다 되면 확정(고정)합니다. 확정한 캐릭터는 파일로 내보내 자사몰에 넣습니다.','')+GUIDE.guideHtml({shared:false})+`<div id="cb-root">${view()}</div>`;
 }
