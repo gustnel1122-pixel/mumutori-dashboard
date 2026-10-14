@@ -1,6 +1,8 @@
 // 캐릭터 만들기 화면의 자료 규칙 — 화면 코드와 떼어 둔 순수 계산(브라우저 없이도 같은 결과).
-// 자료는 이 브라우저의 캐릭터 전용 칸(STORAGE_KEY)에만 저장된다. 운영 장부와 공용 장부는 건드리지 않는다.
+// 자료는 함께 보는 곳(src/characters-sync.js — 소싱 보드와 같은 방식)에 저장된다. toRemote/fromRemote 가 그 모양과 화면 모양을 오간다.
+// STORAGE_KEY 는 2026-10-14 오전까지 쓰던 '이 브라우저에만 저장' 칸이다. 이제는 예전 내용을 올릴 때만 읽는다(지우지 않는다).
 export const STORAGE_KEY='mumutori-character-board-v1';
+export const MOVED_KEY=STORAGE_KEY+'-moved';
 export const SCHEMA='mumutori-characters/1';
 export const STATUS=[['todo','할 일'],['doing','작업 중'],['done','확정']];
 // 캐릭터마다 만들어야 하는 그림 칸
@@ -32,7 +34,7 @@ export function defaultBoard(){return {schema:SCHEMA,savedAt:'',characters:START
 export function normalizeCharacter(raw,index=0){
   const r=obj(raw),id=/^[A-Za-z0-9_-]{1,40}$/.test(r.id)?r.id:'c'+(index+1);
   const c=emptyCharacter(id,str(r.name,LIMIT.name),str(r.role,LIMIT.role));
-  const traits=Array.isArray(r.traits)?r.traits:[];c.traits=[0,1,2].map(i=>str(traits[i],LIMIT.trait));
+  const traits=r.traits&&typeof r.traits==='object'?r.traits:[];c.traits=[0,1,2].map(i=>str(traits[i],LIMIT.trait));
   for(const k of ['voice','likes','dislikes','relations','memo'])c[k]=str(r[k],LIMIT[k]);
   const look=obj(r.look);for(const k of ['colors','ratio','must','never'])c.look[k]=str(look[k],LIMIT[k]);
   const images=obj(r.images);
@@ -40,7 +42,7 @@ export function normalizeCharacter(raw,index=0){
     c.images[s]={status:STATUS.some(([k])=>k===im.status)?im.status:'todo',link:str(im.link,LIMIT.link),note:str(im.note,LIMIT.note),thumb};}
   c.cover=SLOT_IDS.includes(r.cover)?r.cover:'web-3d';
   const lock=obj(r.lock);c.lock=iso(lock.at)&&str(lock.by,LIMIT.by).trim()?{at:iso(lock.at),by:str(lock.by,LIMIT.by).trim()}:null;
-  c.log=(Array.isArray(r.log)?r.log:[]).map(obj).filter(l=>['lock','unlock'].includes(l.action)&&iso(l.at)).slice(-20).map(l=>({action:l.action,at:iso(l.at),by:str(l.by,LIMIT.by)}));
+  c.log=(Array.isArray(r.log)?r.log:Object.values(obj(r.log))).map(obj).filter(l=>['lock','unlock'].includes(l.action)&&iso(l.at)).slice(-20).map(l=>({action:l.action,at:iso(l.at),by:str(l.by,LIMIT.by)}));
   return c;
 }
 export function normalizeBoard(raw){
@@ -96,5 +98,15 @@ export function parseBackup(text){
   if(data.kind==='confirmed')throw Error("이 파일은 '확정 목록' 파일입니다. 가져오기에는 '전체 저장 파일'을 써 주세요.");
   if(!data.characters.length)throw Error('파일에 캐릭터가 하나도 없습니다.');
   return normalizeBoard(data);
+}
+// 함께 보는 곳의 모양: 캐릭터를 번호(id)로 찾는 묶음 + 순서(order). 한 사람이 한 칸을 고쳐도 다른 사람이 고친 칸을 덮어쓰지 않게 칸 단위로 쓴다.
+export const remoteCharacter=(c,order)=>{const {id,...rest}=c;return {...rest,order};};
+export function toRemote(board,now){return {schema:SCHEMA,savedAt:now,characters:Object.fromEntries(board.characters.map((c,i)=>[c.id,remoteCharacter(c,i)]))};}
+export const hasRemote=tree=>!!(tree&&typeof tree==='object'&&tree.characters&&typeof tree.characters==='object'&&Object.keys(tree.characters).length);
+export function fromRemote(tree){
+  if(!hasRemote(tree))return defaultBoard();
+  const list=Object.entries(tree.characters).filter(([,c])=>c&&typeof c==='object').map(([id,c])=>({...c,id}))
+    .sort((a,b)=>(Number.isFinite(a.order)?a.order:1e9)-(Number.isFinite(b.order)?b.order:1e9)||String(a.id).localeCompare(String(b.id)));
+  return normalizeBoard({savedAt:tree.savedAt,characters:list});
 }
 export const newId=(board,now=Date.now())=>{let id='c'+now.toString(36);while(board.characters.some(c=>c.id===id))id+='x';return id;};

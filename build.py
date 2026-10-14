@@ -18,7 +18,9 @@ if seed.exists(): (R/'data/seed.json.gz').write_bytes(gzip.compress(seed.read_by
 pages={'index':('overview','운영 홈'),'finance':('finance','재무'),'bank':('bank','자금'),'products':('products','상품'),'purchases':('purchases','구매·원가'),'sourcing':('sourcing','소싱'),'sales':('sales','판매·정산'),'stock':('stock','물류·재고'),'partners':('partners','거래처'),'audit':('audit','변경 이력'),'settings':('settings','설정·백업'),'branding':('branding','브랜딩'),'characters':('characters','캐릭터'),'agents':('agents','AI 조직도')}
 version=hashlib.sha256(b''.join(p.read_bytes() for p in sorted((R/'src').rglob('*')) if p.is_file())).hexdigest()[:12]
 # 소싱 보드만 Firebase(공유 소싱 장부)와 1688 사진에 연결한다. 다른 부서 페이지의 CSP는 그대로.
-EXTRA={'sourcing':(' https://*.alicdn.com',' https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.app https://*.asia-southeast1.firebasedatabase.app wss://*.asia-southeast1.firebasedatabase.app')}
+EXTRA={'sourcing':(' https://*.alicdn.com',' https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.app https://*.asia-southeast1.firebasedatabase.app wss://*.asia-southeast1.firebasedatabase.app'),
+       # 캐릭터 만들기(2026-10-14): 함께 보는 저장을 위해 같은 장부 주소 하나만 허용한다(로그인 도구·다른 주소 없음).
+       'characters':('',' https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.app')}
 # 2026-10-07 보안 정리: 소싱 보드는 사장님 구글 로그인(Firebase Auth) 후에만 읽고 쓴다. 로그인 도구는 assets/vendor/firebase에 고정 버전.
 # 로그인 창(구글)·토큰 발급 주소만 추가로 허용한다. 다른 부서 페이지는 그대로.
 AUTH={'sourcing'}

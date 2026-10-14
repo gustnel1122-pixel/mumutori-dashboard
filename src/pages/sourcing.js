@@ -93,7 +93,10 @@ function connect(){
   if(!window.EventSource){poll();return;}
   let failures=0;
   source=new EventSource(DB+'.json');
-  for(const ev of ['put','patch'])source.addEventListener(ev,e=>{failures=0;S.status='ok';try{apply(ev,JSON.parse(e.data));}catch(err){S.err=err.message;}refresh();});
+  // 캐릭터 만들기 화면의 자료(meta/characterBoard)가 바뀐 것은 소싱 보드와 상관없다 — 받지 않고 다시 그리지도 않는다.
+  for(const ev of ['put','patch'])source.addEventListener(ev,e=>{failures=0;const first=S.status!=='ok';S.status='ok';let p=null;try{p=JSON.parse(e.data);}catch(err){S.err=err.message;}
+    if(p&&String(p.path).startsWith('/meta/characterBoard')){if(first)refresh();return;}
+    try{if(p)apply(ev,p);}catch(err){S.err=err.message;}refresh();});
   source.addEventListener('cancel',()=>{source.close();S.status='denied';refresh();});
   source.onerror=()=>{if(++failures>=3){source.close();poll();return;}S.status='retry';refresh();};
 }
