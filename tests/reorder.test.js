@@ -15,7 +15,10 @@ const prep=()=>({asOf:'2026-10-12T08:59',updatedAt:'2026-10-12T10:30:00+09:00',b
    smartstore:{d30:0,d60:3,d90:33,regStock:'—'},own:{d30:0,d60:0,d90:0,regStock:'—'},rec:[{ko:'기본색',qty:20},{ko:'진한색',qty:20}],recTotal:40,weak:true,urgent:false,runout:'품절 중',basis:'품절 전 속도로 계산',
    note:'반품 재판매분(위 쿠팡 수량과 따로): 60일 1세트 · 90일 1세트'},
   {id:'c',name:'시험 품절 키링',offer:'998',unit:'세트',coupang:{d7:0,d30:0,d60:null,d90:null,stock:0,returnStock:0,soldout:true,hist:'자료 없음'},
-   smartstore:{d30:0,d60:0,d90:0,regStock:'—'},own:{d30:0,d60:0,d90:0,regStock:'—'},rec:[{ko:'기본',qty:10}],recTotal:10,weak:true,urgent:false,runout:'품절 중',basis:'품절 전 속도로 계산'}],
+   smartstore:{d30:0,d60:0,d90:0,regStock:'—'},own:{d30:0,d60:0,d90:0,regStock:'—'},rec:[{ko:'기본',qty:10},{ko:'포장 스티커',qty:50}],recTotal:60,weak:true,urgent:false,runout:'품절 중',basis:'품절 전 속도로 계산'},
+  // 스티커 완제품 — 자료에 들어와도 추천 표에는 나오지 않아야 한다(사장님 2026-10-14: 스티커는 직접 출력, 용지·잉크만 추천)
+  {id:'s',name:'시험 로고 스티커 100매',offer:'997',unit:'장',coupang:{d7:9,d30:9,d60:null,d90:null,stock:1,returnStock:0,soldout:false,hist:'자료 없음'},
+   smartstore:{d30:0,d60:0,d90:0,regStock:'—'},own:{d30:0,d60:0,d90:0,regStock:'—'},rec:[{ko:'원형 30mm',qty:5}],recTotal:5,weak:false,urgent:true,urgentText:'시험용 급함',runout:'10/15',basis:'시험용 근거'}],
  excluded:[{group:'최근 판매가 없음',items:[{name:'시험 연필꽂이',why:'30일 판매 0'},{name:'시험 손수건',why:'판매중지'}]}]});
 const tree=withPrep=>({items:{'111':{pid:'R09',cat:'재발주',name:'시험 감자 지갑',url:'https://detail.1688.com/offer/111.html',img:'https://cbu01.alicdn.com/img/ibank/a.jpg',priceMin:2.9,priceMax:2.9,moq:1,unit:'개',options:[{spec:'基本',ko:'기본',price:2.9}],rounds:{r9:true}}},
  rounds:{r9:{title:'시험 회차',date:'2026-10-12',items:{'111':true}}},meta:{rate:200,fee:0.05,...(withPrep?{reorderPrep:prep()}:{})}});
@@ -55,6 +58,18 @@ const tree=withPrep=>({items:{'111':{pid:'R09',cat:'재발주',name:'시험 감�
  await page.locator('.rp-excluded summary').first().click();assert.match(await page.locator('.rp-excluded').first().textContent(),/시험 연필꽂이/);
  assert.equal(await page.locator('.sx-noimg.rp-img').count(),2,'products missing from the ledger still render');
  console.log('PASS reorder tab renders channel sales, Coupang stock, recommended quantities, urgency and the excluded list from the ledger');
+
+ // 스티커 규칙: 스티커 완제품은 표·개수·급한 것에서 빠지고(위의 3개·1개 그대로), 안내 줄에 '스티커 용지·잉크'로 바뀌어 나온다.
+ assert.doesNotMatch(await page.locator('.rp-table').textContent(),/시험 로고 스티커|포장 스티커/,'sticker goods never appear in the recommendation table');
+ const third=page.locator('.rp-row').nth(2).locator('.rp-rec');assert.match(await third.textContent(),/10\s*기본/);assert.match(await third.locator('.rp-swap').textContent(),/스티커는 용지·잉크로/);
+ assert.equal(await page.locator('.rp-swap').count(),1,'only the row that had a sticker option carries the swap line');
+ const rule=page.locator('.rp-sticker');assert.match(await rule.textContent(),/스티커는 사지 않고 직접 찍습니다/);assert.match(await rule.textContent(),/스티커 완제품은 이 표에서 추천하지 않고, 스티커가 필요할 때는 스티커 용지·잉크만 추천합니다/);
+ assert.match(await rule.locator('.sub').textContent(),/추천에서 뺀 스티커 완제품: 시험 로고 스티커 100매 — 대신 스티커 용지·잉크/);
+ const supply=rule.locator('a');assert.equal(await supply.getAttribute('href'),'https://gustnel1122-pixel.github.io/mumutori-offline-pages/#buylist');assert.equal(await supply.getAttribute('target'),'_blank');assert.equal(await supply.getAttribute('rel'),'noopener');
+ const verdict=await page.evaluate(async()=>{const m=await import(new URL('src/reorder-view.js',location.href).href);
+  return ['로고 크라프트 스티커 원형 30mm','봉인 씰 500개','LOGO Sticker','不干胶贴纸','스티커 용지 A4 48칸','잉크젯 투명 라벨지','스티커용 잉크 6색','감자 동전지갑','실링 왁스',null].map(m.isStickerGoods);});
+ assert.deepEqual(verdict,[true,true,true,true,false,false,false,false,false,false],'finished stickers are told apart from paper and ink');
+ console.log('PASS sticker goods are never recommended: dropped from rows, counts and options, replaced by the paper-and-ink line');
 
  await page.locator('.rp-top [data-sx="tab"][data-id="items"]').click();assert.equal(await page.locator('.chip.active[data-id="items"]').count(),1);
  assert.equal(writes.length,0,'viewing the reorder tab writes nothing to the ledger');
