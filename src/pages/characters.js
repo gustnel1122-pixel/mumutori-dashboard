@@ -7,6 +7,7 @@ const B=document.body.dataset.build;
 const K=await import(`../characters-core.js?v=${B}`);
 const {STORAGE_KEY,MOVED_KEY,STATUS,GROUPS,SLOTS}=K;
 const {openStore}=await import(`../characters-sync.js?v=${B}`);
+const GUIDE=await import(`../characters-guide.js?v=${B}`);   // '처음이면 읽기' 가이드(화면 글만)
 const REFS=[['dotori','도토리'],['sunflower','해바라기씨'],['chickpea','병아리콩'],['peanut','땅콩'],['seed','작은 씨앗']];
 const FIELDS=[['name','이름','예: 도토리',30],['role','역할','예: 주인공, 씨앗 친구',40]];
 const LONG=[['voice','말투 · 대사 예시','이 캐릭터가 할 법한 말을 두세 줄 적어 주세요',600],['likes','좋아하는 것','',200],['dislikes','싫어하는 것','',200],['relations','세계관 속 관계','다른 캐릭터와 어떤 사이인지',600],['memo','메모','더 적어 둘 것',1000]];
@@ -242,5 +243,5 @@ export default function renderPage(c){
     document.addEventListener('click',onClick);document.addEventListener('input',onInput);document.addEventListener('change',onChange);document.addEventListener('focusout',onFocusOut);
     addEventListener('pagehide',()=>{clearTimeout(saveTimer);store?.flush();});   // 창을 닫을 때 아직 안 보낸 것이 있으면 보낸다
     store=openStore({onChange:onRemote,onStatus:onLink});}
-  return ctx.head('캐릭터 만들기','캐릭터마다 프로필과 그림을 채우고, 다 되면 확정(고정)합니다. 확정한 캐릭터는 파일로 내보내 자사몰에 넣습니다.','')+`<div id="cb-root">${view()}</div>`;
+  return ctx.head('캐릭터 만들기','캐릭터마다 프로필과 그림을 채우고, 다 되면 확정(고정)합니다. 확정한 캐릭터는 파일로 내보내 자사몰에 넣습니다.','')+GUIDE.guideHtml({shared:true})+`<div id="cb-root">${view()}</div>`;
 }
