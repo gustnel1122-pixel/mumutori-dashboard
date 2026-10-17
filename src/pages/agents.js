@@ -16,5 +16,5 @@ export default function renderPage(ctx){
   `<div class="panel"><div class="panelhead"><h2>프로젝트별 책임</h2></div><div class="tablewrap"><table class="table"><thead><tr><th>프로젝트</th><th>책임</th><th>도움</th><th>메모</th></tr></thead><tbody>${PROJECTS.map(p=>`<tr><td class="maincell"><b>${esc(p.name)}</b></td><td>${esc(nameOf(p.lead))}</td><td>${esc(p.helpers.map(nameOf).join(', ')||'—')}</td><td>${esc(p.note)}</td></tr>`).join('')}</tbody></table></div></div>`+
   `<div class="note org-pair"><b>코드 작업 2인조</b> — ${esc(PAIRING||'')}</div>`+
   (LOOP.length?`<div class="note org-loop"><b>학습 루프</b> — 일하면서 배운 것을 담당별 플레이북에 쌓아 다음 일에 씁니다.${list(LOOP)}</div>`:'')+
-  `<div class="note">일하는 방식 — 사장님은 총괄 Claude에게만 말하면 됩니다. 총괄이 담당에게 "[총괄 Claude 전달]"로 지시하고, 받았는지·했는지·결과를 확인해 보고합니다. 발주·결제·삭제·보안 변경은 사장님이 직접 승인한 것만 전달합니다. 모든 작업은 옵시디언 볼트(AI 인계 로그·각 프로젝트 정본)에 남깁니다.</div>`;
+  `<div class="note">일하는 방식 — 사장님은 총괄 Claude에게만 말하면 됩니다. 총괄이 담당에게 "[총괄 Claude 전달]"로 지시하고, 받았는지·했는지·결과를 확인해 보고합니다. 발주·결제·삭제·보안 변경은 사장님이 직접 승인한 것만 전달합니다. 모든 작업은 옵시디언 볼트(AI 인계 로그·각 프로젝트 정본)에 남깁니다. 로그인은 사장님이 직접 합니다(AI는 저장된 비밀번호·자동완성으로 로그인하지 않음). 로그인된 것이 감지되면 담당이 알아서 이어서 일하고, API 키는 키 넣는 창에 사장님이 직접 넣습니다.</div>`;
 }

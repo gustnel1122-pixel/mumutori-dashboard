@@ -1,7 +1,7 @@
 // 무무토리 AI 조직도 — 공개 저장소이므로 역할·범위·연결 방식만 적는다.
 // 세션 ID·주소·파일 경로·원가 같은 내부 정보는 넣지 않는다(정본은 옵시디언 00_인덱스/에이전트 조직도).
 // 담당이 생기거나 바뀌면 총괄 Claude가 이 파일과 볼트 정본을 같은 날 함께 고친다.
-export const ORG_UPDATED='2026-10-16 20:33 KST';
+export const ORG_UPDATED='2026-10-17 20:33 KST';
 export const ORG_EDITOR='페이지 담당 Claude(총괄 지시)';
 
 // status: active(연결·검증됨) | ready(켜면 쓸 수 있음) | pending(연결 시험 전) | idle(쉬는 중) | retired(종료)
@@ -30,11 +30,15 @@ export const AGENTS=[
    scope:['범위를 정해 받은 작업(메일 초안·DNS 확인 같은 일)'],
    out:['push·배포(사장님 승인 필요)'],channel:'PC Codex 앱(무무토리 프로젝트)에 총괄이 입력·확인',status:'active',checked:'2026-10-11 10:15',note:'10/16 코드 검토는 VS Code Codex(검토@무무토리)로 옮김'},
   {id:'coupang',seat:'쿠팡@무무토리',name:'쿠팡 담당 Claude',kind:'Claude Code · VS Code',team:'채널 판매',role:'쿠팡 윙·로켓그로스·광고 운영',
-   scope:['쿠팡·스마트스토어·자사몰 현황','매일 아침 일일 보고(데이터·개선점·결정 거리)','운영 가이드'],out:['광고·가격 변경(승인 필요)'],
-   channel:'원격 연결 화면으로 총괄이 지시·확인',status:'active',checked:'2026-10-16 20:30',note:'로켓그로스 1차 창원1 10/16 수거 · 2차 동탄1 10/19 수거 신청 예정(사장님)'},
+   scope:['쿠팡·스마트스토어·자사몰 현황','매일 아침 일일 보고(데이터·개선점·결정 거리)','운영 가이드','윙 로그인 감시(매시 정각·30분, 탭 안 건드림)'],out:['광고·가격 변경(승인 필요)'],
+   channel:'원격 연결 화면으로 총괄이 지시·확인',status:'active',checked:'2026-10-17 20:30',note:'로켓그로스 1차 운송장 받음(윙 등록 대기) · 2차 10/19 수거 예약 필요(사장님)'},
   {id:'github',seat:'대시보드@무무토리',name:'대시보드 담당 Claude',kind:'Claude Code · VS Code',team:'개발',role:'채널 데이터 취합·재발주 준비·대시보드 반영',
    scope:['판매처별 판매·재고·소진율 취합','판매 중인 상품 재발주 추천 수량','통합 대시보드 화면 반영','저장소 점검'],out:['발주 신청·장바구니 변경·결제'],
-   channel:'원격 연결 화면으로 총괄이 지시·확인',status:'active',checked:'2026-10-11 23:20',note:'10/11 대시보드 담당으로 지정(기존 GitHub 관리 대화)'},
+   channel:'원격 연결 화면으로 총괄이 지시·확인',status:'active',checked:'2026-10-11 23:20',note:'10/11 대시보드 담당으로 지정(기존 GitHub 관리 대화) · 10/17 스마트스토어 담당 겸임'},
+  {id:'smartstore',seat:'스마트스토어(대시보드 겸임)',name:'스마트스토어 담당',kind:'Claude Code · VS Code',team:'채널 판매',role:'네이버 쇼핑 상위노출 · 스마트스토어 운영',
+   scope:['상위노출: 상품명·태그·속성·카테고리·상세 글 다듬기','로그인 감시(매시 14·44분)','커머스 API로 로그인 없이 고치는 도구 준비 중'],
+   out:['돈 드는 일(광고·유료 도구) — 사장님께 먼저 물음','가구매·리뷰·트래픽 조작 금지','로그인(사장님이 직접)'],
+   channel:'원격 연결 화면으로 총괄이 지시·확인(대시보드 담당과 같은 대화)',status:'active',checked:'2026-10-17 20:30',note:'10/17 새 역할 · 대시보드 담당이 겸임'},
   {id:'page',seat:'페이지@무무토리',name:'페이지 담당 Claude',kind:'Claude Code · VS Code',team:'페이지·디자인',role:'자사몰·레터·오프라인 프로젝트 페이지',
    scope:['자사몰 리디자인 시안·상세 템플릿','레터·오프라인 준비 페이지 글·목록 맞추기','포장·첫 방문 인트로 시안'],
    out:['실제 자사몰 저장·게시(사장님 승인 필요)'],
@@ -68,7 +72,7 @@ export const PROJECTS=[
   {name:'포장 기획',lead:'hub',helpers:['dotori','sourcing'],note:'발주 뒤 시작 · 도장·포장재 리스트는 도토리 조사'},
   {name:'레터서비스',lead:'hub',helpers:[],note:'담당 AI 미지정'},
   {name:'통합 대시보드(ERP)',lead:'github',helpers:['codex','coupang','sourcing'],note:'재발주 준비 표·채널 데이터 취합'},
-  {name:'쿠팡·스마트스토어·자사몰',lead:'coupang',helpers:['page'],note:'스마트스토어 새 단장 적용(10/16, 대표 이미지는 네이버 검수 1~2영업일) · 쿠팡 2차 수거 10/19'},
+  {name:'쿠팡·스마트스토어·자사몰',lead:'coupang',helpers:['smartstore','page'],note:'쿠팡 1차 운송장 받음(윙 등록 대기) · 2차 10/19 수거 예약 필요(사장님) · 스마트스토어 상위노출은 스마트스토어 담당 · 스마트스토어 재고는 지금 그대로, 재고관리 끝난 뒤 실재고로 맞춤'},
   {name:'사업지원',lead:'dotori',helpers:[],note:'현금 지원 공고만'},
   {name:'자사몰 리디자인(식스샵)',lead:'page',helpers:[],note:'첫 방문 인트로 공개(10/16) · 시안·상세 템플릿 · 실제 반영은 사장님 승인 뒤'},
   {name:'AI 활용·학습 루프',lead:'hub',helpers:['research','hermes'],note:'담당별 플레이북 · 매주 월요일 주간 제안 · 헤르메스 1주 시험(키 기다림)'},
