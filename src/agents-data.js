@@ -1,7 +1,7 @@
 // 무무토리 AI 조직도 — 공개 저장소이므로 역할·범위·연결 방식만 적는다.
 // 세션 ID·주소·파일 경로·원가 같은 내부 정보는 넣지 않는다(정본은 옵시디언 00_인덱스/에이전트 조직도).
 // 담당이 생기거나 바뀌면 총괄 Claude가 이 파일과 볼트 정본을 같은 날 함께 고친다.
-export const ORG_UPDATED='2026-10-17 20:33 KST';
+export const ORG_UPDATED='2026-10-18 20:32 KST';
 export const ORG_EDITOR='페이지 담당 Claude(총괄 지시)';
 
 // status: active(연결·검증됨) | ready(켜면 쓸 수 있음) | pending(연결 시험 전) | idle(쉬는 중) | retired(종료)
@@ -29,16 +29,16 @@ export const AGENTS=[
   {id:'codex',seat:'Codex앱@무무토리',name:'Codex 앱',kind:'OpenAI Codex · PC 앱',team:'개발',role:'범위를 정한 작업',
    scope:['범위를 정해 받은 작업(메일 초안·DNS 확인 같은 일)'],
    out:['push·배포(사장님 승인 필요)'],channel:'PC Codex 앱(무무토리 프로젝트)에 총괄이 입력·확인',status:'active',checked:'2026-10-11 10:15',note:'10/16 코드 검토는 VS Code Codex(검토@무무토리)로 옮김'},
-  {id:'coupang',seat:'쿠팡@무무토리',name:'쿠팡 담당 Claude',kind:'Claude Code · VS Code',team:'채널 판매',role:'쿠팡 윙·로켓그로스·광고 운영',
-   scope:['쿠팡·스마트스토어·자사몰 현황','매일 아침 일일 보고(데이터·개선점·결정 거리)','운영 가이드','윙 로그인 감시(매시 정각·30분, 탭 안 건드림)'],out:['광고·가격 변경(승인 필요)'],
-   channel:'원격 연결 화면으로 총괄이 지시·확인',status:'active',checked:'2026-10-17 20:30',note:'로켓그로스 1차 운송장 받음(윙 등록 대기) · 2차 10/19 수거 예약 필요(사장님)'},
+  {id:'coupang',seat:'쿠팡@무무토리',name:'쿠팡 담당 Claude',kind:'Claude Code · VS Code',team:'채널 판매',role:'쿠팡·채널·광고 (광고 담당 겸임, 10/18~)',
+   scope:['쿠팡·스마트스토어·자사몰 현황','매일 아침 일일 보고(데이터·개선점·결정 거리)','운영 가이드','윙 로그인 감시(매시 정각·30분, 탭 안 건드림)','광고 세분화: 상품별 계속/줄임/끔 · 제외 키워드 · 수동 키워드'],out:['돈이 늘어나는 광고 변경·가격 변경(사장님 승인)'],
+   channel:'원격 연결 화면으로 총괄이 지시·확인',status:'active',checked:'2026-10-18 20:30',note:'광고 3가지 사장님 승인(10/18) — 윙 로그인 뒤 적용 · 로켓그로스 2차 10/19 수거 → 10/20 동탄1'},
   {id:'github',seat:'대시보드@무무토리',name:'대시보드 담당 Claude',kind:'Claude Code · VS Code',team:'개발',role:'채널 데이터 취합·재발주 준비·대시보드 반영',
    scope:['판매처별 판매·재고·소진율 취합','판매 중인 상품 재발주 추천 수량','통합 대시보드 화면 반영','저장소 점검'],out:['발주 신청·장바구니 변경·결제'],
    channel:'원격 연결 화면으로 총괄이 지시·확인',status:'active',checked:'2026-10-11 23:20',note:'10/11 대시보드 담당으로 지정(기존 GitHub 관리 대화) · 10/17 스마트스토어 담당 겸임'},
   {id:'smartstore',seat:'스마트스토어(대시보드 겸임)',name:'스마트스토어 담당',kind:'Claude Code · VS Code',team:'채널 판매',role:'네이버 쇼핑 상위노출 · 스마트스토어 운영',
    scope:['상위노출: 상품명·태그·속성·카테고리·상세 글 다듬기','로그인 감시(매시 14·44분)','커머스 API로 로그인 없이 고치는 도구 준비 중'],
    out:['돈 드는 일(광고·유료 도구) — 사장님께 먼저 물음','가구매·리뷰·트래픽 조작 금지','로그인(사장님이 직접)'],
-   channel:'원격 연결 화면으로 총괄이 지시·확인(대시보드 담당과 같은 대화)',status:'active',checked:'2026-10-17 20:30',note:'10/17 새 역할 · 대시보드 담당이 겸임'},
+   channel:'원격 연결 화면으로 총괄이 지시·확인(대시보드 담당과 같은 대화)',status:'active',checked:'2026-10-18 20:30',note:'10/18 상품 9개 "14세 이상·어린이용 아님" 표시·어린이 연상 말 정리 · 말랑이 카테고리는 사장님 답 대기'},
   {id:'page',seat:'페이지@무무토리',name:'페이지 담당 Claude',kind:'Claude Code · VS Code',team:'페이지·디자인',role:'자사몰·레터·오프라인 프로젝트 페이지',
    scope:['자사몰 리디자인 시안·상세 템플릿','레터·오프라인 준비 페이지 글·목록 맞추기','포장·첫 방문 인트로 시안'],
    out:['실제 자사몰 저장·게시(사장님 승인 필요)'],
@@ -50,7 +50,7 @@ export const AGENTS=[
   {id:'hermes',seat:'헤르메스(시험)',name:'헤르메스',kind:'Hermes Agent · PC',team:'AI 활용',role:'1주 시험: 볼트 읽기 + 아침 텔레그램 브리핑',
    scope:['볼트 읽기','볼트 수신함에 새 파일만 쓰기','명령은 하나하나 사장님 승인'],
    out:['쇼핑몰·쿠팡·보고판 로그인','터미널·브라우저·화면 조작','결제·발송'],
-   channel:'텔레그램(사장님이 키를 넣은 뒤)',status:'pending',checked:'2026-10-16 19:14',note:'10/16 설치 · 지금은 꺼짐 · 키 기다림'},
+   channel:'텔레그램(사장님이 키를 넣은 뒤)',status:'pending',checked:'2026-10-18 20:30',note:'무무토리 스킬 5개·사장님 정보 연결 끝 · 키 연결 대기(약 50%)'},
 ];
 
 // 학습 루프(2026-10-16 켬): 일하면서 배운 것을 담당별 플레이북에 쌓아 다음 일에 쓴다.
@@ -72,10 +72,10 @@ export const PROJECTS=[
   {name:'포장 기획',lead:'hub',helpers:['dotori','sourcing'],note:'발주 뒤 시작 · 도장·포장재 리스트는 도토리 조사'},
   {name:'레터서비스',lead:'hub',helpers:[],note:'담당 AI 미지정'},
   {name:'통합 대시보드(ERP)',lead:'github',helpers:['codex','coupang','sourcing'],note:'재발주 준비 표·채널 데이터 취합'},
-  {name:'쿠팡·스마트스토어·자사몰',lead:'coupang',helpers:['smartstore','page'],note:'쿠팡 1차 운송장 받음(윙 등록 대기) · 2차 10/19 수거 예약 필요(사장님) · 스마트스토어 상위노출은 스마트스토어 담당 · 스마트스토어 재고는 지금 그대로, 재고관리 끝난 뒤 실재고로 맞춤'},
+  {name:'쿠팡·스마트스토어·자사몰',lead:'coupang',helpers:['smartstore','page'],note:'쿠팡 광고 3가지 승인 — 윙 로그인 뒤 적용 · 로켓그로스 2차 10/19 수거 → 10/20 동탄1 · 스마트스토어 상품 9개 "14세 이상" 표시·말 정리(말랑이 카테고리는 사장님 답 대기) · 재고는 재고관리 끝난 뒤 실재고로 맞춤'},
   {name:'사업지원',lead:'dotori',helpers:[],note:'현금 지원 공고만'},
   {name:'자사몰 리디자인(식스샵)',lead:'page',helpers:[],note:'첫 방문 인트로 공개(10/16) · 시안·상세 템플릿 · 실제 반영은 사장님 승인 뒤'},
-  {name:'AI 활용·학습 루프',lead:'hub',helpers:['research','hermes'],note:'담당별 플레이북 · 매주 월요일 주간 제안 · 헤르메스 1주 시험(키 기다림)'},
+  {name:'AI 활용·학습 루프',lead:'hub',helpers:['research','hermes'],note:'담당별 플레이북 · 매주 월요일 주간 제안 · 헤르메스 무무토리 스킬 연결 끝, 1주 시험은 키 기다림'},
 ];
 
 export const STATUS={active:['연결됨','ok'],ready:['준비됨','ok'],pending:['연결 시험 전','warn'],idle:['쉬는 중','idle'],retired:['종료','idle']};
