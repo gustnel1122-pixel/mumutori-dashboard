@@ -76,8 +76,10 @@ export function openFinStore({ root = ROOT, onChange, onStatus } = {}) {
       for (const items of Object.values(inbox)) for (const [id, item] of Object.entries(items || {})) {
         if (seen[id]) continue;
         const draft = F.draftFromAlert({ ...item, id }, book.meta.rules);
-        if (draft) { F.validateEntry(draft); await this.add(draft); made++; }
-        await req('PUT', `${PATHS.inboxSeen}/${id}`, { entryId: draft?.id || '', skipped: !draft, at: new Date().toISOString() });
+        // 같은 결제가 두 번 오면(카드사 알림 + 지갑 앱 알림 등) 같은 금액 · 같은 분이면 하나만 — 먼저 들어온 줄을 둔다
+        const dup = draft && Object.values(book.entries || {}).find(e => F.sameMoment(e, draft));
+        if (draft && !dup) { F.validateEntry(draft); await this.add(draft); made++; }
+        await req('PUT', `${PATHS.inboxSeen}/${id}`, { entryId: dup ? dup.id : (draft?.id || ''), skipped: !draft || !!dup, dup: !!dup, at: new Date().toISOString() });
       }
       return made;
     },
