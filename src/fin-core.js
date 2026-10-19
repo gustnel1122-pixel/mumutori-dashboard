@@ -3,7 +3,10 @@
 (function (root) {
   'use strict';
   const VERSION = 1;
-  const METHODS = ['현대카드', '토스체크', '토스이체', '현금'];
+  const METHODS = ['현대카드', '토스체크', '토스이체', '현금'];   // 사람이 고르는 결제 수단(입력 버튼)
+  // 쿠팡 정산 차감(상계): 광고비 · 물류비 등이 판매대금에서 먼저 빠지는 돈. 비용(손익)에는 넣고, 통장 · 돈 흐름과 '확인 필요'에서는 뺀다.
+  const OFFSET_METHOD = '쿠팡 정산 차감';
+  const ALL_METHODS = [...METHODS, OFFSET_METHOD];
   const OUT_CATEGORIES = ['매입', '매입 부대비', '배송비', '광고비', '수수료', '소모품', '임차료', '기타'];
   const IN_CATEGORIES = ['매출', '자금 충전', '환불 받음', '기타 수입'];
   const EVIDENCE = ['카드', '세금계산서', '현금영수증', '간이영수증', '없음'];
@@ -57,7 +60,7 @@
     if (!Number.isFinite(x.amount) || x.amount <= 0) throw Error('금액을 1원 이상 숫자로 넣어 주세요.');
     if (x.amount > 100000000) throw Error('금액이 1억 원을 넘습니다. 다시 확인해 주세요.');
     if (!validDate(x.date)) throw Error('날짜가 이상합니다.');
-    if (x.method && !METHODS.includes(x.method)) throw Error('결제 수단이 목록에 없습니다.');
+    if (x.method && !ALL_METHODS.includes(x.method)) throw Error('결제 수단이 목록에 없습니다.');
     const cats = x.kind === 'in' ? IN_CATEGORIES : OUT_CATEGORIES;
     if (x.category && !cats.includes(x.category)) throw Error('분류가 목록에 없습니다.');
     if (!EVIDENCE.includes(x.evidence)) throw Error('증빙이 목록에 없습니다.');
@@ -102,9 +105,10 @@
     const deductible = outRows.filter(e => DEDUCTIBLE.has(e.evidence) && e.vatIncluded !== false).reduce((a, e) => a + e.amount, 0);
     const vat = Math.round(salesGross / 11) - Math.round(deductible / 11);
     const inAll = rows.filter(e => e.kind === 'in').reduce((a, e) => a + e.amount, 0) + s.gross;   // 들어온 돈 전부(매출 · 자금 충전 · 기타)
+    const offset = outRows.filter(e => e.method === OFFSET_METHOD).reduce((a, e) => a + e.amount, 0);   // 쿠팡 정산에서 먼저 빠진 비용(통장으로 안 나감)
     return {
       period, sales: salesGross, salesFromChannels: s.gross, orders: s.orders, salesConnected: s.connected,
-      inflow: inAll, cashFlow: inAll - spend,      // 이번 기간 돈 흐름(들어온 돈 − 나간 돈) — 채널 매출 연결 전에는 손익 대신 이것을 보인다
+      inflow: inAll, cashFlow: inAll - (spend - offset), offset,   // 돈 흐름(들어온 돈 − 실제로 나간 돈) — 정산 차감은 통장으로 안 나가 뺀다. 채널 매출 연결 전에는 손익 대신 이것을 보인다
       stockBuy: outRows.filter(e => e.category === '매입').reduce((a, e) => a + e.amount, 0),   // 상품 매입(재고로 남는 돈)
       spend, fee: s.fee, feeKnown: s.feeKnown,
       net: salesGross - s.fee - spend,            // 남는 돈(추정): 매출 − 채널 수수료(알려진 만큼) − 지출
@@ -190,6 +194,6 @@
     }, now);
   }
 
-  const api = { VERSION, METHODS, OUT_CATEGORIES, IN_CATEGORIES, EVIDENCE, NEEDS, kstDate, uid, toWon, maskCard, validDate, normEntry, validateEntry, summarize, checkReasons, defaultEvidence, classify, parseCSV, fromLedgerCSV, inPeriod, draftFromAlert, PATTERNS };
+  const api = { VERSION, METHODS, OFFSET_METHOD, ALL_METHODS, OUT_CATEGORIES, IN_CATEGORIES, EVIDENCE, NEEDS, kstDate, uid, toWon, maskCard, validDate, normEntry, validateEntry, summarize, checkReasons, defaultEvidence, classify, parseCSV, fromLedgerCSV, inPeriod, draftFromAlert, PATTERNS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.FinCore = api;
 })(typeof window !== 'undefined' ? window : globalThis);

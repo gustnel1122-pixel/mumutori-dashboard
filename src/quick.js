@@ -2,7 +2,7 @@
 // 장부는 Firebase hub/financeV1(사장님 로그인 전용). PC 재무 화면(fin-panel.js)과 같은 부품 · 같은 줄 모양을 쓴다.
 import { onAuth, signIn } from './fbauth.js';
 import { openFinStore } from './fin-hub.js';
-import { mountEntryForm, renderLists, bindListActions, rememberNeeds, esc, won } from './fin-form.js';
+import { mountEntryForm, renderLists, bindListActions, rememberNeeds, settleCard, esc, won } from './fin-form.js';
 
 const F = window.FinCore;
 const $ = s => document.querySelector(s);
@@ -20,12 +20,13 @@ function drawSummary() {
     // 채널 매출 연결 전에는 손익 대신 돈 흐름(매출 없이 지출만 보여 적자로 오해하지 않게 — 검수 9)
     (s.salesConnected
       ? card('남는 돈(추정)', s.net, (s.feeKnown ? '매출 − 수수료 − 지출' : '수수료 정산 전 · 추정') + (s.stockBuy ? ' · 매입 포함' : ''), s.net < 0 ? 'minus' : '')
-      : card('돈 흐름', s.cashFlow, '들어온 돈 − 나간 돈 · 매출 연결 전이라 손익 아님' + (s.stockBuy ? ' · 상품 매입은 재고로 남는 돈' : ''))) +
+      : card('돈 흐름', s.cashFlow, '들어온 돈 − 나간 돈 · 매출 연결 전이라 손익 아님' + (s.stockBuy ? ' · 상품 매입은 재고로 남는 돈' : '') + (s.offset ? ' · 쿠팡 정산 차감은 뺌' : ''))) +
     card('부가세 예상', s.vat, '참고용 · 신고는 세무 확인', s.vat < 0 ? 'minus' : '');
   document.querySelectorAll('.q-tabs [data-period]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.period === period)));
 }
 function draw() {
   drawSummary();
+  $('#q-settle').innerHTML = settleCard(book.meta);   // 쿠팡 정산 예정(왜 0원인지)
   const n = renderLists({ book, needsRoot: $('#q-needs-list'), recentRoot: $('#q-recent') });
   $('#q-needs').hidden = !n; $('#q-needs b').textContent = n;
   if (loaded) rememberNeeds(n);   // 홈 '챙길 일' 건수(건수 · 시각만)

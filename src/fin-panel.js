@@ -2,13 +2,14 @@
 // ERP 화면은 이 PC 저장(localStorage)으로 그려지고 자주 다시 그려지므로, 패널 자리(#fin-hub-panel)가 새로 생길 때마다 다시 붙인다(장부 연결은 하나로 유지).
 import { onAuth, signIn } from './fbauth.js';
 import { openFinStore } from './fin-hub.js';
-import { mountEntryForm, renderLists, bindListActions, rememberNeeds, esc, won } from './fin-form.js';
+import { mountEntryForm, renderLists, bindListActions, rememberNeeds, settleCard, esc, won } from './fin-form.js';
 
 let store = null, book = { entries: {}, sales: {}, meta: {} }, signedIn = false, host = null, loaded = false, jumped = false;
 
 const SHELL = `<div class="panelhead"><h2>이번 달 장부 · 수기 입력</h2><span class="section-en">공용 장부 · 폰과 같은 칸</span></div>
 <div class="panelbody">
   <div class="metrics fin-sum" hidden></div>
+  <div class="fin-settle" hidden></div>
   <div class="fin-login" hidden><p>공용 장부는 사장님 구글 계정으로만 열려요. 휴대폰 입력 · 결제 알림이 같은 장부에 쌓입니다.</p><button type="button" class="q-btn q-primary fin-signin">구글로 로그인</button><p class="q-msg fin-login-msg" role="alert"></p></div>
   <div class="fin-cols" hidden>
     <div><form class="fin-form" autocomplete="off"></form></div>
@@ -28,7 +29,8 @@ function metric(label, value, note, cls = '', href = '') {
 // 채널 매출이 아직 안 붙었으면 '남는 돈'(손익) 대신 '돈 흐름'을 보인다 — 매출 없이 지출만 보이면 적자로 오해(검수 9)
 function moneyCard(s) {
   if (!s.salesConnected) {
-    const note = '들어온 돈 − 나간 돈 · 채널 매출 연결 전이라 실제 손익 아님' + (s.stockBuy ? ' · 상품 매입은 재고로 남는 돈(손익 아님)' : '');
+    const note = '들어온 돈 − 나간 돈 · 채널 매출 연결 전이라 실제 손익 아님' + (s.stockBuy ? ' · 상품 매입은 재고로 남는 돈(손익 아님)' : '')
+      + (s.offset ? ` · 쿠팡 정산 차감 ${won(s.offset)}원은 통장으로 안 나가 뺌` : '');
     return metric('이번 달 돈 흐름', s.cashFlow, note, 'neutral');
   }
   return metric('남는 돈(추정)', s.net, (s.feeKnown ? '매출 − 수수료 − 지출' : '수수료 정산 전 · 추정') + (s.stockBuy ? ' · 상품 매입 포함(재고로 남는 돈)' : ''), s.net < 0 ? 'minus' : '');
@@ -46,6 +48,7 @@ function draw() {
   const n = renderLists({ book, needsRoot: host.querySelector('.fin-needs-box'), recentRoot: host.querySelector('.fin-recent'), recentCount: 6 });
   host.querySelector('.fin-needs-box h3 b').textContent = n;
   drawSummary(n);
+  host.querySelector('.fin-settle').innerHTML = settleCard(book.meta);
   if (!loaded) return;
   rememberNeeds(n);
   // 홈 '챙길 일'에서 finance.html#fin-needs로 왔으면, 장부를 읽은 뒤 그 줄로 한 번 내려간다
@@ -57,6 +60,7 @@ function showState() {
   host.querySelector('.fin-login').hidden = ok;
   host.querySelector('.fin-cols').hidden = !ok;
   host.querySelector('.fin-sum').hidden = !ok;
+  host.querySelector('.fin-settle').hidden = !ok;
 }
 function ensureStore() {
   if (store) return;

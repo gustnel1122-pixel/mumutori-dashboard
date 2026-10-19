@@ -22,7 +22,7 @@
   };
   var rows = [
     row('demo1', { date: day(2), amount: 120000, method: '현대카드', category: '매입 부대비', vendor: '시연 · 배송대행', evidence: '카드', source: 'import' }),
-    row('demo2', { date: day(5), amount: 33000, method: '토스체크', category: '광고비', vendor: '시연 · 광고', evidence: '카드', source: 'ai-coupang' }),
+    row('demo2', { date: day(5), amount: 33000, method: '쿠팡 정산 차감', category: '광고비', vendor: '시연 · 쿠팡 광고', memo: '시연용 가짜 줄 · 판매대금에서 먼저 빠지는 비용', source: 'ai-ads' }),
     row('demo3', { date: day(8), amount: 4000, method: '현금', category: '배송비', vendor: '시연 · 택배', source: 'phone' }),
     row('demo4', { date: day(today), amount: 7700, method: '토스체크', vendor: '시연 · 문구점', status: 'needs-category', evidence: '카드', source: 'alert' }),
     row('demo5', { date: day(10), amount: 5000, method: '토스체크', category: '소모품', vendor: '시연 · 생활용품점', evidence: '카드', source: 'phone' }),
@@ -31,7 +31,10 @@
   ];
   var entries = {};
   rows.forEach(function (r) { entries[r.id] = r; });
-  window.__MMT_TEST_FIN__ = { entries: entries, sales: {}, meta: { rules: [] } };
+  // 쿠팡 정산 예정 칸(가짜 값) — 이번 주 비용이 매출보다 커서 0원인 모습
+  var settle = { nextDate: ym + '-' + String(Math.min(28, today + 3)).padStart(2, '0'), nextAmount: 0, period: '시연용 7일', revenue: 50000, cost: 62000, profit: -12000,
+    ads: 30000, fulfillment: 26000, fee: 6000, readAt: '시연 자료', source: '시연' };
+  window.__MMT_TEST_FIN__ = { entries: entries, sales: {}, meta: { rules: [], coupangSettle: settle } };
 
   var mem = {};
   window.__MMT_DEMO_STORAGE__ = {

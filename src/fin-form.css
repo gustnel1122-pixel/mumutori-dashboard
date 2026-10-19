@@ -47,3 +47,12 @@
 .fin-panel .fin-sum .metric-link:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
 .fin-panel .fin-sum .metric.attention strong{color:var(--fred)}
 .fin-panel .fin-sum .metric.neutral strong{color:var(--fink)}
+/* 쿠팡 정산 예정 칸(재무 PC 패널 · 폰) — 0원이면 이유를 먼저 */
+.f-settle{border:1px solid var(--fline);border-radius:12px;padding:12px 14px;background:#fffdf7;margin:0 0 16px}
+.f-settle.zero{background:#fbf3e6;border-color:#ecd9b8}
+.f-settle-top{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 12px}
+.f-settle-top b{font-size:14px;color:var(--fg)}
+.f-settle-top strong{font-size:18px;color:var(--fink)}
+.f-settle p{margin:6px 0 4px;font-size:13px;line-height:1.6;color:var(--fink)}
+.f-settle small{display:block;font-size:11px;color:var(--fsub);line-height:1.5}
+#q-settle .f-settle{margin:0 0 12px}

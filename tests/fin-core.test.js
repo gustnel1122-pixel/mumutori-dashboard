@@ -47,6 +47,15 @@ test('확인 필요: 분류 없음 · 나간 돈의 수단 없음(증빙 없음�
   assert.equal(m.stockBuy,20000);assert.equal(m.salesConnected,false);
   assert.equal(F.defaultEvidence('현대카드'),'카드');assert.equal(F.defaultEvidence('토스이체'),'없음');
 });
+test('쿠팡 정산 차감(상계): 비용에는 넣고 돈 흐름 · 확인 필요에서는 뺌',()=>{
+  const rows=[e({id:'a',amount:11000}),e({id:'ad',method:F.OFFSET_METHOD,category:'광고비',amount:4400,evidence:'없음'}),e({id:'in',kind:'in',category:'자금 충전',method:'토스이체',amount:20000})];
+  assert.equal(F.validateEntry(rows[1]).method,'쿠팡 정산 차감');
+  assert(!F.METHODS.includes(F.OFFSET_METHOD));          // 입력 버튼에는 없음
+  const m=F.summarize(book(rows),'month',NOW);
+  assert.equal(m.spend,15400);assert.equal(m.offset,4400);
+  assert.equal(m.cashFlow,20000-11000);                  // 정산 차감 4,400은 통장으로 안 나감
+  assert.equal(m.needs,0);assert.deepEqual(F.checkReasons(rows[1]),[]);
+});
 test('classify: 가맹점 규칙표',()=>{
   const rules=[{match:'아이템스카우트',category:'매입 부대비'},{match:'쿠팡',and:'광고',category:'광고비'}];
   assert.equal(F.classify('(주)아이템스카우트',rules),'매입 부대비');assert.equal(F.classify('쿠팡 광고센터',rules),'광고비');

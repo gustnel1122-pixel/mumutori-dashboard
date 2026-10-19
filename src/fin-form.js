@@ -89,6 +89,20 @@ export function mountEntryForm(root, ctx) {
   return { focus: () => $('.f-amt').focus() };
 }
 
+// 쿠팡 정산 예정 칸 — 쿠팡 담당이 매일 아침 읽는 윙 정산현황(rg_settle_7d)을 AI 기록(fin_hub settle)이 meta/coupangSettle에 둔다.
+// 사장님 질문 "팔리는데 왜 돈이 안 들어와?"의 답: 다음 정산일 · 예상 지급액 · 0원이면 이유(이번 주 비용 > 매출).
+export function settleCard(meta) {
+  const c = meta && meta.coupangSettle;
+  if (!c) return `<div class="f-settle"><div class="f-settle-top"><b>쿠팡 정산 예정</b></div><p>쿠팡 담당이 매일 아침 읽는 정산 값이 아직 장부에 연결되지 않았어요.</p></div>`;
+  const md = d => { const m = String(d || '').match(/\d{4}-(\d{2})-(\d{2})/); return m ? `${+m[1]}/${+m[2]}` : esc(d); };
+  const zero = !(Number(c.nextAmount) > 0);
+  const why = !zero ? '판매대금에서 광고 · 물류 · 수수료를 먼저 뺀 금액이에요.'
+    : Number(c.cost) > Number(c.revenue)
+      ? `이번 주 비용 ${won(c.cost)}원(광고 ${won(c.ads)} · 물류 ${won(c.fulfillment)} · 수수료 ${won(c.fee)})이 매출 ${won(c.revenue)}원보다 커서, 남는 돈이 없어 0원이에요.`
+      : '이번 정산에 들어갈 남는 돈이 없어 0원이에요.';
+  return `<div class="f-settle${zero ? ' zero' : ''}"><div class="f-settle-top"><b>쿠팡 정산 예정</b><strong class="amt">${md(c.nextDate)} · ${won(c.nextAmount)}원</strong></div><p>${why}</p><small>${esc(c.period)} 윙 정산현황 · ${esc(c.readAt)} 읽음 · 팔고 첫 지급까지 약 4~5주(화면 일정 기준)</small></div>`;
+}
+
 // 취소됨 줄은 기본으로 숨긴다(검수 기준 4: 시험 흔적 없음). '취소 포함 보기'를 누른 화면에서만 보인다.
 let showVoid = false;
 
