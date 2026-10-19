@@ -1,5 +1,5 @@
 export default function finance(ctx){
-  const {C,data,state,esc,won,money,badge,head,metric,link,btn,filters}=ctx;
+  const {C,data,state,esc,won,money,badge,head,metric,link,btn,filters,finTabs}=ctx;
   const s=C.financeSummary(data,state.month);
   const purchases=C.active(C.purchases(data)).filter(p=>!state.month||(p.date||p.receivedAt||'').startsWith(state.month));
   const sales=C.active(data.finance.channelTransactions).filter(r=>!state.month||r.date?.startsWith(state.month));
@@ -9,7 +9,7 @@ export default function finance(ctx){
   const max=Math.max(1,...channels.map(r=>Math.abs(r.amount)));
   // 장부는 하나(검수 기준 3): 맨 위 숫자 · 할 일은 공용 장부(fin-panel.js). 이 PC 브라우저의 옛 장부는 아래 접힌 칸에만 둔다.
   const legacyOpen=(()=>{try{return sessionStorage.getItem('mmt-fin-legacy-open')==='1';}catch{return false;}})();
-  return head('숫자로 보는 무무토리','이번 달 공용 장부(폰 · PC 같은 장부)를 먼저 보고, 옛 기록은 아래에서 열어 봅니다.',' <a class="inline-link" href="quick.html">폰 빠른 장부 <span aria-hidden="true">↗</span></a>')+
+  return head('숫자로 보는 무무토리','이번 달 공용 장부(폰 · PC 같은 장부)를 먼저 보고, 옛 기록은 아래에서 열어 봅니다.',' <a class="inline-link" href="quick.html">폰 빠른 장부 <span aria-hidden="true">↗</span></a>')+finTabs()+
     // 이번 달 요약 · 수기 입력 · 확인 필요(공용 장부) — fin-panel.js가 이 자리에 붙는다
     `<section class="panel" id="fin-hub-panel" aria-label="이번 달 장부 · 수기 입력"></section>`+
     `<details class="legacy-ledger"${legacyOpen?' open':''}><summary><b>10/03 이전 옛 장부</b><small>2025-12 ~ 2026-09 기록 · 이 PC 브라우저에만 있음 · 위 공용 장부와 따로 계산</small></summary>`+
