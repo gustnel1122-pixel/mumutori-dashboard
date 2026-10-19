@@ -96,11 +96,17 @@ export function renderLists({ book, needsRoot, recentRoot, recentCount = 10 }) {
   const every = Object.values(book.entries || {}).sort((a, b) => ((b.date || '') + (b.createdAt || '')).localeCompare((a.date || '') + (a.createdAt || '')));
   const voids = every.filter(e => e.status === 'void').length;
   const all = showVoid ? every : every.filter(e => e.status !== 'void');
-  const needs = all.filter(e => e.status === F_.NEEDS);
+  // 확인 필요 = 분류 없음 또는 나간 돈의 수단 없음(fin-core checkReasons). 이유마다 고르는 버튼을 단다.
+  const needs = all.filter(e => F_.checkReasons(e).length);
   if (needsRoot) {
     needsRoot.hidden = !needs.length;
     const rows = needsRoot.querySelector('.f-needs-rows') || needsRoot;
-    rows.innerHTML = needs.map(e => entryRow(e, `<div class="q-row q-fix">${(e.kind === 'in' ? F_.IN_CATEGORIES : F_.OUT_CATEGORIES).map(c => `<button type="button" class="q-chip" data-fix="${esc(e.id)}" data-fixcat="${esc(c)}">${esc(c)}</button>`).join('')}${e.vendor ? `<label class="q-check"><input type="checkbox" data-rule="${esc(e.id)}"> 앞으로 이 거래처는 항상</label>` : ''}</div>`)).join('');
+    rows.innerHTML = needs.map(e => {
+      const why = F_.checkReasons(e);
+      const cat = why.includes('분류') ? `<div class="q-row q-fix"><span class="q-why">분류</span>${(e.kind === 'in' ? F_.IN_CATEGORIES : F_.OUT_CATEGORIES).map(c => `<button type="button" class="q-chip" data-fix="${esc(e.id)}" data-fixcat="${esc(c)}">${esc(c)}</button>`).join('')}${e.vendor ? `<label class="q-check"><input type="checkbox" data-rule="${esc(e.id)}"> 앞으로 이 거래처는 항상</label>` : ''}</div>` : '';
+      const met = why.includes('수단') ? `<div class="q-row q-fix"><span class="q-why">결제 수단</span>${F_.METHODS.map(m => `<button type="button" class="q-chip" data-fixmethod="${esc(e.id)}" data-method="${esc(m)}">${esc(m)}</button>`).join('')}</div>` : '';
+      return entryRow(e, cat + met);
+    }).join('');
   }
   if (recentRoot) {
     const toggle = voids ? `<button type="button" class="q-link q-void-toggle" data-togglevoid="1" aria-pressed="${showVoid}">${showVoid ? '취소된 줄 숨기기' : `취소 포함 보기 (${voids})`}</button>` : '';
@@ -115,6 +121,11 @@ export function bindListActions(root, { store, book, onError, onRedraw }) {
     const t = ev.target.closest('button'); if (!t) return;
     try {
       if (t.dataset.togglevoid) { showVoid = !showVoid; onRedraw?.(); return; }
+      if (t.dataset.fixmethod) {   // 수단 정하기 — 증빙이 '없음'이면 그 수단의 기본 증빙으로(카드 → 카드)
+        const e = book().entries[t.dataset.fixmethod];
+        await store().patch(e.id, { method: t.dataset.method, evidence: e.evidence && e.evidence !== '없음' ? e.evidence : F().defaultEvidence(t.dataset.method) });
+        return;
+      }
       if (t.dataset.fix) {
         const e = book().entries[t.dataset.fix];
         // '앞으로 항상' 체크는 저장 전에 읽는다(저장하면 목록이 다시 그려져 체크가 사라짐)

@@ -17,7 +17,10 @@ function drawSummary() {
   $('#q-sum').innerHTML =
     card('매출', s.sales, s.salesConnected ? `채널 ${won(s.orders)}건 + 수기 입력` : '채널 매출 연결 전(수기 입력만)') +
     card('지출', s.spend, s.byCategory.slice(0, 3).map(r => r.category).join(' · ') || '기록 없음') +
-    card('남는 돈(추정)', s.net, s.feeKnown ? '매출 − 수수료 − 지출' : '수수료 정산 전 · 추정', s.net < 0 ? 'minus' : '') +
+    // 채널 매출 연결 전에는 손익 대신 돈 흐름(매출 없이 지출만 보여 적자로 오해하지 않게 — 검수 9)
+    (s.salesConnected
+      ? card('남는 돈(추정)', s.net, (s.feeKnown ? '매출 − 수수료 − 지출' : '수수료 정산 전 · 추정') + (s.stockBuy ? ' · 매입 포함' : ''), s.net < 0 ? 'minus' : '')
+      : card('돈 흐름', s.cashFlow, '들어온 돈 − 나간 돈 · 매출 연결 전이라 손익 아님' + (s.stockBuy ? ' · 상품 매입은 재고로 남는 돈' : ''))) +
     card('부가세 예상', s.vat, '참고용 · 신고는 세무 확인', s.vat < 0 ? 'minus' : '');
   document.querySelectorAll('.q-tabs [data-period]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.period === period)));
 }

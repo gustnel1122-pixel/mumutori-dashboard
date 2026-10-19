@@ -13,7 +13,7 @@ const SHELL = `<div class="panelhead"><h2>이번 달 장부 · 수기 입력</h2
   <div class="fin-cols" hidden>
     <div><form class="fin-form" autocomplete="off"></form></div>
     <div>
-      <div class="fin-needs-box" hidden><h3>확인 필요 <b>0</b>건 <small>— 분류만 고르면 저장돼요</small></h3><div class="f-needs-rows"></div></div>
+      <div class="fin-needs-box" id="fin-needs" hidden><h3>확인 필요 <b>0</b>건 <small>— 분류 · 결제 수단만 고르면 저장돼요</small></h3><div class="f-needs-rows"></div></div>
       <h3 class="fin-recent-h">최근 기록</h3><div class="fin-recent"></div><p class="q-msg fin-list-msg" role="alert"></p>
       <a class="inline-link" href="quick.html">폰 화면으로 열기 <span aria-hidden="true">↗</span></a>
     </div>
@@ -21,16 +21,25 @@ const SHELL = `<div class="panelhead"><h2>이번 달 장부 · 수기 입력</h2
 </div>`;
 
 // 이번 달 요약(공용 장부 기준 — 검수 기준 3 '장부는 하나'). 아래 옛 장부(이 브라우저) 숫자와 섞지 않는다.
-function metric(label, value, note, cls = '') {
-  return `<div class="metric ${cls}"><small>${esc(label)}</small><strong class="amt">${won(value)}<em>${label.startsWith('확인') ? '건' : '원'}</em></strong><footer>${esc(note)}</footer></div>`;
+function metric(label, value, note, cls = '', href = '') {
+  const inner = `<small>${esc(label)}</small><strong class="amt">${won(value)}<em>${label.startsWith('확인') ? '건' : '원'}</em></strong><footer>${esc(note)}</footer>`;
+  return href ? `<a class="metric metric-link ${cls}" href="${href}">${inner}</a>` : `<div class="metric ${cls}">${inner}</div>`;
+}
+// 채널 매출이 아직 안 붙었으면 '남는 돈'(손익) 대신 '돈 흐름'을 보인다 — 매출 없이 지출만 보이면 적자로 오해(검수 9)
+function moneyCard(s) {
+  if (!s.salesConnected) {
+    const note = '들어온 돈 − 나간 돈 · 채널 매출 연결 전이라 실제 손익 아님' + (s.stockBuy ? ' · 상품 매입은 재고로 남는 돈(손익 아님)' : '');
+    return metric('이번 달 돈 흐름', s.cashFlow, note, 'neutral');
+  }
+  return metric('남는 돈(추정)', s.net, (s.feeKnown ? '매출 − 수수료 − 지출' : '수수료 정산 전 · 추정') + (s.stockBuy ? ' · 상품 매입 포함(재고로 남는 돈)' : ''), s.net < 0 ? 'minus' : '');
 }
 function drawSummary(needs) {
   const el = host.querySelector('.fin-sum');
   const s = window.FinCore.summarize(book, 'month');
   el.innerHTML = metric('이번 달 매출', s.sales, s.salesConnected ? '채널 매출 + 수기 입력' : '채널 매출 연결 전 · 수기 입력만') +
     metric('이번 달 지출', s.spend, s.byCategory.slice(0, 3).map(r => r.category).join(' · ') || '기록 없음') +
-    metric('남는 돈(추정)', s.net, s.feeKnown ? '매출 − 수수료 − 지출' : '수수료 정산 전 · 추정', s.net < 0 ? 'minus' : '') +
-    metric('확인 필요', needs, needs ? '아래에서 분류만 고르면 끝' : '지금 없음');
+    moneyCard(s) +
+    metric('확인 필요', needs, needs ? '누르면 그 줄로 · 분류 · 수단만 고르면 끝' : '지금 없음', needs ? 'attention' : '', needs ? '#fin-needs' : '');
 }
 function draw() {
   if (!host) return;

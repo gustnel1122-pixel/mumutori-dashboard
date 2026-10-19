@@ -81,6 +81,16 @@
     }
     return { gross, fee, orders, feeKnown: any ? feeKnown : true, connected: Object.keys(sales || {}).length > 0 };
   }
+  // '확인 필요' 이유(검수 기준 · dash-review 10): 분류 없음 · 나간 돈의 수단 없음. 증빙 '없음'은 현금 · 계좌이체의 정상 값이라 세지 않는다.
+  function checkReasons(e) {
+    if (!e || e.status === 'void') return [];
+    const r = [];
+    if (e.status === NEEDS || !e.category) r.push('분류');
+    if (e.kind === 'out' && !e.method) r.push('수단');
+    return r;
+  }
+  // 수단을 정할 때 증빙이 '없음'이면 그 수단의 기본 증빙(카드 → 카드)으로
+  const defaultEvidence = method => DEFAULT_EVIDENCE[method] || '없음';
   function summarize(book, period = 'month', now = new Date()) {
     const entries = live(Object.values(book?.entries || {}).map(e => e));
     const rows = entries.filter(e => inPeriod(e.date, period, now));
@@ -91,12 +101,15 @@
     const spend = outRows.reduce((a, e) => a + e.amount, 0);
     const deductible = outRows.filter(e => DEDUCTIBLE.has(e.evidence) && e.vatIncluded !== false).reduce((a, e) => a + e.amount, 0);
     const vat = Math.round(salesGross / 11) - Math.round(deductible / 11);
+    const inAll = rows.filter(e => e.kind === 'in').reduce((a, e) => a + e.amount, 0) + s.gross;   // 들어온 돈 전부(매출 · 자금 충전 · 기타)
     return {
       period, sales: salesGross, salesFromChannels: s.gross, orders: s.orders, salesConnected: s.connected,
+      inflow: inAll, cashFlow: inAll - spend,      // 이번 기간 돈 흐름(들어온 돈 − 나간 돈) — 채널 매출 연결 전에는 손익 대신 이것을 보인다
+      stockBuy: outRows.filter(e => e.category === '매입').reduce((a, e) => a + e.amount, 0),   // 상품 매입(재고로 남는 돈)
       spend, fee: s.fee, feeKnown: s.feeKnown,
       net: salesGross - s.fee - spend,            // 남는 돈(추정): 매출 − 채널 수수료(알려진 만큼) − 지출
       vat, vatSales: Math.round(salesGross / 11), vatDeductible: Math.round(deductible / 11),
-      needs: entries.filter(e => e.status === NEEDS).length,
+      needs: entries.filter(e => checkReasons(e).length).length,
       byCategory: OUT_CATEGORIES.map(c => ({ category: c, amount: outRows.filter(e => e.category === c).reduce((a, e) => a + e.amount, 0) })).filter(r => r.amount),
       count: rows.length
     };
@@ -177,6 +190,6 @@
     }, now);
   }
 
-  const api = { VERSION, METHODS, OUT_CATEGORIES, IN_CATEGORIES, EVIDENCE, NEEDS, kstDate, uid, toWon, maskCard, validDate, normEntry, validateEntry, summarize, classify, parseCSV, fromLedgerCSV, inPeriod, draftFromAlert, PATTERNS };
+  const api = { VERSION, METHODS, OUT_CATEGORIES, IN_CATEGORIES, EVIDENCE, NEEDS, kstDate, uid, toWon, maskCard, validDate, normEntry, validateEntry, summarize, checkReasons, defaultEvidence, classify, parseCSV, fromLedgerCSV, inPeriod, draftFromAlert, PATTERNS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.FinCore = api;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -40,3 +40,10 @@
 .fin-panel .fin-sum{margin-bottom:16px}
 .fin-panel .fin-sum .metric.minus strong{color:var(--fred)}
 .q-void-toggle{display:block;margin:10px 0 0;padding:6px 0;font-size:13px;color:var(--fsub)}
+/* 검수 2회차: 확인 필요 이유 표시 · '확인 필요' 칸 누르면 그 줄로 · 돈 흐름 칸은 빨강 · 주황 없이 */
+.q-why{align-self:center;font-size:12px;font-weight:700;color:var(--fsub);margin-right:2px;min-width:52px}
+.fin-panel .fin-sum .metric-link{text-decoration:none;color:inherit;cursor:pointer}
+.fin-panel .fin-sum .metric-link:hover{box-shadow:0 0 0 2px var(--fg2) inset}
+.fin-panel .fin-sum .metric-link:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+.fin-panel .fin-sum .metric.attention strong{color:var(--fred)}
+.fin-panel .fin-sum .metric.neutral strong{color:var(--fink)}

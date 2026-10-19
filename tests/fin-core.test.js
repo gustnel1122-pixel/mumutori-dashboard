@@ -37,6 +37,16 @@ test('summarize: 채널 매출(2단계 칸)과 수수료 반영, 수수료 모�
   assert.equal(t.sales,55000);assert.equal(t.fee,5000);assert.equal(t.feeKnown,true);assert.equal(t.net,55000-5000-11000);
   assert.equal(m.sales,66000);assert.equal(m.feeKnown,false);assert.equal(m.salesConnected,true);
 });
+test('확인 필요: 분류 없음 · 나간 돈의 수단 없음(증빙 없음은 세지 않음) · 돈 흐름(들어온 돈 − 나간 돈)',()=>{
+  const rows=[e({id:'a'}),e({id:'b',method:'',category:'매입',amount:20000}),e({id:'c',method:'',category:''}),e({id:'d',method:'현금',evidence:'없음'}),
+    e({id:'v',method:'',status:'void'}),e({id:'f',kind:'in',category:'자금 충전',method:'',amount:50000})];
+  assert.deepEqual(rows.map(r=>F.checkReasons(r)),[[],['수단'],['분류','수단'],[],[],[]]);
+  const m=F.summarize(book(rows),'month',NOW);
+  assert.equal(m.needs,2);                         // b(수단) · c(분류+수단) — 취소 v · 들어온 돈 f · 증빙 없음 d는 아님
+  assert.equal(m.inflow,50000);assert.equal(m.cashFlow,50000-(11000+20000+11000+11000));
+  assert.equal(m.stockBuy,20000);assert.equal(m.salesConnected,false);
+  assert.equal(F.defaultEvidence('현대카드'),'카드');assert.equal(F.defaultEvidence('토스이체'),'없음');
+});
 test('classify: 가맹점 규칙표',()=>{
   const rules=[{match:'아이템스카우트',category:'매입 부대비'},{match:'쿠팡',and:'광고',category:'광고비'}];
   assert.equal(F.classify('(주)아이템스카우트',rules),'매입 부대비');assert.equal(F.classify('쿠팡 광고센터',rules),'광고비');
