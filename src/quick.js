@@ -2,7 +2,7 @@
 // 장부는 Firebase hub/financeV1(사장님 로그인 전용). PC 재무 화면(fin-panel.js)과 같은 부품 · 같은 줄 모양을 쓴다.
 import { onAuth, signIn } from './fbauth.js';
 import { openFinStore } from './fin-hub.js';
-import { mountEntryForm, renderLists, bindListActions, rememberNeeds, settleCard, esc, won } from './fin-form.js';
+import { mountEntryForm, renderLists, bindListActions, rememberNeeds, coupangCalendar, esc, won } from './fin-form.js';
 
 const F = window.FinCore;
 const $ = s => document.querySelector(s);
@@ -26,7 +26,7 @@ function drawSummary() {
 }
 function draw() {
   drawSummary();
-  $('#q-settle').innerHTML = settleCard(book.meta);   // 쿠팡 정산 예정(왜 0원인지)
+  $('#q-settle').innerHTML = coupangCalendar(book.meta, book.entries);   // 쿠팡 돈 달력(왜 0원인지 · 언제 들어오는지)
   const n = renderLists({ book, needsRoot: $('#q-needs-list'), recentRoot: $('#q-recent') });
   $('#q-needs').hidden = !n; $('#q-needs b').textContent = n;
   if (loaded) rememberNeeds(n);   // 홈 '챙길 일' 건수(건수 · 시각만)

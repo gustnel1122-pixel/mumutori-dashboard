@@ -56,3 +56,21 @@
 .f-settle p{margin:6px 0 4px;font-size:13px;line-height:1.6;color:var(--fink)}
 .f-settle small{display:block;font-size:11px;color:var(--fsub);line-height:1.5}
 #q-settle .f-settle{margin:0 0 12px}
+/* 쿠팡 돈 달력(주차표) — 받을 돈 0원 이하 주는 빨강 대신 회색, 모르는 칸은 '확인 필요', 폰은 표만 옆으로 밀기 */
+.f-settle.cc{background:#fffdf7;border-color:var(--fline)}
+.cc-lead{margin:6px 0 8px;font-size:12px;color:var(--fsub)}
+.cc-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -4px 8px;padding:0 4px}
+.cc-table{border-collapse:collapse;width:100%;min-width:640px;font-size:13px;font-variant-numeric:tabular-nums}
+.cc-table th,.cc-table td{padding:8px 8px;border-bottom:1px solid var(--fline);text-align:right;vertical-align:top;white-space:nowrap}
+.cc-table thead th{font-size:11px;font-weight:700;color:var(--fsub);background:#f7f4ec}
+.cc-table th[scope=row],.cc-table thead th:first-child{text-align:left;font-weight:700;color:var(--fink)}
+.cc-table td small{display:block;font-size:10px;color:var(--fsub);font-weight:400;white-space:normal}
+.cc-table td.cc-pay{font-weight:700;color:var(--fg)}
+.cc-table tr.cc-minus td,.cc-table tr.cc-minus th{color:#8a8f8a;background:#f6f5f1}
+.cc-table tr.cc-minus td.cc-pay{color:#8a8f8a}
+.cc-unk{color:#a4551c;font-weight:600}
+.cc-none{color:#8a8f8a}
+.cc-ok{color:var(--fg);font-weight:700}
+.cc-wait{color:var(--fsub)}
+.cc-table tr.cc-minus .cc-unk{color:#8a8f8a;font-weight:400}
+.cc-table th small{display:block;font-size:10px;color:var(--fsub);font-weight:400;white-space:normal}

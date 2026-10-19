@@ -2,7 +2,7 @@
 // ERP 화면은 이 PC 저장(localStorage)으로 그려지고 자주 다시 그려지므로, 패널 자리(#fin-hub-panel)가 새로 생길 때마다 다시 붙인다(장부 연결은 하나로 유지).
 import { onAuth, signIn } from './fbauth.js';
 import { openFinStore } from './fin-hub.js';
-import { mountEntryForm, renderLists, bindListActions, rememberNeeds, settleCard, esc, won } from './fin-form.js';
+import { mountEntryForm, renderLists, bindListActions, rememberNeeds, coupangCalendar, esc, won } from './fin-form.js';
 
 let store = null, book = { entries: {}, sales: {}, meta: {} }, signedIn = false, host = null, loaded = false, jumped = false;
 
@@ -48,7 +48,7 @@ function draw() {
   const n = renderLists({ book, needsRoot: host.querySelector('.fin-needs-box'), recentRoot: host.querySelector('.fin-recent'), recentCount: 6 });
   host.querySelector('.fin-needs-box h3 b').textContent = n;
   drawSummary(n);
-  host.querySelector('.fin-settle').innerHTML = settleCard(book.meta);
+  host.querySelector('.fin-settle').innerHTML = coupangCalendar(book.meta, book.entries);   // 쿠팡 돈 달력(주차표가 없으면 한 줄 칸)
   if (!loaded) return;
   rememberNeeds(n);
   // 홈 '챙길 일'에서 finance.html#fin-needs로 왔으면, 장부를 읽은 뒤 그 줄로 한 번 내려간다

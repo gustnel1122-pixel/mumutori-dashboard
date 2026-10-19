@@ -29,12 +29,28 @@
     row('demo6', { kind: 'in', date: day(12), amount: 250000, method: '토스이체', category: '매출', vendor: '시연 · 오프라인 판매', source: 'manual' }),
     row('demo7', { date: day(3), amount: 1, category: '기타', vendor: '시연 · 취소된 시험 줄', status: 'void', source: 'ai-dashboard' })
   ];
+  // 쿠팡 돈 달력(가짜 5주) — 지난주부터 거꾸로. 받을 돈 0원 이하 주(회색) · 기다리는 주 · 70%는 ✓ 들어오고 30%는 '확인 필요'인 주
+  var kd = new Date(Date.now() + 9 * 3600e3), dow = (kd.getUTCDay() + 6) % 7;
+  var monday = new Date(Date.UTC(kd.getUTCFullYear(), kd.getUTCMonth(), kd.getUTCDate() - dow));
+  var iso = function (dt) { return dt.toISOString().slice(0, 10); };
+  var add = function (dt, n) { return new Date(dt.getTime() + n * 864e5); };
+  var wk = function (i, sales, ads, ful, fee, p70, p30) {
+    var s = add(monday, -7 * i), payout = sales - ads - ful - fee;
+    var pay = function (wks, rate) { return { date: iso(add(s, wks * 7 + 2)), amount: Math.round(payout * rate) }; };
+    return { start: iso(s), end: iso(add(s, 6)), sales: sales, ads: ads, fulfillment: ful, fee: fee, cost: ads + ful + fee, payout: payout,
+      pay70: p70 ? pay(5, 0.7) : { date: null, amount: null }, pay30: p30 ? pay(6, 0.3) : { date: null, amount: null } };
+  };
+  var weeks = [wk(1, 40000, 30000, 20000, 4000), wk(2, 230000, 40000, 60000, 26000, true, true), wk(3, 60000, 40000, 30000, 7000),
+    wk(4, 41000, 45000, 18000, 4800), wk(7, 120000, 30000, 30000, 10000, true, true)];
+  rows.push(row('demo8', { kind: 'in', date: weeks[4].pay70.date, amount: weeks[4].pay70.amount, method: '토스이체', category: '기타 수입',
+    vendor: '시연 · 쿠팡 정산 입금', memo: '시연용 가짜 줄 · 토스 입금 알림', source: 'alert' }));
   var entries = {};
   rows.forEach(function (r) { entries[r.id] = r; });
   // 쿠팡 정산 예정 칸(가짜 값) — 이번 주 비용이 매출보다 커서 0원인 모습
   var settle = { nextDate: ym + '-' + String(Math.min(28, today + 3)).padStart(2, '0'), nextAmount: 0, period: '시연용 7일', revenue: 50000, cost: 62000, profit: -12000,
     ads: 30000, fulfillment: 26000, fee: 6000, readAt: '시연 자료', source: '시연' };
-  window.__MMT_TEST_FIN__ = { entries: entries, sales: {}, meta: { rules: [], coupangSettle: settle } };
+  var cal = { next: weeks[1].pay70, weeks: weeks, readAt: '시연 자료', source: '시연(가짜 주차)' };
+  window.__MMT_TEST_FIN__ = { entries: entries, sales: {}, meta: { rules: [], coupangSettle: settle, coupangCal: cal } };
 
   var mem = {};
   window.__MMT_DEMO_STORAGE__ = {

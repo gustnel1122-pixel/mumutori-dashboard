@@ -103,6 +103,48 @@ export function settleCard(meta) {
   return `<div class="f-settle${zero ? ' zero' : ''}"><div class="f-settle-top"><b>쿠팡 정산 예정</b><strong class="amt">${md(c.nextDate)} · ${won(c.nextAmount)}원</strong></div><p>${why}</p><small>${esc(c.period)} 윙 정산현황 · ${esc(c.readAt)} 읽음 · 팔고 첫 지급까지 약 4~5주(화면 일정 기준)</small></div>`;
 }
 
+// 쿠팡 돈 달력(사장님 21:43 "어떻게 관리해야 할까") — 판매 주마다 팔린 돈 · 빠지는 돈 · 받을 돈 · 70% / 30% 받는 날 · 실제 입금.
+// 값: 장부 meta/coupangCal(AI 기록 fin_hub settle — 쿠팡 담당 매일 아침 값 + 윙 '정산 일정 확인'). 모르는 칸은 0이 아니라 '확인 필요'.
+// 실제 입금 ✓: 장부의 들어온 돈 중 '쿠팡'이 들어간 줄(토스 입금 알림 · 수기)이 받는 날 −1 ~ +5일 안에 있으면.
+export function coupangCalendar(meta, entries) {
+  const cal = meta && meta.coupangCal;
+  const list = cal && (Array.isArray(cal.weeks) ? cal.weeks : Object.values(cal.weeks || {}));
+  if (!list || !list.length) return settleCard(meta);
+  const F_ = F(), today = F_.kstDate();
+  const unk = '<span class="cc-unk">확인 필요</span>';
+  const md = d => { const m = String(d || '').match(/\d{4}-(\d{2})-(\d{2})/); return m ? `${+m[1]}/${+m[2]}` : ''; };
+  const has = v => v !== null && v !== undefined && v !== '';
+  const amt = v => has(v) ? `${won(v)}원` : unk;
+  const shift = (d, n) => { const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
+  const ins = Object.values(entries || {}).filter(e => e && e.kind === 'in' && e.status !== 'void' && /쿠팡/.test(`${e.vendor || ''} ${e.memo || ''}`));
+  const payCell = p => p && p.date ? `${md(p.date)}<small>${has(p.amount) ? `약 ${won(p.amount)}원` : '금액 확인 필요'}</small>` : unk;
+  const paidCell = w => {
+    if (has(w.payout) && Number(w.payout) <= 0) return '<span class="cc-none">받을 돈 없음</span>';
+    const pays = [['70%', w.pay70], ['30%', w.pay30]].filter(([, p]) => p && p.date);
+    if (!pays.length) return unk;
+    return pays.map(([k, p]) => {
+      const got = ins.filter(e => e.date >= shift(p.date, -1) && e.date <= shift(p.date, 5));
+      if (got.length) return `<span class="cc-ok">✓ ${k} ${md(got[0].date)} ${won(got[0].amount)}원</span>`;
+      return p.date > today ? `<span class="cc-wait">${k} 기다리는 중</span>` : `<span class="cc-unk">${k} 입금 확인 필요</span>`;
+    }).join('<br>');
+  };
+  const rows = list.slice().sort((a, b) => String(b.start).localeCompare(String(a.start))).slice(0, 8).map(w => {
+    const minus = has(w.payout) && Number(w.payout) <= 0;
+    const cost = has(w.cost) ? `${won(w.cost)}원` : unk;
+    const parts = [['광고', w.ads], ['물류', w.fulfillment], ['수수료', w.fee]].filter(([, v]) => has(v)).map(([k, v]) => `${k} ${won(v)}`).join(' · ');
+    return `<tr class="${minus ? 'cc-minus' : ''}"><th scope="row">${md(w.start)}~${md(w.end)}${w.label || w.note ? `<small>${esc([w.label, w.note].filter(Boolean).join(' · '))}</small>` : ''}</th><td>${amt(w.sales)}</td><td>${cost}${parts ? `<small>${parts}</small>` : ''}</td>`
+      + `<td class="cc-pay">${has(w.payout) ? `${won(w.payout)}원` : unk}${minus ? '<small>광고 · 물류비가 매출보다 큼</small>' : ''}</td><td>${payCell(w.pay70)}</td><td>${payCell(w.pay30)}</td><td>${paidCell(w)}</td></tr>`;
+  }).join('');
+  const n = cal.next || (meta.coupangSettle && { date: meta.coupangSettle.nextDate, amount: meta.coupangSettle.nextAmount });
+  const head = !n || !n.date ? '다음 입금: 확인 필요'
+    : has(n.amount) && Number(n.amount) > 0 ? `다음 입금: ${md(n.date)} · 약 ${won(n.amount)}원`
+      : `다음 정산 ${md(n.date)} · ${has(n.amount) ? '0원 — 이번엔 들어올 돈이 없어요' : '금액 확인 필요'}`;
+  return `<div class="f-settle cc"><div class="f-settle-top"><b>쿠팡 돈 달력</b><strong>${head}</strong></div>`
+    + `<p class="cc-lead">쿠팡 돈은 판매 약 4~5주 뒤에 들어와요. 광고 · 물류 · 수수료를 먼저 빼고, 한 주 판매분의 70%를 먼저 · 30%는 1주쯤 뒤에 줘요.</p>`
+    + `<div class="cc-wrap"><table class="cc-table"><thead><tr><th scope="col">판매 주</th><th scope="col">팔린 돈</th><th scope="col">빠지는 돈</th><th scope="col">받을 돈</th><th scope="col">70% 받는 날</th><th scope="col">30% 받는 날</th><th scope="col">실제 입금</th></tr></thead><tbody>${rows}</tbody></table></div>`
+    + `<small>${esc(cal.source || '윙 정산현황')} · ${esc(cal.readAt || '')} 읽음 · 받는 날 · 70/30 금액은 윙 '정산 일정 확인' 화면 값(모르면 '확인 필요')</small></div>`;
+}
+
 // 취소됨 줄은 기본으로 숨긴다(검수 기준 4: 시험 흔적 없음). '취소 포함 보기'를 누른 화면에서만 보인다.
 let showVoid = false;
 
