@@ -15,7 +15,9 @@ const { createStore } = await import(`./store.js?v=${document.body.dataset.build
   // '더보기' 메뉴를 연 상태는 화면을 다시 그려도 이 탭 동안 유지
   document.addEventListener('toggle',e=>{if(e.target.classList?.contains('nav-more')){try{sessionStorage.setItem('mmt-nav-more',e.target.open?'1':'0');}catch{/* 저장소 없음 */}}},true);
   const TYPE_LABEL={product:'상품',bank:'통장 거래',sale:'매출',purchase:'매입',movement:'입출고',partner:'거래처',account:'계좌',branding:'브랜딩 기록',backup:'백업',warehouse:'창고'};
-  const store=createStore(C);
+  // 시연 모드(src/demo.js, ?demo=1)면 메모리 저장소 — 이 브라우저의 진짜 자료를 읽지도 쓰지도 않는다
+  const LS=window.__MMT_DEMO_STORAGE__||localStorage;
+  const store=createStore(C,LS);
   let data,savedRaw=null,loadError='',toastTimer,modal=null,priorFocus=null,filterTimer;
   let currentPage=null,hasRendered=false;
   const pageId=document.body.dataset.page||'overview';
@@ -231,7 +233,7 @@ const { createStore } = await import(`./store.js?v=${document.body.dataset.build
         commit(next,refreshed.rows.length+'건을 등록했습니다.');closeModal(true);
       }else if(modal.kind==='backup'){
         const next=C.mergeBackup(data,modal.incoming,new FormData(e.target).get('preference')==='incoming').data;
-        try{localStorage.setItem('mumutori-before-import',JSON.stringify(data));}catch(e){throw Error('반영 전 복사본을 저장할 공간이 부족합니다. 먼저 전체 백업을 내려받고 저장 공간을 확보하세요.');}
+        try{LS.setItem('mumutori-before-import',JSON.stringify(data));}catch(e){throw Error('반영 전 복사본을 저장할 공간이 부족합니다. 먼저 전체 백업을 내려받고 저장 공간을 확보하세요.');}
         commit(next,'백업 자료를 병합했습니다.');closeModal(true);
       }else if(modal.kind==='warehouse'){
         const name=String(new FormData(e.target).get('name')||'').trim();if(!name)throw Error('창고 이름을 입력하세요.');if(data.erp.warehouses.includes(name))throw Error('이미 등록된 창고입니다.');
@@ -271,8 +273,8 @@ const { createStore } = await import(`./store.js?v=${document.body.dataset.build
       if(action==='csv-open')csvOpen();
       if(action==='csv-template')csvTemplate();
       if(action==='warehouse-open')openWarehouse();
-      if(action==='import-backup'){const raw=localStorage.getItem('mumutori-before-import');if(!raw)throw Error('이 브라우저에서 백업을 병합한 이력이 없습니다.');download(raw,'mumutori-before-import.json');}
-      if(action==='migration-backup'){const raw=localStorage.getItem('mumutori-before-erp');if(!raw)throw Error('이 브라우저에 ERP 전환 전 복사본이 없습니다. 현재 자료는 전체 백업으로 내려받을 수 있습니다.');download(raw,'mumutori-before-erp.json');}
+      if(action==='import-backup'){const raw=LS.getItem('mumutori-before-import');if(!raw)throw Error('이 브라우저에서 백업을 병합한 이력이 없습니다.');download(raw,'mumutori-before-import.json');}
+      if(action==='migration-backup'){const raw=LS.getItem('mumutori-before-erp');if(!raw)throw Error('이 브라우저에 ERP 전환 전 복사본이 없습니다. 현재 자료는 전체 백업으로 내려받을 수 있습니다.');download(raw,'mumutori-before-erp.json');}
     }catch(err){if(modal&&$('#form-error'))formError(err);else notify(err.message,true);}
   });
   document.addEventListener('input',e=>{
@@ -323,6 +325,7 @@ const { createStore } = await import(`./store.js?v=${document.body.dataset.build
     }
   });
   window.addEventListener('storage',e=>{
+    if(window.__MMT_DEMO__)return;   // 시연 탭은 다른 창의 진짜 자료를 받지 않는다
     if(e.key!==C.STORAGE_KEY||e.newValue===savedRaw)return;
     if(modal){notify('다른 창에서 자료가 변경되었습니다. 현재 입력을 보관한 뒤 새로고침하세요.',true);return;}
     if(!e.newValue){notify('저장 자료가 다른 창에서 제거되었습니다. 먼저 전체 백업을 내려받으세요.',true);return;}

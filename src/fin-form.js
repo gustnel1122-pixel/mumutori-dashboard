@@ -8,8 +8,10 @@ const F = () => window.FinCore;
 export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 export const won = n => (Number(n) || 0).toLocaleString('ko-KR');
 const PREF = 'mumutori-fin-quick-pref';   // 이 브라우저에는 마지막 수단 · 최근 거래처 5곳만 기억(금액은 저장하지 않음)
-const pref = (() => { try { return JSON.parse(localStorage.getItem(PREF) || '{}'); } catch { return {}; } })();
-const savePref = () => { try { localStorage.setItem(PREF, JSON.stringify(pref)); } catch { /* 저장 공간 없음 */ } };
+// 마지막에 고른 수단 기억(이 기기). 시연 모드(src/demo.js)면 메모리에만 둔다.
+const prefStore = () => (typeof window !== 'undefined' && window.__MMT_DEMO_STORAGE__) || localStorage;
+const pref = (() => { try { return JSON.parse(prefStore().getItem(PREF) || '{}'); } catch { return {}; } })();
+const savePref = () => { try { prefStore().setItem(PREF, JSON.stringify(pref)); } catch { /* 저장 공간 없음 */ } };
 // 들어온 길 표시: 수기 입력은 표시 안 함
 export const SOURCE = s => !s || s === 'phone' || s === 'manual' ? '' : s === 'alert' ? '알림' : s === 'import' ? '가져옴' : s.startsWith('ai') ? 'AI' : s;
 
