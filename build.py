@@ -23,12 +23,13 @@ EXTRA={'sourcing':(' https://*.alicdn.com',' https://mumutori-letter-default-rtd
        'characters':('',' https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.app')}
 # 2026-10-07 보안 정리: 소싱 보드는 사장님 구글 로그인(Firebase Auth) 후에만 읽고 쓴다. 로그인 도구는 assets/vendor/firebase에 고정 버전.
 # 로그인 창(구글)·토큰 발급 주소만 추가로 허용한다. 다른 부서 페이지는 그대로.
-AUTH={'sourcing','finance'}
+AUTH={'sourcing','finance','overview'}   # overview(홈): 공용 장부 이번 달 · 확인 필요를 읽기만(10/20 구글 로그인 방식으로 정해짐)
 # 2026-10-19 재무: 맨 위 '수기 입력 · 확인 필요' 패널이 공용 장부(hub/financeV1, 사장님 로그인 전용)에 읽고 쓴다 — 장부 주소 · 로그인 주소만 더한다.
 EXTRA['finance']=('',' https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.app')
+EXTRA['overview']=EXTRA['finance']
 PAGE_HEAD={'finance':'<link rel="stylesheet" href="src/fin-form.css?v={v}">'}
 PAGE_TAGS={'finance':'<script src="src/fin-core.js?v={v}"></script><script type="module" src="src/fin-panel.js?v={v}"></script>',
-           'overview':'<script src="src/fin-core.js?v={v}"></script>'}   # 홈: 시연 모드 · 건수 표시에 계산 규칙만(장부는 열지 않음)
+           'overview':'<script src="src/fin-core.js?v={v}"></script><script type="module" src="src/home-fin.js?v={v}"></script>'}   # 홈: 공용 장부 이번 달 · 확인 필요(읽기만, 구글 로그인)
 AUTH_CONNECT=' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com'
 AUTH_SCRIPT=' https://apis.google.com'
 AUTH_FRAME='https://mumutori-letter.firebaseapp.com https://accounts.google.com'
