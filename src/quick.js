@@ -2,11 +2,11 @@
 // 장부는 Firebase hub/financeV1(사장님 로그인 전용). PC 재무 화면(fin-panel.js)과 같은 부품 · 같은 줄 모양을 쓴다.
 import { onAuth, signIn } from './fbauth.js';
 import { openFinStore } from './fin-hub.js';
-import { mountEntryForm, renderLists, bindListActions, esc, won } from './fin-form.js';
+import { mountEntryForm, renderLists, bindListActions, rememberNeeds, esc, won } from './fin-form.js';
 
 const F = window.FinCore;
 const $ = s => document.querySelector(s);
-let store = null, book = { entries: {}, sales: {}, meta: {} }, period = 'month', form = null;
+let store = null, book = { entries: {}, sales: {}, meta: {} }, period = 'month', form = null, loaded = false;
 const CONN = { loading: '불러오는 중', ok: '연결됨', offline: '연결 끊김 · 다시 시도', denied: '권한 없음' };
 
 function card(label, value, note, cls = '') {
@@ -28,6 +28,7 @@ function draw() {
   drawSummary();
   const n = renderLists({ book, needsRoot: $('#q-needs-list'), recentRoot: $('#q-recent') });
   $('#q-needs').hidden = !n; $('#q-needs b').textContent = n;
+  if (loaded) rememberNeeds(n);   // 홈 '챙길 일' 건수(건수 · 시각만)
 }
 
 function start() {
@@ -41,7 +42,7 @@ function start() {
     $('#q-login').hidden = !!user || test; $('#q-app').hidden = !(user || test);
     if (!(user || test)) { $('#q-conn').textContent = '로그인 필요'; return; }
     if (store) return;
-    store = openFinStore({ onChange: b => { book = b; draw(); }, onStatus: s => { $('#q-conn').textContent = CONN[s] || s; $('#q-conn').dataset.state = s; } });
+    store = openFinStore({ onChange: b => { book = b; loaded = true; draw(); }, onStatus: s => { $('#q-conn').textContent = CONN[s] || s; $('#q-conn').dataset.state = s; } });
     form = mountEntryForm($('#q-form'), { store: () => store, book: () => book, source: 'phone' });
     bindListActions($('#q-app'), { store: () => store, book: () => book, onError: m => { $('#q-list-msg').textContent = m; }, onRedraw: draw });
     store.load().then(() => store.processInbox?.()).catch(err => { $('#q-list-msg').textContent = err.message; });

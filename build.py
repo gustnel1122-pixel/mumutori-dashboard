@@ -15,7 +15,7 @@ if brand_problems: raise SystemExit('빌드 중단: 브랜딩 공개 목록 검�
 # Existing published seed is byte-preserved. Rebuilding never appends data.
 seed=R/'data/seed.json'
 if seed.exists(): (R/'data/seed.json.gz').write_bytes(gzip.compress(seed.read_bytes(),mtime=0))
-pages={'index':('overview','운영 홈'),'finance':('finance','재무'),'bank':('bank','자금'),'products':('products','상품'),'purchases':('purchases','구매·원가'),'sourcing':('sourcing','소싱'),'sales':('sales','판매·정산'),'stock':('stock','물류·재고'),'partners':('partners','거래처'),'audit':('audit','변경 이력'),'settings':('settings','설정·백업'),'branding':('branding','브랜딩'),'characters':('characters','캐릭터'),'agents':('agents','AI 조직도')}
+pages={'index':('overview','운영 홈'),'finance':('finance','재무'),'bank':('bank','재무 · 통장'),'products':('products','상품'),'purchases':('purchases','구매·원가'),'sourcing':('sourcing','소싱'),'sales':('sales','판매·정산'),'stock':('stock','물류·재고'),'partners':('partners','거래처'),'audit':('audit','변경 이력'),'settings':('settings','설정·백업'),'branding':('branding','브랜딩'),'characters':('characters','캐릭터'),'agents':('agents','AI 조직도')}
 version=hashlib.sha256(b''.join(p.read_bytes() for p in sorted((R/'src').rglob('*')) if p.is_file())).hexdigest()[:12]
 # 소싱 보드만 Firebase(공유 소싱 장부)와 1688 사진에 연결한다. 다른 부서 페이지의 CSP는 그대로.
 EXTRA={'sourcing':(' https://*.alicdn.com',' https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.app https://*.asia-southeast1.firebasedatabase.app wss://*.asia-southeast1.firebasedatabase.app'),
@@ -27,7 +27,8 @@ AUTH={'sourcing','finance'}
 # 2026-10-19 재무: 맨 위 '수기 입력 · 확인 필요' 패널이 공용 장부(hub/financeV1, 사장님 로그인 전용)에 읽고 쓴다 — 장부 주소 · 로그인 주소만 더한다.
 EXTRA['finance']=('',' https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.app')
 PAGE_HEAD={'finance':'<link rel="stylesheet" href="src/fin-form.css?v={v}">'}
-PAGE_TAGS={'finance':'<script src="src/fin-core.js?v={v}"></script><script type="module" src="src/fin-panel.js?v={v}"></script>'}
+PAGE_TAGS={'finance':'<script src="src/fin-core.js?v={v}"></script><script type="module" src="src/fin-panel.js?v={v}"></script>',
+           'overview':'<script src="src/fin-core.js?v={v}"></script>'}   # 홈: 시연 모드 · 건수 표시에 계산 규칙만(장부는 열지 않음)
 AUTH_CONNECT=' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com'
 AUTH_SCRIPT=' https://apis.google.com'
 AUTH_FRAME='https://mumutori-letter.firebaseapp.com https://accounts.google.com'

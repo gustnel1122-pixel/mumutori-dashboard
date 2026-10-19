@@ -12,6 +12,8 @@ const PREF = 'mumutori-fin-quick-pref';   // 이 브라우저에는 마지막 �
 const prefStore = () => (typeof window !== 'undefined' && window.__MMT_DEMO_STORAGE__) || localStorage;
 const pref = (() => { try { return JSON.parse(prefStore().getItem(PREF) || '{}'); } catch { return {}; } })();
 const savePref = () => { try { prefStore().setItem(PREF, JSON.stringify(pref)); } catch { /* 저장 공간 없음 */ } };
+// 홈 '다음으로 챙길 일'에 보일 확인 필요 건수와 시각만 이 브라우저에 남긴다(금액 · 줄 내용은 남기지 않음, 시연이면 메모리). 홈은 장부를 직접 열지 않는다.
+export function rememberNeeds(n) { try { prefStore().setItem('mmt-fin-needs-v1', JSON.stringify({ n, at: new Date().toISOString() })); } catch { /* 저장 공간 없음 */ } }
 // 들어온 길 표시: 수기 입력은 표시 안 함
 export const SOURCE = s => !s || s === 'phone' || s === 'manual' ? '' : s === 'alert' ? '알림' : s === 'import' ? '가져옴' : s.startsWith('ai') ? 'AI' : s;
 

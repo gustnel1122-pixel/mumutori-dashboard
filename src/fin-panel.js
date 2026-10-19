@@ -2,9 +2,9 @@
 // ERP 화면은 이 PC 저장(localStorage)으로 그려지고 자주 다시 그려지므로, 패널 자리(#fin-hub-panel)가 새로 생길 때마다 다시 붙인다(장부 연결은 하나로 유지).
 import { onAuth, signIn } from './fbauth.js';
 import { openFinStore } from './fin-hub.js';
-import { mountEntryForm, renderLists, bindListActions, esc, won } from './fin-form.js';
+import { mountEntryForm, renderLists, bindListActions, rememberNeeds, esc, won } from './fin-form.js';
 
-let store = null, book = { entries: {}, sales: {}, meta: {} }, signedIn = false, host = null;
+let store = null, book = { entries: {}, sales: {}, meta: {} }, signedIn = false, host = null, loaded = false, jumped = false;
 
 const SHELL = `<div class="panelhead"><h2>이번 달 장부 · 수기 입력</h2><span class="section-en">공용 장부 · 폰과 같은 칸</span></div>
 <div class="panelbody">
@@ -46,6 +46,10 @@ function draw() {
   const n = renderLists({ book, needsRoot: host.querySelector('.fin-needs-box'), recentRoot: host.querySelector('.fin-recent'), recentCount: 6 });
   host.querySelector('.fin-needs-box h3 b').textContent = n;
   drawSummary(n);
+  if (!loaded) return;
+  rememberNeeds(n);
+  // 홈 '챙길 일'에서 finance.html#fin-needs로 왔으면, 장부를 읽은 뒤 그 줄로 한 번 내려간다
+  if (!jumped && location.hash === '#fin-needs' && n) { jumped = true; host.querySelector('#fin-needs')?.scrollIntoView({ block: 'center' }); }
 }
 function showState() {
   if (!host) return;
@@ -56,7 +60,7 @@ function showState() {
 }
 function ensureStore() {
   if (store) return;
-  store = openFinStore({ onChange: b => { book = b; draw(); } });
+  store = openFinStore({ onChange: b => { book = b; loaded = true; draw(); } });
   store.load().then(() => store.processInbox()).catch(err => { const m = host?.querySelector('.fin-list-msg'); if (m) m.textContent = err.message; });
   store.watch();
 }
