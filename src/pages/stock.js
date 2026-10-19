@@ -2,7 +2,7 @@ export default function renderPage(ctx){
   const {C,data,state,esc,won,money,dateTime,badge,btn,options,TYPE_LABEL,accountName,findProduct,matches,inMonth,visible,byDate,rowClass,rowsTable,editButtons,filters,metric,head,accountSummary,link,icon,departmentCards,workflowStrip}=ctx;
     const action=btn('+ 입출고 기록','edit',{type:'movement'},'primary');
     let html=head('입출고·재고','실사 수량을 기준으로 입고·출고·반품·창고 이동을 관리합니다.',action)+
-      `<div class="chips">${['재고 현황','입출고 원장'].map(v=>btn(v,'stock-tab',{value:v},'chip '+(state.stockTab===v?'active':''))).join('')}</div>`;
+      `<div class="chips">${['재고 현황','입출고 기록'].map(v=>btn(v,'stock-tab',{value:v},'chip '+(state.stockTab===v?'active':''))).join('')}</div>`;
     if(state.stockTab==='재고 현황'){
       html+=`${state.attention?'<div class="attention-note">첫 실사가 필요한 상품만 보고 있습니다. '+btn('전체 목록 보기','attention-clear',{},'text')+'</div>':''}`+`<div class="toolbar"><div class="filters"><input id="search" class="search" data-filter="query" aria-label="검색" placeholder="상품명 또는 관리번호 검색" value="${esc(state.query)}"><select id="warehouse" data-filter="warehouse" aria-label="창고 필터">${options(data.erp.warehouses,state.warehouse)}</select></div></div>`;
       const rows=data.products.filter(p=>matches(p,['id','name'])&&p.active!==false&&(!state.attention||state.attention!=='uncounted'||!C.stock(data,p.id,state.warehouse).known));
