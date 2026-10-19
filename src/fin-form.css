@@ -1,0 +1,38 @@
+/* 재무 '수기 입력' 부품 모양 — 휴대폰(quick.html)과 PC 재무 화면(finance.html)이 같이 쓴다. 전역(html · body) 규칙은 넣지 않는다 */
+.fin-scope,.fin-form{--fg:#174d3c;--fg2:#2f6b55;--fline:#e6dfd0;--fink:#1f2a25;--fsub:#6b7a72;--fred:#b4432e}
+.fin-scope [hidden],.fin-form [hidden],.fin-scope[hidden]{display:none!important}
+.fin-form .sr,.fin-scope .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.q-amount{display:flex;align-items:baseline;gap:6px;border-bottom:2px solid var(--fg);margin:2px 0 12px}
+.q-amount input{flex:1;min-width:0;border:0;background:transparent;font-size:30px;font-weight:700;padding:6px 0;color:var(--fink);outline:none}
+.q-amount em{font-style:normal;font-size:18px;color:var(--fsub)}
+.q-row{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+.q-chip{padding:9px 13px;border-radius:99px;border:1px solid var(--fline);background:#fff;font-size:15px;color:var(--fink);cursor:pointer}
+.q-chip[aria-checked=true]{background:var(--fg2);border-color:var(--fg2);color:#fff;font-weight:600}
+.q-cats .q-chip{flex:1 1 30%;white-space:nowrap;padding:9px 8px}
+.q-more{margin:4px 0 10px;border-top:1px dashed var(--fline);padding-top:8px}
+.q-more summary{color:var(--fsub);font-size:14px;padding:4px 0;cursor:pointer}
+.q-more label{display:block;font-size:14px;color:var(--fsub);margin:8px 0}
+.q-more input:not([type=checkbox]),.q-more select{display:block;width:100%;margin-top:4px;padding:10px;border:1px solid var(--fline);border-radius:10px;font-size:16px;background:#fff;color:var(--fink)}
+.q-check{display:flex!important;align-items:center;gap:6px;color:var(--fink)!important;font-size:14px}
+.q-btn{border:0;border-radius:12px;padding:13px 16px;font-size:17px;font-weight:700;cursor:pointer}
+.q-primary{background:var(--fg);color:#fff;width:100%}
+.q-primary:disabled{opacity:.6}
+.q-msg{min-height:1.2em;margin:8px 0 0;font-size:14px;color:var(--fred)}.q-msg.ok{color:var(--fg2)}
+.q-line{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:10px 0;border-top:1px solid var(--fline)}
+.q-line:first-child{border-top:0}
+.q-line>div:first-child{flex:1;min-width:0}
+.q-line b{display:block;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.q-line small{color:var(--fsub);font-size:12px}
+.q-line strong{font-size:16px;white-space:nowrap}.q-line strong.plus{color:var(--fg2)}
+.q-line.void{opacity:.45}.q-line.void strong{text-decoration:line-through}
+.q-fix{flex-basis:100%;margin:6px 0 0}.q-fix .q-chip{padding:7px 10px;font-size:13px}
+.q-link{background:none;border:0;color:var(--fred);font-size:13px;text-decoration:underline;padding:4px;cursor:pointer}
+.q-void{font-size:12px;color:var(--fsub)}
+.q-empty{color:var(--fsub);font-size:14px;margin:0}
+/* PC 재무 화면 안 패널 */
+.fin-panel .fin-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px}
+.fin-panel .fin-needs-box{border:1px solid var(--fline);border-radius:12px;padding:10px 14px;background:#fffaf2}
+.fin-panel .fin-needs-box h3{margin:0 0 6px;font-size:15px;color:var(--fred)}
+.fin-panel .fin-login{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.fin-panel .fin-login .q-btn{width:auto}
+@media (max-width:900px){.fin-panel .fin-cols{grid-template-columns:1fr}}

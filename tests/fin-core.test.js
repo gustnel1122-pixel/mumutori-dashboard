@@ -42,6 +42,21 @@ test('classify: 가맹점 규칙표',()=>{
   assert.equal(F.classify('(주)아이템스카우트',rules),'매입 부대비');assert.equal(F.classify('쿠팡 광고센터',rules),'광고비');
   assert.equal(F.classify('쿠팡',rules),'');assert.equal(F.classify('',rules),'');
 });
+test('draftFromAlert: 알림 글 → 수기 입력과 같은 줄 모양(출처 alert) · 개인정보 빼기 · 규칙이면 바로 분류',()=>{
+  const rules=[{match:'가짜배송',category:'배송비'}];
+  const a=F.draftFromAlert({id:'-Nx1',src:'android-현대카드',ts:Date.parse('2026-10-19T05:00:00Z'),text:'[현대카드] 김*수님 1234-5678-9012-3456 10/19 13:05 12,300원 일시불 승인 가짜배송센터 누적 999,000원'},rules,NOW);
+  assert.equal(a.amount,12300);assert.equal(a.date,'2026-10-19');assert.equal(a.time,'13:05');assert.equal(a.method,'현대카드');
+  assert.equal(a.source,'alert');assert.equal(a.kind,'out');assert.equal(a.category,'배송비');assert.equal(a.status,'ok');
+  assert(a.vendor.startsWith('가짜배송센터'));assert(!/김|999,000|5678/.test(JSON.stringify(a)));
+  const b=F.draftFromAlert({id:'-Nx2',src:'iphone-sms',text:'토스뱅크 체크카드 4,500원 결제 가짜카페 잔액 10,000원'},rules,NOW);
+  assert.equal(b.method,'토스체크');assert.equal(b.status,F.NEEDS);assert.equal(b.vendor,'가짜카페');
+  const c=F.draftFromAlert({id:'-Nx3',text:'[현대카드] 10/18 09:00 12,300원 취소 가짜배송센터'},rules,NOW);
+  assert.equal(c.kind,'in');assert.equal(c.status,F.NEEDS);assert(c.memo.includes('취소'));
+  assert.equal(F.draftFromAlert({text:'광고 문자입니다'},rules,NOW),null);
+  const y=F.draftFromAlert({id:'-Nx4',ts:Date.parse('2027-01-01T01:00:00Z'),text:'[현대카드] 12/31 23:50 1,000원 일시불 승인 가짜상점'},rules,NOW);
+  assert.equal(y.date,'2026-12-31');   // 1월에 받은 12/31 알림은 작년
+  [a,b,c].forEach(x=>F.validateEntry(x));
+});
 test('fromLedgerCSV: 볼트 임시 장부 칸 → 장부 줄(가짜 값)',()=>{
   const csv='﻿날짜,구분,분류,거래처,내용,금액(원),공급가,부가세,결제수단,증빙,근거,기록자,확인\n2026-10-01,지출,구매비,가짜상점,"시험, 따옴표",10000,,,현대카드 사업자,카드,,AI,\n2026-10-02,지출,택배 배송비,가짜택배,시험,4000,,,토스 체크카드,카드,,AI,\n2026-10-03,지출,매입 부대비(국제배송·통관),가짜배대지,시험,3000,,,계좌 입금(확인 필요),확인 필요,,AI,\n';
   const rows=F.fromLedgerCSV(csv,NOW);

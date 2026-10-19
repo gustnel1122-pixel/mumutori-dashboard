@@ -145,6 +145,38 @@
     });
   }
 
-  const api = { VERSION, METHODS, OUT_CATEGORIES, IN_CATEGORIES, EVIDENCE, NEEDS, kstDate, uid, toWon, maskCard, validDate, normEntry, validateEntry, summarize, classify, parseCSV, fromLedgerCSV, inPeriod };
+  // 휴대폰 결제 알림 글 → '확인 필요' 초안(수기 입력과 같은 줄 모양, 출처 'alert').
+  // 일반 규칙만: 금액(…원) · 날짜(MM/DD HH:MM) · 승인/취소 · 수단(글 · 보낸 앱 꼬리표) · 가맹점(금액 뒤 글). 카드사별 견본이 오면 PATTERNS에 더한다.
+  // 원문은 입구(hub/financeInbox)에만 남고, 장부 줄에는 다듬은 값만 둔다(이름 · 누적 · 잔액 · 카드번호 앞자리는 넣지 않음).
+  const PATTERNS = [];   // 예: {when:/현대카드/, amount:/…/, vendor:/…/} — 견본 받은 뒤
+  function draftFromAlert(item, rules, now = new Date()) {
+    const raw = maskCard(String(item?.text || '')).replace(/[가-힣]\*[가-힣]?님?/g, '').replace(/\s+/g, ' ').trim();
+    const src = String(item?.src || '');
+    const am = raw.match(/(\d{1,3}(?:,\d{3})+|\d+)\s*원/);
+    if (!am) return null;
+    const ts = Number(item?.ts) || now.getTime();
+    const when = new Date(ts);
+    const dm = raw.match(/(\d{1,2})[\/.](\d{1,2})\s+(\d{1,2}):(\d{2})/);
+    let date = kstDate(when), time = '';
+    if (dm) {
+      const got = kstDate(when), y = Number(got.slice(0, 4));
+      date = `${y}-${pad(dm[1])}-${pad(dm[2])}`; time = `${pad(dm[3])}:${dm[4]}`;
+      if (date > got) date = `${y - 1}-${pad(dm[1])}-${pad(dm[2])}`;   // 1월에 받은 12/31 알림 → 작년
+      if (!validDate(date)) date = got;
+    }
+    const both = raw + ' ' + src;
+    const method = /현대/.test(both) ? '현대카드' : /토스/.test(both) && /(입금|출금|이체|송금)/.test(raw) ? '토스이체' : /토스/.test(both) ? '토스체크' : '';
+    const cancel = /취소/.test(raw);
+    // 가맹점: 금액 뒤에서 할부 · 승인 같은 말을 빼고 남은 앞부분(누적 · 잔액 앞까지)
+    let vendor = raw.slice(am.index + am[0].length).replace(/^(\s*(일시불|할부\s*\d*\s*개?월?|승인|취소|사용|결제|체크|출금|입금))+/g, '').split(/누적|잔액|\[|\(누/)[0].trim().slice(0, 40);
+    for (const p of PATTERNS) if (p.when.test(both) && p.vendor) { const m = raw.match(p.vendor); if (m) vendor = m[1].trim(); }
+    const category = cancel ? '' : classify(vendor, rules);
+    return normEntry({
+      id: 'al_' + String(item?.id || ts).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 40), kind: cancel ? 'in' : 'out', amount: am[1], date, time, method,
+      category, vendor, memo: cancel ? '결제 취소 알림 — 원래 결제 줄과 맞춰 주세요' : '', source: 'alert', inboxId: item?.id || ''
+    }, now);
+  }
+
+  const api = { VERSION, METHODS, OUT_CATEGORIES, IN_CATEGORIES, EVIDENCE, NEEDS, kstDate, uid, toWon, maskCard, validDate, normEntry, validateEntry, summarize, classify, parseCSV, fromLedgerCSV, inPeriod, draftFromAlert, PATTERNS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.FinCore = api;
 })(typeof window !== 'undefined' ? window : globalThis);

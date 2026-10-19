@@ -26,7 +26,10 @@ export function openFinStore({ root = ROOT, onChange, onStatus } = {}) {
       if (method === 'PUT') o[last] = clone(body); else if (method === 'PATCH') o[last] = { ...(o[last] || {}), ...clone(body) }; else if (method === 'DELETE') delete o[last];
       return clone(o[last] ?? null);
     }
-    const url = await dbUrl(`${root}/${path}`.replace(/\/$/, ''));
+    return reqAbs(method, `${root}/${path}`.replace(/\/$/, ''), body);
+  }
+  async function reqAbs(method, fullPath, body) {
+    const url = await dbUrl(fullPath);
     const r = await fetch(url, { method, cache: 'no-store', headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
     if (r.status === 401 || r.status === 403) { status('denied'); throw Error('공용 장부를 열 권한이 없습니다. 사장님 구글 계정으로 로그인해 주세요.'); }
     if (!r.ok) throw Error('공용 장부 ' + (method === 'GET' ? '읽기' : '저장') + ' 실패 (' + r.status + ')');
@@ -61,6 +64,22 @@ export function openFinStore({ root = ROOT, onChange, onStatus } = {}) {
       if (String(dataUrl).length > 420000) throw Error('사진이 너무 큽니다(줄인 뒤에도 300KB 초과).');
       await req('PUT', `${PATHS.receipts}/${id}`, { data: dataUrl, at: new Date().toISOString() });
       return id;
+    },
+    // 알림 입구(hub/financeInbox/<키>/<id>)의 새 글 → 초안 줄(확인 필요, 규칙표에 있으면 바로 분류) → 처리 표시(inboxSeen).
+    // 입구 규칙 · 휴대폰 설정 전에는 입구가 비어 있어 아무 일도 하지 않는다. PC AI도 같은 순서로 처리한다(fin_hub.py, 2단계).
+    async processInbox() {
+      const F = window.FinCore;
+      const inbox = test ? (test.__inbox || null) : await reqAbs('GET', INBOX_ROOT);
+      if (!inbox) return 0;
+      const seen = (await req('GET', PATHS.inboxSeen)) || {};
+      let made = 0;
+      for (const items of Object.values(inbox)) for (const [id, item] of Object.entries(items || {})) {
+        if (seen[id]) continue;
+        const draft = F.draftFromAlert({ ...item, id }, book.meta.rules);
+        if (draft) { F.validateEntry(draft); await this.add(draft); made++; }
+        await req('PUT', `${PATHS.inboxSeen}/${id}`, { entryId: draft?.id || '', skipped: !draft, at: new Date().toISOString() });
+      }
+      return made;
     },
     async addRule(rule) {
       const rules = [...(book.meta.rules || []).filter(r => r.match !== rule.match), rule];
