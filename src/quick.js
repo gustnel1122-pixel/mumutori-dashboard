@@ -40,7 +40,7 @@ function start() {
     if (store) return;
     store = openFinStore({ onChange: b => { book = b; draw(); }, onStatus: s => { $('#q-conn').textContent = CONN[s] || s; $('#q-conn').dataset.state = s; } });
     form = mountEntryForm($('#q-form'), { store: () => store, book: () => book, source: 'phone' });
-    bindListActions($('#q-app'), { store: () => store, book: () => book, onError: m => { $('#q-list-msg').textContent = m; } });
+    bindListActions($('#q-app'), { store: () => store, book: () => book, onError: m => { $('#q-list-msg').textContent = m; }, onRedraw: draw });
     store.load().then(() => store.processInbox?.()).catch(err => { $('#q-list-msg').textContent = err.message; });
     store.watch();
     form.focus();

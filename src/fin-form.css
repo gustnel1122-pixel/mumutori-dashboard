@@ -36,3 +36,7 @@
 .fin-panel .fin-login{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .fin-panel .fin-login .q-btn{width:auto}
 @media (max-width:900px){.fin-panel .fin-cols{grid-template-columns:1fr}}
+/* 재무 화면 패널 맨 위 '이번 달' 요약(공용 장부 기준) · 취소 포함 보기 */
+.fin-panel .fin-sum{margin-bottom:16px}
+.fin-panel .fin-sum .metric.minus strong{color:var(--fred)}
+.q-void-toggle{display:block;margin:10px 0 0;padding:6px 0;font-size:13px;color:var(--fsub)}

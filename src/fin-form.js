@@ -85,25 +85,34 @@ export function mountEntryForm(root, ctx) {
   return { focus: () => $('.f-amt').focus() };
 }
 
+// 취소됨 줄은 기본으로 숨긴다(검수 기준 4: 시험 흔적 없음). '취소 포함 보기'를 누른 화면에서만 보인다.
+let showVoid = false;
+
 // '확인 필요' 목록 + 최근 기록. needsRoot · recentRoot 중 하나는 비워도 된다.
 export function renderLists({ book, needsRoot, recentRoot, recentCount = 10 }) {
   const F_ = F();
-  const all = Object.values(book.entries || {}).sort((a, b) => ((b.date || '') + (b.createdAt || '')).localeCompare((a.date || '') + (a.createdAt || '')));
+  const every = Object.values(book.entries || {}).sort((a, b) => ((b.date || '') + (b.createdAt || '')).localeCompare((a.date || '') + (a.createdAt || '')));
+  const voids = every.filter(e => e.status === 'void').length;
+  const all = showVoid ? every : every.filter(e => e.status !== 'void');
   const needs = all.filter(e => e.status === F_.NEEDS);
   if (needsRoot) {
     needsRoot.hidden = !needs.length;
     const rows = needsRoot.querySelector('.f-needs-rows') || needsRoot;
     rows.innerHTML = needs.map(e => entryRow(e, `<div class="q-row q-fix">${(e.kind === 'in' ? F_.IN_CATEGORIES : F_.OUT_CATEGORIES).map(c => `<button type="button" class="q-chip" data-fix="${esc(e.id)}" data-fixcat="${esc(c)}">${esc(c)}</button>`).join('')}${e.vendor ? `<label class="q-check"><input type="checkbox" data-rule="${esc(e.id)}"> 앞으로 이 거래처는 항상</label>` : ''}</div>`)).join('');
   }
-  if (recentRoot) recentRoot.innerHTML = all.slice(0, recentCount).map(e => entryRow(e, e.status === 'void' ? '<span class="q-void">취소됨</span>' : `<button type="button" class="q-link" data-void="${esc(e.id)}">취소</button>`)).join('') || '<p class="q-empty">아직 기록이 없어요. 위에서 첫 줄을 넣어 보세요.</p>';
+  if (recentRoot) {
+    const toggle = voids ? `<button type="button" class="q-link q-void-toggle" data-togglevoid="1" aria-pressed="${showVoid}">${showVoid ? '취소된 줄 숨기기' : `취소 포함 보기 (${voids})`}</button>` : '';
+    recentRoot.innerHTML = (all.slice(0, recentCount).map(e => entryRow(e, e.status === 'void' ? '<span class="q-void">취소됨</span>' : `<button type="button" class="q-link" data-void="${esc(e.id)}">취소</button>`)).join('') || '<p class="q-empty">아직 기록이 없어요. 위에서 첫 줄을 넣어 보세요.</p>') + toggle;
+  }
   return needs.length;
 }
 
-// 목록 버튼(분류 정하기 · 취소)을 한 곳에서 처리. onError(msg)
-export function bindListActions(root, { store, book, onError }) {
+// 목록 버튼(분류 정하기 · 취소 · 취소 포함 보기)을 한 곳에서 처리. onError(msg), onRedraw() — 목록을 다시 그리는 화면 함수
+export function bindListActions(root, { store, book, onError, onRedraw }) {
   root.addEventListener('click', async ev => {
     const t = ev.target.closest('button'); if (!t) return;
     try {
+      if (t.dataset.togglevoid) { showVoid = !showVoid; onRedraw?.(); return; }
       if (t.dataset.fix) {
         const e = book().entries[t.dataset.fix];
         // '앞으로 항상' 체크는 저장 전에 읽는다(저장하면 목록이 다시 그려져 체크가 사라짐)
