@@ -1,0 +1,25 @@
+.pwa-notices{position:fixed;z-index:200;bottom:0;left:0;right:0;padding:8px max(12px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));display:grid;gap:6px;pointer-events:none;font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.pwa-notices>*{pointer-events:auto;box-sizing:border-box;margin:0 auto;width:100%;max-width:700px;border:1px solid #d7ddce;border-radius:10px;padding:12px 16px;box-shadow:0 2px 12px #0002}
+.pwa-connection{background:#fbf0db;color:#654612;text-align:center}
+.pwa-update{background:#174d3c;color:#fff;cursor:pointer;min-height:48px;white-space:normal;font:inherit;text-align:center;font-weight:600}
+.pwa-update:hover{background:#235d49;color:#fff}
+.pwa-notices [hidden]{display:none!important}
+body:has(.pwa-notices>:not([hidden])){padding-bottom:140px}
+.pwa-offline-page{margin:0;background:#f6f5ef;color:#263b32;font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh;display:grid;place-items:center}
+.pwa-offline-page main{max-width:440px;padding:32px 24px}
+.pwa-offline-page h1{font-size:26px}.pwa-offline-page p{color:#6c756d}
+.pwa-offline-page button,.pwa-offline-page a{display:block;box-sizing:border-box;min-height:48px;margin-top:12px;padding:12px 18px;border-radius:10px;text-align:center;font:inherit}
+.pwa-offline-page button{width:100%;background:#174d3c;color:#fff;border:0;cursor:pointer}.pwa-offline-page a{color:#174d3c}
+/* Shared mobile touch targets; business forms and storage remain unchanged. */
+@media(max-width:640px){
+  body button,body select,body summary,body input:not([type=checkbox]):not([type=radio]):not([type=hidden]){min-height:44px;min-width:44px}
+  body textarea{min-height:88px}
+  body a.inline-link,body a.q-back,body a.hero-cta,body a.sub-tab,body .mobile-brand,body .demo-banner a,body .workflow-strip a,body .handoff-strip a,body .workspace-footer a,body .breadcrumb a,body .top-actions a,body a[href]:not([class]){display:inline-flex;align-items:center;min-height:44px;min-width:44px}
+  body a.table-link{min-width:44px;white-space:nowrap}
+  body label:has(>input[type=checkbox]),body label:has(>input[type=radio]){display:inline-flex;align-items:center;min-height:44px;min-width:44px;gap:6px}
+  body .q-tabs,body .q-chips,body .cb-topact{flex-wrap:wrap}
+  body .fin-panel .fin-cols{grid-template-columns:minmax(0,1fr)}
+  body .fin-cols>*{min-width:0}
+  body .fin-form input,body .fin-form select{max-width:100%;box-sizing:border-box}
+  body .cb-help-prompthead button[data-cb-copy]{min-height:44px;min-width:44px}
+}
