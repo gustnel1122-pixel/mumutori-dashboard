@@ -13,7 +13,7 @@ const fixture=()=>C.migrate({products:[{id:'CHECK-01',name:'연결 검증 상품
  await go('index.html');await page.screenshot({path:'/tmp/mumutori-studio-home.png',fullPage:true,animations:'disabled'});
  let modules=[];page.on('request',r=>{if(r.url().includes('/src/pages/'))modules.push(new URL(r.url()).pathname);});
  for(const id of ['finance','bank','products','purchases','sales','stock','partners','audit','settings','agents','branding','characters']){
-  modules=[];await go(id+'.html');assert.equal(await page.locator('body').getAttribute('data-page'),id);assert.equal(await page.locator('nav [aria-current="page"]').getAttribute('data-view'),id);assert.equal(modules.length,1);assert(modules[0].endsWith('/'+id+'.js'));
+  modules=[];await go(id+'.html');assert.equal(await page.locator('body').getAttribute('data-page'),id);/* 큰 메뉴만 본다(재무 안 작은 탭도 aria-current) · 통장은 재무 안의 탭이라 큰 메뉴는 재무 */assert.equal(await page.locator('nav [aria-current="page"][data-view]').getAttribute('data-view'),id==='bank'?'finance':id);assert.equal(modules.length,1);assert(modules[0].endsWith('/'+id+'.js'));
   assert.equal(await page.locator('iframe').count(),0);assert(await page.locator('h1').isVisible());
   if(['finance','products','stock'].includes(id))await page.screenshot({path:'/tmp/mumutori-studio-'+id+'.png',fullPage:true,animations:'disabled'});
  }

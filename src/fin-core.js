@@ -7,7 +7,9 @@
   // 쿠팡 정산 차감(상계): 광고비 · 물류비 등이 판매대금에서 먼저 빠지는 돈. 비용(손익)에는 넣고, 통장 · 돈 흐름과 '확인 필요'에서는 뺀다.
   const OFFSET_METHOD = '쿠팡 정산 차감';
   const ALL_METHODS = [...METHODS, OFFSET_METHOD];
-  const OUT_CATEGORIES = ['매입', '매입 부대비', '배송비', '광고비', '수수료', '소모품', '임차료', '기타'];
+  // 대표 본인 식사는 '식비(본인)'으로 따로 둔다: 장부 · 지출에는 넣고, 신고 때 거를 수 있게 따로 센다(세무 확인 필요). 새 칸 없이 분류 값만.
+  const OWNER_MEAL = '식비(본인)';
+  const OUT_CATEGORIES = ['매입', '매입 부대비', '배송비', '광고비', '수수료', '소모품', '식비', OWNER_MEAL, '임차료', '기타'];
   const IN_CATEGORIES = ['매출', '자금 충전', '환불 받음', '기타 수입'];
   const EVIDENCE = ['카드', '세금계산서', '현금영수증', '간이영수증', '없음'];
   // 부가세 공제를 셀 수 있는 증빙(일반과세자). 해외 결제 · 간이영수증 · 증빙 없음은 빼고 센다 — 참고용, 신고는 세무 확인.
@@ -115,6 +117,7 @@
       vat, vatSales: Math.round(salesGross / 11), vatDeductible: Math.round(deductible / 11),
       needs: entries.filter(e => checkReasons(e).length).length,
       byCategory: OUT_CATEGORIES.map(c => ({ category: c, amount: outRows.filter(e => e.category === c).reduce((a, e) => a + e.amount, 0) })).filter(r => r.amount),
+      ownerMeal: outRows.filter(e => e.category === OWNER_MEAL).reduce((a, e) => a + e.amount, 0),   // 지출에 들어 있음 — 신고 때 거를 후보(세무 확인)
       count: rows.length
     };
   }
@@ -146,7 +149,7 @@
     const get = (r, n) => { const i = ix(n); return i < 0 ? '' : String(r[i] ?? '').trim(); };
     const methodOf = m => METHODS.find(x => m.includes(x.replace('토스', ''))) || (m.includes('현대') ? '현대카드' : m.includes('체크') ? '토스체크' : m.includes('이체') ? '토스이체' : m.includes('현금') ? '현금' : '');
     const byLen = [...OUT_CATEGORIES].sort((a, b) => b.length - a.length);   // '매입 부대비(…)'가 '매입'보다 먼저 맞게
-    const outCat = c => byLen.find(x => c.startsWith(x)) || (c.includes('구매') || c.includes('매입') ? '매입' : c.includes('배송') || c.includes('택배') ? '배송비' : c.includes('광고') ? '광고비' : c.includes('수수료') ? '수수료' : c.includes('소모') ? '소모품' : c.includes('임차') || c.includes('월세') ? '임차료' : c ? '기타' : '');
+    const outCat = c => (/^(식비|식대|식사)/.test(c) && c.includes('본인') ? OWNER_MEAL : '') || byLen.find(x => c.startsWith(x)) || (/식대|식사/.test(c) ? '식비' : '') || (c.includes('구매') || c.includes('매입') ? '매입' : c.includes('배송') || c.includes('택배') ? '배송비' : c.includes('광고') ? '광고비' : c.includes('수수료') ? '수수료' : c.includes('소모') ? '소모품' : c.includes('임차') || c.includes('월세') ? '임차료' : c ? '기타' : '');
     return body.map((r, i) => {
       const kind = /입금|수입|매출/.test(get(r, '구분')) ? 'in' : 'out';
       const evid = get(r, '증빙');
@@ -166,6 +169,7 @@
   // 일반 규칙: 금액(…원) · 날짜(MM/DD HH:MM) · 승인/취소 · 수단(글 · 보낸 앱 이름) · 가맹점(금액 뒤 글). 카드사별 견본이 오면 PATTERNS에 더한다.
   // 원문은 입구(hub/financeInbox)에만 남고, 장부 줄에는 다듬은 값만 둔다(이름 · 누적 · 잔액 · 카드번호 앞자리는 넣지 않음).
   // 휴대폰이 보내는 칸: text(접힌 글 = 제목 + 글), big(펼친 긴 글, MacroDroid {not_text_big} — 가맹점은 여기에만 있는 카드사가 있음), src(앱 이름), ts.
+  // 현대카드 = 사업용 등록 카드: 쓴 것은 전부 업무용으로 장부에 넣는다(사장님 규칙). 개인 사용을 거르지 않고, 분류는 가맹점 규칙표 → 없으면 '확인 필요'.
   const PATTERNS = [
     // 현대카드(10/20 견본 모양, 값은 가짜): '○○○ 님, 현대 MY BUSINESS 승인 / 12,300원 일시불, MM/DD HH:MM / 가맹점 / 누적…원' — 가맹점은 펼친 글 3번째 줄
     { name: '현대카드', when: /현대/, vendor: /원\s*(?:일시불|할부\s*\d*\s*개?월?)\s*,\s*\d{1,2}[\/.]\d{1,2}\s+\d{1,2}:\d{2}\s+(.+?)\s*(?:누적|잔액|$)/ }
@@ -208,6 +212,6 @@
     return !!a.time && !!b.time && a.time === b.time;
   }
 
-  const api = { VERSION, METHODS, OFFSET_METHOD, ALL_METHODS, OUT_CATEGORIES, IN_CATEGORIES, EVIDENCE, NEEDS, kstDate, uid, toWon, maskCard, validDate, normEntry, validateEntry, summarize, checkReasons, defaultEvidence, classify, parseCSV, fromLedgerCSV, inPeriod, draftFromAlert, sameMoment, PATTERNS };
+  const api = { VERSION, METHODS, OFFSET_METHOD, ALL_METHODS, OUT_CATEGORIES, IN_CATEGORIES, OWNER_MEAL, EVIDENCE, NEEDS, kstDate, uid, toWon, maskCard, validDate, normEntry, validateEntry, summarize, checkReasons, defaultEvidence, classify, parseCSV, fromLedgerCSV, inPeriod, draftFromAlert, sameMoment, PATTERNS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.FinCore = api;
 })(typeof window !== 'undefined' ? window : globalThis);

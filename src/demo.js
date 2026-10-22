@@ -27,7 +27,8 @@
     row('demo4', { date: day(today), amount: 7700, method: '토스체크', vendor: '시연 · 문구점', status: 'needs-category', evidence: '카드', source: 'alert' }),
     row('demo5', { date: day(10), amount: 5000, method: '토스체크', category: '소모품', vendor: '시연 · 생활용품점', evidence: '카드', source: 'phone' }),
     row('demo6', { kind: 'in', date: day(12), amount: 250000, method: '토스이체', category: '매출', vendor: '시연 · 오프라인 판매', source: 'manual' }),
-    row('demo7', { date: day(3), amount: 1, category: '기타', vendor: '시연 · 취소된 시험 줄', status: 'void', source: 'ai-dashboard' })
+    row('demo7', { date: day(3), amount: 1, category: '기타', vendor: '시연 · 취소된 시험 줄', status: 'void', source: 'ai-dashboard' }),
+    row('demo9', { date: day(9), amount: 6500, method: '현대카드', category: '식비(본인)', vendor: '시연 · 편의점', evidence: '카드', source: 'alert' })
   ];
   // 쿠팡 돈 달력(가짜 5주) — 지난주부터 거꾸로. 받을 돈 0원 이하 주(회색) · 기다리는 주 · 70%는 ✓ 들어오고 30%는 '확인 필요'인 주
   var kd = new Date(Date.now() + 9 * 3600e3), dow = (kd.getUTCDay() + 6) % 7;

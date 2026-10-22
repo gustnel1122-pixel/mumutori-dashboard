@@ -39,7 +39,8 @@ function drawSummary(needs) {
   const el = host.querySelector('.fin-sum');
   const s = window.FinCore.summarize(book, 'month');
   el.innerHTML = metric('이번 달 매출', s.sales, s.salesConnected ? '채널 매출 + 수기 입력' : '채널 매출 연결 전 · 수기 입력만') +
-    metric('이번 달 지출', s.spend, s.byCategory.slice(0, 3).map(r => r.category).join(' · ') || '기록 없음') +
+    metric('이번 달 지출', s.spend, (s.byCategory.slice(0, 3).map(r => r.category).join(' · ') || '기록 없음')
+      + (s.ownerMeal ? ` · 식비(본인) ${won(s.ownerMeal)}원 포함 — 신고 때 세무 확인` : '')) +   // 대표 본인 식사는 경비 인정이 안 될 수 있어 따로 보인다
     moneyCard(s) +
     metric('확인 필요', needs, needs ? '누르면 그 줄로 · 분류 · 수단만 고르면 끝' : '지금 없음', needs ? 'attention' : '', needs ? '#fin-needs' : '');
 }

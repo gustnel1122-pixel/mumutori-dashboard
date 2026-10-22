@@ -91,6 +91,23 @@ test('현대카드 알림(10/20 견본 모양, 가짜 값): 펼친 글에서 가
   assert.equal(F.draftFromAlert({id:'-W1',src:'지갑',text:'₩12,300 결제 완료 가짜편의점가짜점'},[],NOW2),null);   // 지갑 앱 '₩' 알림은 초안을 안 만듦
   F.validateEntry(a);F.validateEntry(f);
 });
+test('식비 · 식비(본인): 분류 목록에 있음 · 지출에 넣고 본인 식사는 따로 셈 · 현대카드 알림은 규칙 없으면 확인 필요',()=>{
+  assert(F.OUT_CATEGORIES.includes('식비')&&F.OUT_CATEGORIES.includes(F.OWNER_MEAL));
+  assert.equal(F.OUT_CATEGORIES.indexOf(F.OWNER_MEAL),F.OUT_CATEGORIES.indexOf('식비')+1);   // 버튼이 나란히
+  const rows=[e({id:'a',category:'식비',amount:9000}),e({id:'b',category:F.OWNER_MEAL,amount:6500}),e({id:'c',category:F.OWNER_MEAL,amount:1000,status:'void'})];
+  rows.forEach(r=>F.validateEntry(r));
+  const m=F.summarize(book(rows),'month',NOW);
+  assert.equal(m.spend,15500);assert.equal(m.ownerMeal,6500);   // 취소 줄은 빼고
+  assert.deepEqual(m.byCategory.map(r=>[r.category,r.amount]),[['식비',9000],[F.OWNER_MEAL,6500]]);
+  assert.equal(F.summarize(book([e()]),'month',NOW).ownerMeal,0);
+  const big='홍길동 님, 현대 MY BUSINESS 승인\n6,500원 일시불, 10/19 12:10\n가짜편의점가짜점\n누적111,111원';
+  const d=F.draftFromAlert({id:'-H9',src:'현대카드',text:'현대카드 승인',big},[],NOW);
+  assert.deepEqual([d.method,d.evidence,d.status,d.kind],['현대카드','카드',F.NEEDS,'out']);   // 업무용으로 들어오고 분류는 사람이
+  const r=F.draftFromAlert({id:'-H10',src:'현대카드',text:'현대카드 승인',big},[{match:'가짜편의점',category:F.OWNER_MEAL}],NOW);
+  assert.equal(r.category,F.OWNER_MEAL);assert.equal(r.status,'ok');F.validateEntry(r);   // '앞으로 이 거래처는 항상' 규칙이면 바로
+  const csv='날짜,구분,분류,거래처,내용,금액(원)\n2026-10-05,지출,식비(본인),가짜식당,시험,8000\n2026-10-06,지출,식대,가짜식당,시험,7000\n';
+  assert.deepEqual(F.fromLedgerCSV(csv,NOW).map(x=>x.category),[F.OWNER_MEAL,'식비']);
+});
 test('fromLedgerCSV: 볼트 임시 장부 칸 → 장부 줄(가짜 값)',()=>{
   const csv='﻿날짜,구분,분류,거래처,내용,금액(원),공급가,부가세,결제수단,증빙,근거,기록자,확인\n2026-10-01,지출,구매비,가짜상점,"시험, 따옴표",10000,,,현대카드 사업자,카드,,AI,\n2026-10-02,지출,택배 배송비,가짜택배,시험,4000,,,토스 체크카드,카드,,AI,\n2026-10-03,지출,매입 부대비(국제배송·통관),가짜배대지,시험,3000,,,계좌 입금(확인 필요),확인 필요,,AI,\n';
   const rows=F.fromLedgerCSV(csv,NOW);

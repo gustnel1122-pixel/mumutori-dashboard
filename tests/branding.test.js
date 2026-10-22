@@ -47,7 +47,8 @@ const walk=dir=>fs.readdirSync(dir,{withFileTypes:true}).flatMap(e=>e.isDirector
  assert.ok(py,'빌드 관문 검사에는 python 이 필요하다 — 건너뛰지 않고 실패로 처리한다');
  const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'mmt-brand-gate-'));
  try{
-  fs.cpSync(path.join(ROOT,'src'),path.join(tmp,'src'),{recursive:true});for(const f of ['build.py','brand_public_check.py'])fs.copyFileSync(path.join(ROOT,f),path.join(tmp,f));
+  for(const d of ['src','_tools','assets'])if(fs.existsSync(path.join(ROOT,d)))fs.cpSync(path.join(ROOT,d),path.join(tmp,d),{recursive:true});   // 빌드가 쓰는 폴더(앱 아이콘: _tools · assets)
+  for(const f of ['build.py','brand_public_check.py','manifest.webmanifest','offline.html'])if(fs.existsSync(path.join(ROOT,f)))fs.copyFileSync(path.join(ROOT,f),path.join(tmp,f));
   const env={...process.env,PYTHONIOENCODING:'utf-8',PYTHONUTF8:'1'},list=path.join(tmp,'src/branding-data.json'),original=fs.readFileSync(list,'utf8'),probe=path.join(tmp,'probe.json');
   const check=textOrObj=>{fs.writeFileSync(probe,typeof textOrObj==='string'?textOrObj:JSON.stringify(textOrObj));return spawnSync(py,['brand_public_check.py',probe],{cwd:tmp,encoding:'utf8',env});};
   const fresh=()=>JSON.parse(original),first=o=>o.items[0];assert.equal(first(fresh()).id,'STAMP-PAPER-01');
