@@ -29,8 +29,7 @@ function metric(label, value, note, cls = '', href = '') {
 // 채널 매출이 아직 안 붙었으면 '남는 돈'(손익) 대신 '돈 흐름'을 보인다 — 매출 없이 지출만 보이면 적자로 오해(검수 9)
 function moneyCard(s) {
   if (!s.salesConnected) {
-    const note = '들어온 돈 − 나간 돈 · 채널 매출 연결 전이라 실제 손익 아님' + (s.stockBuy ? ' · 상품 매입은 재고로 남는 돈(손익 아님)' : '')
-      + (s.offset ? ` · 쿠팡 정산 차감 ${won(s.offset)}원은 통장으로 안 나가 뺌` : '');
+    const note = window.FinCore.flowNote(s) + ' · 채널 매출 연결 전이라 실제 손익 아님' + (s.stockBuy ? ' · 상품 매입은 재고로 남는 돈(손익 아님)' : '');   // 검수 14
     return metric('이번 달 돈 흐름', s.cashFlow, note, 'neutral');
   }
   return metric('남는 돈(추정)', s.net, (s.feeKnown ? '매출 − 수수료 − 지출' : '수수료 정산 전 · 추정') + (s.stockBuy ? ' · 상품 매입 포함(재고로 남는 돈)' : ''), s.net < 0 ? 'minus' : '');

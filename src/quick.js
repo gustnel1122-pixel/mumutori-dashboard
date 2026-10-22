@@ -20,7 +20,7 @@ function drawSummary() {
     // 채널 매출 연결 전에는 손익 대신 돈 흐름(매출 없이 지출만 보여 적자로 오해하지 않게 — 검수 9)
     (s.salesConnected
       ? card('남는 돈(추정)', s.net, (s.feeKnown ? '매출 − 수수료 − 지출' : '수수료 정산 전 · 추정') + (s.stockBuy ? ' · 매입 포함' : ''), s.net < 0 ? 'minus' : '')
-      : card('돈 흐름', s.cashFlow, '들어온 돈 − 나간 돈 · 매출 연결 전이라 손익 아님' + (s.stockBuy ? ' · 상품 매입은 재고로 남는 돈' : '') + (s.offset ? ' · 쿠팡 정산 차감은 뺌' : ''))) +
+      : card('돈 흐름', s.cashFlow, F.flowNote(s) + ' · 매출 연결 전이라 손익 아님' + (s.stockBuy ? ' · 상품 매입은 재고로 남는 돈' : ''))) +   // 검수 14
     card('부가세 예상', s.vat, '참고용 · 신고는 세무 확인', s.vat < 0 ? 'minus' : '');
   document.querySelectorAll('.q-tabs [data-period]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.period === period)));
 }

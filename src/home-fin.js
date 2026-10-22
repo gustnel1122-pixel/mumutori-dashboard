@@ -21,6 +21,7 @@ function compute(book) {
       + `<b>${n ? '확인 필요 결제 · 분류 · 수단 빈칸' : '확인 필요 없음'}<small class="task-basis">${basis}</small></b><strong>${won(n)}<em>건</em></strong><span class="task-arrow">↗</span></a>`,
     month: `<div class="mini-row"><span>매출</span><strong>${won(s.sales)}원</strong></div><div class="mini-row"><span>지출</span><strong>${won(s.spend)}원</strong></div>`
       + `<div class="mini-row"><span>${label}</span><strong>${won(value)}원</strong></div>`
+      + (s.salesConnected ? '' : `<p class="flow-note">= ${esc(F.flowNote(s))}</p>`)   // 검수 14: 매출 − 지출과 다른 까닭
       + `<p>${s.salesConnected ? '채널 매출 · 수수료 반영 추정' : '채널 매출 연결 전이라 실제 손익 아님'} · ${window.__MMT_DEMO__ ? '시연 자료' : '공용 장부(폰 · PC 같은 장부)'}</p>`
       + `<a class="inline-link" href="finance.html">재무에서 자세히 <span aria-hidden="true">↗</span></a>`
   };

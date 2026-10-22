@@ -111,6 +111,7 @@
     return {
       period, sales: salesGross, salesFromChannels: s.gross, orders: s.orders, salesConnected: s.connected,
       inflow: inAll, cashFlow: inAll - (spend - offset), offset,   // 돈 흐름(들어온 돈 − 실제로 나간 돈) — 정산 차감은 통장으로 안 나가 뺀다. 채널 매출 연결 전에는 손익 대신 이것을 보인다
+      otherIn: inAll - salesGross,   // 매출 외 입금(자금 충전 · 정산 입금 · 환불 등) — 돈 흐름 = 매출 − 지출 + 매출 외 입금 + 정산 차감
       stockBuy: outRows.filter(e => e.category === '매입').reduce((a, e) => a + e.amount, 0),   // 상품 매입(재고로 남는 돈)
       spend, fee: s.fee, feeKnown: s.feeKnown,
       net: salesGross - s.fee - spend,            // 남는 돈(추정): 매출 − 채널 수수료(알려진 만큼) − 지출
@@ -120,6 +121,12 @@
       ownerMeal: outRows.filter(e => e.category === OWNER_MEAL).reduce((a, e) => a + e.amount, 0),   // 지출에 들어 있음 — 신고 때 거를 후보(세무 확인)
       count: rows.length
     };
+  }
+  // 돈 흐름이 '매출 − 지출'과 다른 까닭 한 줄(검수 14: 같은 카드 안에서 계산이 안 맞아 보임). 차이가 없으면 '매출 − 지출'.
+  function flowNote(s) {
+    const won = n => Number(n || 0).toLocaleString('ko-KR');
+    const add = [s.otherIn ? `매출 외 입금 ${won(s.otherIn)}원` : '', s.offset ? `쿠팡 정산 차감 ${won(s.offset)}원(통장으로 안 나감)` : ''].filter(Boolean);
+    return '매출 − 지출' + add.map(x => ' + ' + x).join('');
   }
   // 가맹점 규칙표: [{match:'아이템스카우트', category:'매입 부대비'}] — 글자가 들어 있으면 그 분류. 없으면 ''(분류 필요)
   function classify(vendor, rules) {
@@ -212,6 +219,6 @@
     return !!a.time && !!b.time && a.time === b.time;
   }
 
-  const api = { VERSION, METHODS, OFFSET_METHOD, ALL_METHODS, OUT_CATEGORIES, IN_CATEGORIES, OWNER_MEAL, EVIDENCE, NEEDS, kstDate, uid, toWon, maskCard, validDate, normEntry, validateEntry, summarize, checkReasons, defaultEvidence, classify, parseCSV, fromLedgerCSV, inPeriod, draftFromAlert, sameMoment, PATTERNS };
+  const api = { VERSION, METHODS, OFFSET_METHOD, ALL_METHODS, OUT_CATEGORIES, IN_CATEGORIES, OWNER_MEAL, EVIDENCE, NEEDS, kstDate, uid, toWon, maskCard, validDate, normEntry, validateEntry, summarize, flowNote, checkReasons, defaultEvidence, classify, parseCSV, fromLedgerCSV, inPeriod, draftFromAlert, sameMoment, PATTERNS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.FinCore = api;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -115,8 +115,9 @@ const { createStore } = await import(`./store.js?v=${document.body.dataset.build
     };
     return {draft:C.clone(old||{...defaults[type],...seed,...prefill}),isNew:!old,seeded:!!seed};
   }
-  function modalMarkup(title,body,{wide=false,saveLabel='저장',subtitle='',footer='저장을 눌러야 기록돼요.'}={}){
-    return `<div class="overlay"><section class="modal ${wide?'wide':''}" role="dialog" aria-modal="true" aria-labelledby="dialog-title"><div class="modal-head"><div><h2 id="dialog-title">${esc(title)}</h2>${subtitle?`<p>${esc(subtitle)}</p>`:''}</div><button type="button" aria-label="닫기" data-action="modal-close">×</button></div><form id="editor-form"><div class="modal-body">${body}<div id="form-error" class="form-error" role="alert"></div></div><div class="modal-footer"><span>${esc(footer)}</span><div class="actions">${btn('취소','modal-close')}<button type="submit" class="primary" id="submit-record">${esc(saveLabel)}</button></div></div></form></section></div>`;
+  // noCancel: 아래 단추가 '닫기'뿐인 창(빠른 기록)은 같은 일을 하는 '취소'를 빼고 하나만 둔다(검수 15)
+  function modalMarkup(title,body,{wide=false,saveLabel='저장',subtitle='',footer='저장을 눌러야 기록돼요.',noCancel=false}={}){
+    return `<div class="overlay"><section class="modal ${wide?'wide':''}" role="dialog" aria-modal="true" aria-labelledby="dialog-title"><div class="modal-head"><div><h2 id="dialog-title">${esc(title)}</h2>${subtitle?`<p>${esc(subtitle)}</p>`:''}</div><button type="button" aria-label="닫기" data-action="modal-close">×</button></div><form id="editor-form"><div class="modal-body">${body}<div id="form-error" class="form-error" role="alert"></div></div><div class="modal-footer"><span>${esc(footer)}</span><div class="actions">${noCancel?'':btn('취소','modal-close')}<button type="submit" class="primary" id="submit-record">${esc(saveLabel)}</button></div></div></form></section></div>`;
   }
   function displayModal(html,focus=true){
     if(!modal)return;$('#modal-root').innerHTML=html;document.body.style.overflow='hidden';
@@ -214,7 +215,7 @@ const { createStore } = await import(`./store.js?v=${document.body.dataset.build
     displayModal(modalMarkup('백업 병합 확인',`<div class="note">추가 ${preview.report.added}건 · 같은 번호의 내용 차이 ${preview.report.conflicts}건</div><p class="section-gap">현재 자료에 없는 기록은 추가합니다. 같은 관리번호의 내용이 다를 때 적용할 기준을 선택하세요.</p><div class="formgrid section-gap">${field('preference','내용 차이 처리','current',{options:[['current','현재 브라우저 자료 유지'],['incoming','가져온 파일의 자료 적용']],full:true})}</div><p class="sub">반영 전 현재 상태를 복구용으로 저장합니다. 가져온 파일도 별도로 보관하세요.</p>`,{saveLabel:'백업 병합'}));
   }
   function csvTemplate(){download('\uFEFF날짜,계좌,구분,금액,내용,분류,메모\r\n','mumutori-bank-template.csv','text/csv;charset=utf-8');}
-  function openQuick(){priorFocus=document.activeElement;modal={kind:'quick',dirty:false};displayModal(modalMarkup('빠른 기록',`<div class="formgrid">${[['product','상품 등록'],['bank','통장 거래'],['sale','매출 등록'],['purchase','매입 등록'],['movement','입출고 기록'],['partner','거래처 등록']].map(([type,label])=>btn(label,'quick-edit',{type})).join('')}</div>`,{saveLabel:'닫기',footer:'기록할 업무를 선택하세요.'}));}
+  function openQuick(){priorFocus=document.activeElement;modal={kind:'quick',dirty:false};displayModal(modalMarkup('빠른 기록',`<div class="formgrid">${[['product','상품 등록'],['bank','통장 거래'],['sale','매출 등록'],['purchase','매입 등록'],['movement','입출고 기록'],['partner','거래처 등록']].map(([type,label])=>btn(label,'quick-edit',{type})).join('')}</div>`,{saveLabel:'닫기',noCancel:true,footer:'기록할 업무를 선택하세요.'}));}
   function openWarehouse(){priorFocus=document.activeElement;modal={kind:'warehouse',dirty:false};displayModal(modalMarkup('창고 추가',`<div class="formgrid">${field('name','창고 이름','',{required:true,full:true})}</div>`));}
   document.addEventListener('submit',e=>{
     if(!e.target.matches('form#editor-form'))return;e.preventDefault();

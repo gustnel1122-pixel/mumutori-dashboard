@@ -91,6 +91,16 @@ test('현대카드 알림(10/20 견본 모양, 가짜 값): 펼친 글에서 가
   assert.equal(F.draftFromAlert({id:'-W1',src:'지갑',text:'₩12,300 결제 완료 가짜편의점가짜점'},[],NOW2),null);   // 지갑 앱 '₩' 알림은 초안을 안 만듦
   F.validateEntry(a);F.validateEntry(f);
 });
+test('돈 흐름 한 줄(검수 14): 매출 − 지출 + 매출 외 입금 + 쿠팡 정산 차감 = 돈 흐름',()=>{
+  const rows=[e({id:'s',kind:'in',category:'매출',amount:250000,method:'토스이체'}),e({id:'o',amount:176200-33000}),e({id:'ad',method:F.OFFSET_METHOD,category:'광고비',amount:33000,evidence:'없음'}),
+    e({id:'cp',kind:'in',category:'기타 수입',amount:35000,method:'토스이체',vendor:'쿠팡 정산'})];
+  const m=F.summarize(book(rows),'month',NOW);
+  assert.deepEqual([m.sales,m.spend,m.otherIn,m.offset,m.cashFlow],[250000,176200,35000,33000,141800]);   // 시연 숫자 그대로
+  assert.equal(m.sales-m.spend+m.otherIn+m.offset,m.cashFlow);
+  assert.equal(F.flowNote(m),'매출 − 지출 + 매출 외 입금 35,000원 + 쿠팡 정산 차감 33,000원(통장으로 안 나감)');
+  const plain=F.summarize(book([e({id:'a'})]),'month',NOW);
+  assert.equal(plain.otherIn,0);assert.equal(F.flowNote(plain),'매출 − 지출');assert.equal(plain.cashFlow,plain.sales-plain.spend);
+});
 test('식비 · 식비(본인): 분류 목록에 있음 · 지출에 넣고 본인 식사는 따로 셈 · 현대카드 알림은 규칙 없으면 확인 필요',()=>{
   assert(F.OUT_CATEGORIES.includes('식비')&&F.OUT_CATEGORIES.includes(F.OWNER_MEAL));
   assert.equal(F.OUT_CATEGORIES.indexOf(F.OWNER_MEAL),F.OUT_CATEGORIES.indexOf('식비')+1);   // 버튼이 나란히
