@@ -201,7 +201,7 @@ export function accountsView(book, { compact = false } = {}) {
     const chk = checks.find(c => c.account === a.account);
     const r = chk ? F_.accountCheck(book, chk) : null;
     const value = a.balance == null ? a.out : r ? r.got : a.balance;
-    const label = a.type === 'credit' || a.type === 'debit' ? '쓴 돈' : r ? `잔액(${md(chk.from)}부터 장부 계산)` : '잔액(장부 계산)';
+    const label = a.type === 'credit' || a.type === 'debit' ? '쓴 돈' : r ? (Number(chk.opening) ? `잔액(${md(chk.from)} 시작 잔액 ${won(chk.opening)}원 + 장부 계산)` : `잔액(${md(chk.from)}부터 장부 계산)`) : '잔액(장부 계산)';
     const check = !r ? '' : r.ok
       ? `<p class="acct-check ok">✓ ${md(r.at)} 파일 잔액 ${won(r.balance)}원과 같음</p>`
       : `<p class="acct-check diff">⚠ ${md(r.at)} 파일 잔액 ${won(r.balance)}원 · 장부 계산 ${won(r.got)}원 · 차이 ${won(r.diff)}원${chk.note ? ' — ' + esc(chk.note) : ''}</p>`;

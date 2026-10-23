@@ -127,6 +127,8 @@ test('계좌별 · 내 계좌 이동 · 쿠팡 정산(월렛): 이동은 손익 
   assert.equal(bal[T],40);assert.equal(bal[K],30);assert.equal(bal[W],0);assert.equal(bal[H],300);assert.equal(bal['카카오뱅크 체크카드'],null);   // 체크카드는 연결 통장에서 빠짐
   const chk=F.accountCheck(book(rows),{account:K,from:'2026-10-01',at:'2026-10-19 23:59',balance:30});assert(chk.ok);
   assert.equal(F.accountCheck(book(rows),{account:K,from:'2026-10-01',at:'2026-10-19 23:59',balance:50}).diff,20);
+  const op=F.accountCheck(book(rows),{account:K,from:'2026-10-01',at:'2026-10-19 23:59',balance:50,opening:20});   // 시작 잔액(통장 내역 전 돈)을 더하면 맞음
+  assert(op.ok);assert.equal(op.got,50);assert.equal(F.summarize(book(rows),'month',NOW).cashFlow,370);   // 시작 잔액은 돈 흐름 · 손익에 안 들어감
 });
 test('사장님 인출 · 자금 충전 · 외주 매출 · 확인할 것: 인출은 지출 아님(돈 흐름엔 나감) · 사장님 돈 표',()=>{
   const rows=[e({id:'o1',category:F.OWNER_OUT,amount:1000,method:'토스이체'}),e({id:'i1',kind:'in',category:F.OWNER_IN,amount:400,method:'카뱅이체'}),

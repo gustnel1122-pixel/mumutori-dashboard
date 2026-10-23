@@ -192,10 +192,11 @@
     }
     return Object.values(out).map(a => ({ ...a, balance: a.type === 'credit' || a.type === 'debit' ? null : a.in - a.out - a.cardOut + a.moveIn - a.moveOut }));
   }
-  // 파일 잔액과 대조: check = {account, from, at, balance, note} (장부 meta/accountChecks). from 시작 잔액은 0으로 본다.
+  // 파일 잔액과 대조: check = {account, from, at, balance, opening, note} (장부 meta/accountChecks).
+  // opening = from 날짜 전날 끝 잔액(통장 내역이 시작되기 전 돈 — 거래가 아니라 손익 · 돈 흐름에는 안 들어감). 없으면 0.
   function accountCheck(book, check) {
     const a = accountTotals(book, { from: check.from, at: check.at }).find(x => x.account === check.account);
-    const got = a ? a.balance : 0;
+    const got = (Number(check.opening) || 0) + (a ? a.balance : 0);
     return { ...check, got, diff: (Number(check.balance) || 0) - got, ok: got === (Number(check.balance) || 0) };
   }
   // '사장님 돈': 넣은 돈(자금 충전) · 뺀 돈(사장님 인출) · 차이 — 달마다. "빼가서 따로 쓴 게 아니라는 증명"용. 외주 매출은 따로 한 줄.
