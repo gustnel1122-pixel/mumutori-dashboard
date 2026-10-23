@@ -1,8 +1,8 @@
 export const DEPARTMENTS=[
  {id:'overview',label:'운영 홈',owner:'운영실',english:'STUDIO OVERVIEW',number:'00',icon:'home',color:'green',description:'오늘의 흐름과 할 일',related:['finance','products','stock']},
  {id:'finance',label:'재무',owner:'재무팀',english:'FINANCE DESK',number:'01',icon:'chart',color:'green',description:'매출·비용·증빙 점검',related:['sales','purchases','bank']},
- // 자금은 재무 안의 '통장' 탭(검수 기준 5: 같은 일을 두 메뉴로 나누지 않음). bank.html 주소는 그대로 이 탭이다.
- {id:'bank',tabOf:'finance',label:'통장',owner:'재무팀 · 통장',english:'CASH FLOW',number:'01·B',icon:'bank',color:'blue',description:'통장 입출금 — 재무 안의 탭',related:['sales','finance','settings']},
+ // 자금은 재무 안의 '계좌별' 탭(검수 기준 5 · 총괄 #15: 재무 · 통장 하나로). bank.html 주소는 그대로 이 탭이다.
+ {id:'bank',tabOf:'finance',label:'계좌별',owner:'재무팀 · 계좌별',english:'ACCOUNTS',number:'01·B',icon:'bank',color:'blue',description:'같은 장부에서 계좌마다 잔액 — 재무 안의 탭',related:['sales','finance','settings']},
  {id:'products',label:'상품',owner:'상품팀',english:'PRODUCT STUDIO',number:'03',icon:'product',color:'orange',description:'상품 정보와 판매 준비',related:['purchases','stock','sales']},
  {id:'branding',label:'브랜딩',owner:'브랜드팀',english:'BRAND TOOLS',number:'03·B',icon:'stamp',color:'pink',description:'도장·잉크·포장 도구와 재주문 정보',related:['products','purchases','sourcing']},
  {id:'characters',label:'캐릭터',owner:'브랜드팀',english:'CHARACTER BOARD',number:'03·C',icon:'face',color:'orange',description:'캐릭터 프로필·그림 만들기와 확정',related:['branding','products']},

@@ -2,11 +2,11 @@
 // 장부는 Firebase hub/financeV1(사장님 로그인 전용). PC 재무 화면(fin-panel.js)과 같은 부품 · 같은 줄 모양을 쓴다.
 import { onAuth, signIn } from './fbauth.js';
 import { openFinStore } from './fin-hub.js';
-import { mountEntryForm, renderLists, bindListActions, rememberNeeds, coupangCalendar, esc, won } from './fin-form.js';
+import { mountEntryForm, renderLists, bindListActions, rememberNeeds, coupangCalendar, accountsView, esc, won } from './fin-form.js';
 
 const F = window.FinCore;
 const $ = s => document.querySelector(s);
-let store = null, book = { entries: {}, sales: {}, meta: {} }, period = 'month', form = null, loaded = false;
+let store = null, book = { entries: {}, sales: {}, meta: {} }, period = 'month', form = null, loaded = false, recentCount = 10;
 const CONN = { loading: '불러오는 중', ok: '연결됨', offline: '연결 끊김 · 다시 시도', denied: '권한 없음' };
 
 function card(label, value, note, cls = '') {
@@ -15,7 +15,7 @@ function card(label, value, note, cls = '') {
 function drawSummary() {
   const s = F.summarize(book, period);
   $('#q-sum').innerHTML =
-    card('매출', s.sales, s.salesConnected ? `채널 ${won(s.orders)}건 + 수기 입력` : '채널 매출 연결 전(수기 입력만)') +
+    card('매출', s.sales, (s.salesConnected ? `채널 ${won(s.orders)}건 + 수기 입력` : '채널 매출 연결 전(수기 입력만)') + (s.outsideSales ? ` · 외주 매출 ${won(s.outsideSales)}원 포함` : '')) +
     card('지출', s.spend, s.byCategory.slice(0, 3).map(r => r.category).join(' · ') || '기록 없음') +
     // 채널 매출 연결 전에는 손익 대신 돈 흐름(매출 없이 지출만 보여 적자로 오해하지 않게 — 검수 9)
     (s.salesConnected
@@ -27,7 +27,8 @@ function drawSummary() {
 function draw() {
   drawSummary();
   $('#q-settle').innerHTML = coupangCalendar(book.meta, book.entries);   // 쿠팡 돈 달력(왜 0원인지 · 언제 들어오는지)
-  const n = renderLists({ book, needsRoot: $('#q-needs-list'), recentRoot: $('#q-recent') });
+  const n = renderLists({ book, needsRoot: $('#q-needs-list'), recentRoot: $('#q-recent'), recentCount });
+  if ($('#q-accounts-body')) $('#q-accounts-body').innerHTML = accountsView(book);   // 계좌별(PC '계좌별'과 같은 말 — 총괄 #15)
   $('#q-needs').hidden = !n; $('#q-needs b').textContent = n;
   if (loaded) rememberNeeds(n);   // 홈 '챙길 일' 건수(건수 · 시각만)
 }
@@ -45,7 +46,7 @@ function start() {
     if (store) return;
     store = openFinStore({ onChange: b => { book = b; loaded = true; draw(); }, onStatus: s => { $('#q-conn').textContent = CONN[s] || s; $('#q-conn').dataset.state = s; } });
     form = mountEntryForm($('#q-form'), { store: () => store, book: () => book, source: 'phone' });
-    bindListActions($('#q-app'), { store: () => store, book: () => book, onError: m => { $('#q-list-msg').textContent = m; }, onRedraw: draw });
+    bindListActions($('#q-app'), { store: () => store, book: () => book, onError: m => { $('#q-list-msg').textContent = m; }, onRedraw: draw, onMore: () => { recentCount += 20; draw(); } });
     store.load().then(() => store.processInbox?.()).catch(err => { $('#q-list-msg').textContent = err.message; });
     store.watch();
     form.focus();

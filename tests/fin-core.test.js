@@ -101,6 +101,46 @@ test('돈 흐름 한 줄(검수 14): 매출 − 지출 + 매출 외 입금 + 쿠
   const plain=F.summarize(book([e({id:'a'})]),'month',NOW);
   assert.equal(plain.otherIn,0);assert.equal(F.flowNote(plain),'매출 − 지출');assert.equal(plain.cashFlow,plain.sales-plain.spend);
 });
+test('카카오뱅크 · 하나(총괄 #14 · #17): 입력 수단 · 기본 증빙 · CSV · 알림 판정',()=>{
+  for(const m of ['카뱅체크','카뱅이체','하나이체'])assert(F.METHODS.includes(m),m);
+  assert.equal(F.defaultEvidence('카뱅체크'),'카드');assert.equal(F.defaultEvidence('카뱅이체'),'없음');assert.equal(F.defaultEvidence('하나이체'),'없음');
+  F.validateEntry(e({method:'카뱅체크'}));F.validateEntry(e({method:'하나이체'}));
+  const csv='날짜,구분,분류,거래처,내용,금액(원),공급가,부가세,결제수단\n2026-10-01,지출,소모품,가짜상점,시험,1000,,,카카오뱅크 체크카드\n2026-10-02,지출,매입,가짜상점,시험,2000,,,카카오뱅크 이체\n2026-10-03,지출,소모품,가짜상점,시험,3000,,,토스 체크카드\n';
+  assert.deepEqual(F.fromLedgerCSV(csv,NOW).map(r=>r.method),['카뱅체크','카뱅이체','토스체크']);   // 예전엔 카카오 체크카드가 토스체크로 갔음
+  assert.equal(F.draftFromAlert({id:'-K1',src:'카카오뱅크',text:'[카카오뱅크] 체크카드 승인 4,500원 가짜편의점'},[],NOW).method,'카뱅체크');
+  assert.equal(F.draftFromAlert({id:'-K2',src:'카카오뱅크',text:'카카오뱅크 출금 10,000원 가짜상점'},[],NOW).method,'카뱅이체');
+  assert.equal(F.accountOf({method:'카뱅체크'}),'카카오뱅크 체크카드');assert.equal(F.accountOf({method:'하나이체'}),'쿠팡 셀러 통장(하나은행)');
+});
+test('계좌별 · 내 계좌 이동 · 쿠팡 정산(월렛): 이동은 손익 · 돈 흐름에서 빼고 잔액에만, 월렛은 통장으로 온 돈만 돈 흐름(가짜 값)',()=>{
+  const T='토스뱅크(정산 통장)',K='카카오뱅크(사업자 통장)',H='쿠팡 셀러 통장(하나은행)',W='쿠팡 정산';
+  const rows=[e({id:'t1',kind:'in',category:'매출',amount:100,method:'토스이체'}),
+    e({id:'mv1',kind:'move',amount:60,method:'토스이체',account:T,from:T,to:K}),e({id:'mv2',kind:'move',amount:60,method:'카뱅이체',account:K,from:T,to:K}),
+    e({id:'c1',category:'소모품',amount:30,method:'카뱅체크'}),
+    e({id:'w1',kind:'in',category:'매출',amount:1000,method:'쿠팡 정산',account:W}),e({id:'w2',category:'광고비',amount:700,method:F.OFFSET_METHOD,account:W,evidence:'없음'}),
+    e({id:'w3',kind:'move',amount:300,method:'쿠팡 정산',account:W,from:W,to:H}),e({id:'h1',kind:'move',amount:300,method:'쿠팡 정산',account:H,from:W,to:H})];
+  rows.forEach(r=>F.validateEntry(r));assert.equal(rows[1].category,F.MOVE_CATEGORY);assert.deepEqual(F.checkReasons(rows[1]),[]);
+  const m=F.summarize(book(rows),'month',NOW);
+  assert.equal(m.sales,1100);assert.equal(m.spend,730);                    // 이동은 손익에 없음
+  assert.equal(m.cashFlow,100+300-30);assert.equal(m.walletNet,0);          // 월렛 안 매출 · 차감은 빼고 통장으로 온 300만
+  assert.equal(m.sales-m.spend+m.otherIn-m.walletNet-m.ownerOut,m.cashFlow);assert.equal(F.flowNote(m),'매출 − 지출');
+  const bal=Object.fromEntries(F.accountTotals(book(rows)).map(a=>[a.account,a.balance]));
+  assert.equal(bal[T],40);assert.equal(bal[K],30);assert.equal(bal[W],0);assert.equal(bal[H],300);assert.equal(bal['카카오뱅크 체크카드'],null);   // 체크카드는 연결 통장에서 빠짐
+  const chk=F.accountCheck(book(rows),{account:K,from:'2026-10-01',at:'2026-10-19 23:59',balance:30});assert(chk.ok);
+  assert.equal(F.accountCheck(book(rows),{account:K,from:'2026-10-01',at:'2026-10-19 23:59',balance:50}).diff,20);
+});
+test('사장님 인출 · 자금 충전 · 외주 매출 · 확인할 것: 인출은 지출 아님(돈 흐름엔 나감) · 사장님 돈 표',()=>{
+  const rows=[e({id:'o1',category:F.OWNER_OUT,amount:1000,method:'토스이체'}),e({id:'i1',kind:'in',category:F.OWNER_IN,amount:400,method:'카뱅이체'}),
+    e({id:'i2',kind:'in',category:F.OWNER_IN,amount:200,method:'카뱅이체',date:'2026-09-10'}),e({id:'x1',kind:'in',category:'매출',amount:5000,method:'토스이체',tag:'외주 매출'}),
+    e({id:'q1',category:'수수료',amount:10,method:'하나이체',check:'받는 통장 확인'})];
+  const m=F.summarize(book(rows),'month',NOW);
+  assert.equal(m.spend,10);assert.equal(m.ownerOut,1000);assert.equal(m.outsideSales,5000);assert.equal(m.ownerIn,400);
+  assert.equal(m.cashFlow,5000+400-1000-10);assert(F.flowNote(m).includes('사장님 인출 1,000원(지출 아님)'));
+  assert(!m.byCategory.some(r=>r.category===F.OWNER_OUT));
+  assert.deepEqual(F.checkReasons(rows[4]),['확인']);assert.equal(m.needs,1);
+  const om=F.ownerMoney(book(rows));
+  assert.deepEqual(om.months.map(x=>[x.month,x.in,x.out,x.diff,x.outside]),[['2026-09',200,0,200,0],['2026-10',400,1000,-600,5000]]);
+  assert.deepEqual(om.total,{in:600,out:1000,outside:5000,diff:-400});
+});
 test('식비 · 식비(본인): 분류 목록에 있음 · 지출에 넣고 본인 식사는 따로 셈 · 현대카드 알림은 규칙 없으면 확인 필요',()=>{
   assert(F.OUT_CATEGORIES.includes('식비')&&F.OUT_CATEGORIES.includes(F.OWNER_MEAL));
   assert.equal(F.OUT_CATEGORIES.indexOf(F.OWNER_MEAL),F.OUT_CATEGORIES.indexOf('식비')+1);   // 버튼이 나란히

@@ -25,3 +25,4 @@ body[data-page=quick]{--fg:#174d3c;--fg2:#2f6b55;--fline:#e6dfd0;--fink:#1f2a25;
 .q-stat small{display:block;font-size:11.5px;color:var(--sub);line-height:1.3}
 .q-stat.minus strong{color:var(--red)}
 @media (min-width:700px){.q-sum{grid-template-columns:repeat(4,1fr)}}
+.q-accts summary{cursor:pointer;list-style:none}.q-accts summary::-webkit-details-marker{display:none}.q-accts summary h2{display:inline-block;margin:0}.q-accts summary h2::after{content:' ▾';color:#6b7a72;font-size:13px}.q-accts[open] summary h2::after{content:' ▴'}.q-accts .acct-grid{margin-top:10px}   /* 계좌별(총괄 #15) */

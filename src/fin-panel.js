@@ -2,9 +2,12 @@
 // ERP 화면은 이 PC 저장(localStorage)으로 그려지고 자주 다시 그려지므로, 패널 자리(#fin-hub-panel)가 새로 생길 때마다 다시 붙인다(장부 연결은 하나로 유지).
 import { onAuth, signIn } from './fbauth.js';
 import { openFinStore } from './fin-hub.js';
-import { mountEntryForm, renderLists, bindListActions, rememberNeeds, coupangCalendar, esc, won } from './fin-form.js';
+import { mountEntryForm, renderLists, bindListActions, rememberNeeds, coupangCalendar, ledgerFilter, esc, won } from './fin-form.js';
 
 let store = null, book = { entries: {}, sales: {}, meta: {} }, signedIn = false, host = null, loaded = false, jumped = false;
+// 장부 거르기(계좌 · 수단) — 계좌별 화면의 '이 계좌 줄 보기'는 ?account= 로 온다
+const filter = (() => { try { const q = new URLSearchParams(location.search); return { account: q.get('account') || '', method: q.get('method') || '' }; } catch { return { account: '', method: '' }; } })();
+let ledgerCount = filter.account || filter.method ? 20 : 8;
 
 const SHELL = `<div class="panelhead"><h2>이번 달 장부 · 수기 입력</h2><span class="section-en">공용 장부 · 폰과 같은 칸</span></div>
 <div class="panelbody">
@@ -15,7 +18,7 @@ const SHELL = `<div class="panelhead"><h2>이번 달 장부 · 수기 입력</h2
     <div><form class="fin-form" autocomplete="off"></form></div>
     <div>
       <div class="fin-needs-box" id="fin-needs" hidden><h3>확인 필요 <b>0</b>건 <small>— 분류 · 결제 수단만 고르면 저장돼요</small></h3><div class="f-needs-rows"></div></div>
-      <h3 class="fin-recent-h">최근 기록</h3><div class="fin-recent"></div><p class="q-msg fin-list-msg" role="alert"></p>
+      <h3 class="fin-recent-h" id="fin-ledger">장부 <small>모든 돈 · 계좌 · 수단으로 거르기</small></h3><div class="fin-filter-box"></div><div class="fin-recent"></div><p class="q-msg fin-list-msg" role="alert"></p>
       <a class="inline-link" href="quick.html">폰 화면으로 열기 <span aria-hidden="true">↗</span></a>
     </div>
   </div>
@@ -37,7 +40,8 @@ function moneyCard(s) {
 function drawSummary(needs) {
   const el = host.querySelector('.fin-sum');
   const s = window.FinCore.summarize(book, 'month');
-  el.innerHTML = metric('이번 달 매출', s.sales, s.salesConnected ? '채널 매출 + 수기 입력' : '채널 매출 연결 전 · 수기 입력만') +
+  el.innerHTML = metric('이번 달 매출', s.sales, (s.salesConnected ? '채널 매출 + 수기 입력' : '채널 매출 연결 전 · 수기 입력만')
+      + (s.outsideSales ? ` · 외주 매출 ${won(s.outsideSales)}원 포함(상품 매출과 따로 · 세무 확인)` : '')) +
     metric('이번 달 지출', s.spend, (s.byCategory.slice(0, 3).map(r => r.category).join(' · ') || '기록 없음')
       + (s.ownerMeal ? ` · 식비(본인) ${won(s.ownerMeal)}원 포함 — 신고 때 세무 확인` : '')) +   // 대표 본인 식사는 경비 인정이 안 될 수 있어 따로 보인다
     moneyCard(s) +
@@ -45,7 +49,9 @@ function drawSummary(needs) {
 }
 function draw() {
   if (!host) return;
-  const n = renderLists({ book, needsRoot: host.querySelector('.fin-needs-box'), recentRoot: host.querySelector('.fin-recent'), recentCount: 6 });
+  const fb = host.querySelector('.fin-filter-box');
+  if (!fb.firstChild) fb.innerHTML = ledgerFilter(filter);
+  const n = renderLists({ book, needsRoot: host.querySelector('.fin-needs-box'), recentRoot: host.querySelector('.fin-recent'), recentCount: ledgerCount, filter });
   host.querySelector('.fin-needs-box h3 b').textContent = n;
   drawSummary(n);
   host.querySelector('.fin-settle').innerHTML = coupangCalendar(book.meta, book.entries);   // 쿠팡 돈 달력(주차표가 없으면 한 줄 칸)
@@ -53,6 +59,7 @@ function draw() {
   rememberNeeds(n);
   // 홈 '챙길 일'에서 finance.html#fin-needs로 왔으면, 장부를 읽은 뒤 그 줄로 한 번 내려간다
   if (!jumped && location.hash === '#fin-needs' && n) { jumped = true; host.querySelector('#fin-needs')?.scrollIntoView({ block: 'center' }); }
+  if (!jumped && location.hash === '#fin-ledger') { jumped = true; host.querySelector('#fin-ledger')?.scrollIntoView({ block: 'start' }); }
 }
 function showState() {
   if (!host) return;
@@ -72,7 +79,8 @@ function mount(el) {
   host = el; el.dataset.mounted = '1'; el.classList.add('fin-scope', 'fin-panel');
   el.innerHTML = SHELL;
   mountEntryForm(el.querySelector('.fin-form'), { store: () => store, book: () => book, source: 'manual' });
-  bindListActions(el, { store: () => store, book: () => book, onError: m => { el.querySelector('.fin-list-msg').textContent = m; }, onRedraw: draw });
+  bindListActions(el, { store: () => store, book: () => book, onError: m => { el.querySelector('.fin-list-msg').textContent = m; }, onRedraw: draw, onMore: () => { ledgerCount += 20; draw(); } });
+  el.addEventListener('change', ev => { const k = ev.target.dataset?.ledger; if (!k) return; filter[k] = ev.target.value; ledgerCount = filter.account || filter.method ? 20 : 8; draw(); });
   el.querySelector('.fin-signin').addEventListener('click', async () => { try { await signIn(); } catch (err) { el.querySelector('.fin-login-msg').textContent = err.message; } });
   showState(); draw();
 }
@@ -81,5 +89,13 @@ function scan() { const el = document.getElementById('fin-hub-panel'); if (el &&
 onAuth(user => { signedIn = !!user; showState(); if (signedIn || window.__MMT_TEST_FIN__) ensureStore(); });
 // 옛 장부 접힘 칸: ERP가 화면을 다시 그려도 연 상태를 유지(이 탭 동안만)
 document.addEventListener('toggle', e => { if (e.target.classList?.contains('legacy-ledger')) { try { sessionStorage.setItem('mmt-fin-legacy-open', e.target.open ? '1' : '0'); } catch { /* 저장소 없음 */ } } }, true);
+// '옛 기록' 탭(finance.html#legacy)을 같은 화면에서 누르면 주소 뒤만 바뀌어 다시 그려지지 않는다 → 접힌 칸을 직접 열고 그 자리로
+function openLegacy() {
+  if (!/^#legacy/.test(location.hash)) return;
+  const d = document.getElementById('legacy');
+  if (d && !d.open) d.open = true;
+  document.getElementById(location.hash.slice(1))?.scrollIntoView({ block: 'start' });
+}
+window.addEventListener('hashchange', openLegacy);
 new MutationObserver(scan).observe(document.getElementById('root'), { childList: true, subtree: true });
 scan();

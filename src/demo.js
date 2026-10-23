@@ -45,13 +45,35 @@
     wk(4, 41000, 45000, 18000, 4800), wk(7, 120000, 30000, 30000, 10000, true, true)];
   rows.push(row('demo8', { kind: 'in', date: weeks[4].pay70.date, amount: weeks[4].pay70.amount, method: '토스이체', category: '기타 수입',
     vendor: '시연 · 쿠팡 정산 입금', memo: '시연용 가짜 줄 · 토스 입금 알림', source: 'alert' }));
+  // 지난달 가짜 줄(계좌별 · 내 계좌 이동 · 쿠팡 정산 · 사장님 돈 · 외주 매출 · 확인할 것 — 총괄 #15 ~ #17). 이번 달 요약 숫자는 그대로 둔다.
+  var pd = new Date(Date.UTC(kd.getUTCFullYear(), kd.getUTCMonth(), 0)), pm = iso(pd).slice(0, 7);
+  var pday = function (n) { return pm + '-' + String(n).padStart(2, '0'); };
+  var T = '토스뱅크(정산 통장)', K = '카카오뱅크(사업자 통장)', H = '쿠팡 셀러 통장(하나은행)', W = '쿠팡 정산';
+  rows.push(
+    row('demo20', { kind: 'in', date: pday(5), amount: 40000, method: '쿠팡 정산', account: W, category: '매출', vendor: '시연 · 쿠팡 정산(정산 대상)', source: 'import' }),
+    row('demo21', { date: pday(5), amount: 30000, method: '쿠팡 정산 차감', account: W, category: '광고비', vendor: '시연 · 쿠팡 광고(상계)', source: 'import' }),
+    row('demo22', { kind: 'move', date: pday(6), amount: 10000, method: '쿠팡 정산', account: W, from: W, to: H, vendor: '시연 · 쿠팡 지급', source: 'import' }),
+    row('demo23', { kind: 'move', date: pday(6), amount: 10000, method: '쿠팡 정산', account: H, from: W, to: H, vendor: '시연 · 쿠팡페이', source: 'import' }),
+    row('demo24', { kind: 'move', date: pday(10), amount: 20000, method: '토스이체', account: T, from: T, to: K, vendor: '시연 · 내 계좌', source: 'import' }),
+    row('demo25', { kind: 'move', date: pday(10), amount: 20000, method: '카뱅이체', account: K, from: T, to: K, vendor: '시연 · 내 계좌', source: 'import' }),
+    row('demo26', { kind: 'in', date: pday(12), amount: 50000, method: '카뱅이체', category: '자금 충전', vendor: '시연 · 사장님', source: 'import' }),
+    row('demo27', { date: pday(15), amount: 30000, method: '토스이체', category: '사장님 인출', vendor: '시연 · 사장님 개인 통장', source: 'import' }),
+    row('demo28', { kind: 'in', date: pday(20), amount: 100000, method: '토스이체', category: '매출', tag: '외주 매출', vendor: '시연 · 외주', evidence: '세금계산서', source: 'import' }),
+    row('demo29', { date: pday(21), amount: 8000, method: '카뱅체크', category: '소모품', vendor: '시연 · 문구', evidence: '카드', source: 'import' }),
+    row('demo30', { date: pday(22), amount: 4400, method: '하나이체', category: '수수료', vendor: '시연 · 발급 수수료', check: '시연 · 무슨 발급인지 확인', source: 'import' })
+  );
+  var accountChecks = {
+    toss: { account: T, from: pday(1), at: pday(28) + ' 23:59', balance: 50000, note: '' },
+    kakao: { account: K, from: pday(1), at: pday(28) + ' 23:59', balance: 63000, note: '시연 — 통장 내역 시작 전 잔액이 장부에 없음' },
+    coupang: { account: W, from: pday(1), at: pday(28) + ' 23:59', balance: 0, note: '' }
+  };
   var entries = {};
   rows.forEach(function (r) { entries[r.id] = r; });
   // 쿠팡 정산 예정 칸(가짜 값) — 이번 주 비용이 매출보다 커서 0원인 모습
   var settle = { nextDate: ym + '-' + String(Math.min(28, today + 3)).padStart(2, '0'), nextAmount: 0, period: '시연용 7일', revenue: 50000, cost: 62000, profit: -12000,
     ads: 30000, fulfillment: 26000, fee: 6000, readAt: '시연 자료', source: '시연' };
   var cal = { next: weeks[1].pay70, weeks: weeks, readAt: '시연 자료', source: '시연(가짜 주차)' };
-  window.__MMT_TEST_FIN__ = { entries: entries, sales: {}, meta: { rules: [], coupangSettle: settle, coupangCal: cal } };
+  window.__MMT_TEST_FIN__ = { entries: entries, sales: {}, meta: { rules: [], coupangSettle: settle, coupangCal: cal, accountChecks: accountChecks } };
 
   var mem = {};
   window.__MMT_DEMO_STORAGE__ = {

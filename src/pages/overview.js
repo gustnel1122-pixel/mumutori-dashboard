@@ -22,7 +22,7 @@ export default function overview(ctx){
   const counts=products.filter(p=>!C.stock(data,p.id,state.warehouse).known).length;
   const inbound=C.active(C.purchases(data)).filter(p=>C.sum(p.lines,'qty')>C.sum(p.lines,l=>C.moved(data,'purchase',p.orderNo,l.sku))).length;
   const date=new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',month:'long',day:'numeric',weekday:'long'}).format(new Date());
-  const tasks=[['bank','pending','재무 · 통장','분류를 기다리는 거래',s.pending,'건','blue'],['sales','unlinked','판매팀','통장 입금과 안 맞춘 매출',s.unlinked,'건','pink'],['stock','uncounted','물류팀','첫 실사가 필요한 상품',counts,'개','green'],['purchases','unreceived','구매팀','입고 기록을 확인할 매입',inbound,'건','purple']];
+  const tasks=[['finance','pending','재무 · 옛 기록(이 PC)','분류를 기다리는 옛 통장 거래',s.pending,'건','blue'],['sales','unlinked','판매팀','통장 입금과 안 맞춘 매출',s.unlinked,'건','pink'],['stock','uncounted','물류팀','첫 실사가 필요한 상품',counts,'개','green'],['purchases','unreceived','구매팀','입고 기록을 확인할 매입',inbound,'건','purple']];
   const fin=finHint();
   // 챙길 일 첫 줄: 재무 확인 필요 N건(모르면 숫자 대신 '재무에서 보기' — 틀린 숫자보다 빈칸)
   // 로그인돼 있으면 home-fin.js가 공용 장부로 이 줄과 '이번 달'을 바로 바꿔 넣는다(id 자리)

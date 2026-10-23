@@ -11,7 +11,8 @@
     <div id="q-settle" class="fin-scope"></div>
     <section class="q-card"><h2>수기 입력</h2><form id="q-form" class="fin-form" autocomplete="off"></form></section>
     <section id="q-needs-list" class="q-card" hidden><h2>확인 필요 <small>분류 · 결제 수단만 고르면 저장돼요</small></h2><div class="f-needs-rows"></div></section>
-    <section class="q-card"><h2>최근 기록</h2><div id="q-recent"></div><p id="q-list-msg" class="q-msg" role="alert"></p></section>
+    <section class="q-card"><h2>장부 <small>최근 기록</small></h2><div id="q-recent"></div><p id="q-list-msg" class="q-msg" role="alert"></p></section>
+    <details class="q-card q-accts fin-scope" id="q-accounts"><summary><h2>계좌별 <small>잔액 · 파일 잔액 대조 · 사장님 돈</small></h2></summary><div id="q-accounts-body"></div><a class="q-link" href="bank.html">PC 계좌별 화면 ↗</a></details>
   </section>
 </main>
 <script src="assets/vendor/firebase/firebase-app-compat.js"></script><script src="assets/vendor/firebase/firebase-auth-compat.js"></script><script src="src/demo.js?v={{VERSION}}"></script><script src="src/fin-core.js?v={{VERSION}}"></script><script type="module" src="src/quick.js?v={{VERSION}}"></script>
