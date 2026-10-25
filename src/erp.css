@@ -165,3 +165,14 @@ a{color:inherit;text-decoration:none}button,a,input,select,textarea{-webkit-tap-
 /* 홈 이번 달: 로그인 전 '구글로 로그인' 버튼(home-fin.js) */
 #home-signin{margin-top:10px}
 .home-signin-msg{font-size:12px;color:#b4432e;margin:6px 0 0}
+/* 캐릭터 화면 '세계관 · 공통 프롬프트'(총괄 #25 · 정본 v1) · 캐릭터마다 그림 프롬프트 복사 */
+.cb-world{margin:0 0 14px;border:1px solid #d8c9a6;background:#fffaf0;border-radius:12px;font-size:13px;line-height:1.7;color:#3b4a40}
+.cb-world>summary{cursor:pointer;padding:13px 18px;color:#6a3906;list-style-position:inside}.cb-world>summary b{font-size:15px}.cb-world>summary small{font-weight:400;color:var(--muted);margin-left:8px}
+.cb-world-body{padding:4px 18px 16px;border-top:1px solid #efe3c4}.cb-world-one{font-size:14px;font-weight:600;color:#4a3420;margin:12px 0}
+.cb-world-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px 22px}.cb-world-grid h3{font-size:14px;margin:10px 0 6px;color:var(--green)}.cb-world-grid ul{margin:0;padding-left:18px}.cb-world-grid p{margin:0}
+.cb-world-org{margin:0;display:grid;gap:2px}.cb-world-org>div{display:grid;grid-template-columns:120px minmax(0,1fr);gap:8px}.cb-world-org dt{font-weight:600}.cb-world-org dd{margin:0;color:#52625a}
+.cb-world-check li::marker{content:'☐ '}.cb-world-how{font-size:12.5px;color:#6a5330;background:#fcf5e9;border-radius:8px;padding:8px 12px;margin:10px 0 6px}
+.cb-world pre{white-space:pre-wrap;word-break:break-word;max-height:260px;overflow:auto}
+.cb-promptbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:space-between;margin:0 0 12px;padding:10px 14px;border:1px dashed #d8c9a6;border-radius:10px;background:#fffdf7}
+.cb-promptbar b{display:block;font-size:13.5px;color:#6a3906}.cb-promptbar span{font-size:12.5px;color:#6b7a72}.cb-promptbar>div{flex:1 1 260px;min-width:0}
+@media (max-width:640px){.cb-world-org>div{grid-template-columns:96px minmax(0,1fr)}.cb-promptbar button{width:100%}}

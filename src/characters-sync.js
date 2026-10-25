@@ -3,6 +3,11 @@
 // 누구나 읽고 쓸 수 있는 자리이므로 원가·개인정보·비공개 주소는 넣지 않는다(화면이 받는 칸은 characters-core 의 정해진 칸뿐).
 // 쓰기는 '고친 칸'만 보낸다(여러 칸을 한 번에 PATCH) — 두 사람이 서로 다른 칸을 고쳐도 덮어쓰지 않는다.
 export const BOARD_URL='https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.app/sourcing/meta/characterBoard';
+// 세계관 · 공통 프롬프트(총괄이 정본과 함께 쓰는 옆 칸 characterWorld) — 이 화면은 읽기만 한다(GET 한 번). 못 읽으면 null → 그 칸만 숨긴다.
+export const WORLD_URL=BOARD_URL.replace(/characterBoard$/,'characterWorld');
+export async function readWorld(){
+  try{const r=await fetch(WORLD_URL+'.json',{cache:'no-store'});if(!r.ok)return null;const w=await r.json();return w&&typeof w==='object'&&!Array.isArray(w)?w:null;}catch(e){return null;}
+}
 
 export function setIn(tree,path,value){
   const keys=String(path).split('/').filter(Boolean);

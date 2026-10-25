@@ -15,7 +15,9 @@ const fs=require('fs'),path=require('path'),assert=require('node:assert/strict')
 const ROOT=path.resolve(__dirname,'..');
 const ORIGIN='https://mumutori.test/mumutori-dashboard/';
 const KEY='mumutori-character-board-v1',MOVED=KEY+'-moved',ERP_KEY='mumutori-private-finance-v3';
-const DB_HOST='https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.app',DB=DB_HOST+'/sourcing/meta/characterBoard';
+const DB_HOST='https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.app',DB=DB_HOST+'/sourcing/meta/characterBoard',WORLD=DB.replace(/characterBoard$/,'characterWorld');
+// 가짜 세계관 칸(총괄이 쓰는 옆 칸 — 화면은 읽기만). world.off=true 면 못 읽는 경우(404)를 흉내 낸다.
+const world={off:false,reads:0,data:{version:'v1',oneLine:'시험용 한 줄 세계관',rules:['규칙 하나','규칙 둘'],org:{dotori:'대표 · 시험 직무',rice:'매장지기'},voiceRule:'시험 말투 규칙',promptCommon:'[TEST COMMON STYLE]\nFlat 2D test style.',promptAvoid:'[AVOID]\n3D render, test.',promptHowTo:'기준 시트 첨부 → 공통 + 피할 것 + 캐릭터 블록',checklist:['검수 하나','검수 둘'],updatedAt:'2026-10-25T13:00:00'}};
 // 가짜 '함께 보는 곳': Firebase REST 의 PUT · PATCH(여러 칸 한 번에) · 실시간 읽기(끊길 때마다 지금 내용을 다시 줌)를 흉내 낸다. null·빈 묶음은 저장되지 않는다.
 const remote={tree:null,writes:[],fail:false};
 const prune=v=>{if(v===null||v===undefined)return null;if(typeof v!=='object')return v;const out=Array.isArray(v)?[]:{};let n=0;for(const [k,x] of Object.entries(v)){const y=prune(x);if(y!==null){out[k]=y;n++;}}return n?out:null;};
@@ -52,7 +54,7 @@ const walk=dir=>fs.readdirSync(dir,{withFileTypes:true}).flatMap(e=>e.isDirector
  const open=async(viewport={width:1360,height:900},init=null)=>{
   const context=await browser.newContext({viewport,acceptDownloads:true}),outside=[],errors=[];
   if(init)await context.addInitScript(init.fn,init.arg);
-  await context.route('**/*',route=>{const u=new URL(route.request().url());if(u.href.split('?')[0]===DB+'.json')return serveRemote(route);if(u.origin!=='https://mumutori.test'){outside.push(u.href.slice(0,80));return route.abort();}
+  await context.route('**/*',route=>{const u=new URL(route.request().url());if(u.href.split('?')[0]===DB+'.json')return serveRemote(route);if(u.href.split('?')[0]===WORLD+'.json'){world.reads++;if(route.request().method()!=='GET')return route.abort();return route.fulfill(world.off?{status:404,body:'null'}:{status:200,contentType:'application/json',body:JSON.stringify(world.data)});}if(u.origin!=='https://mumutori.test'){outside.push(u.href.slice(0,80));return route.abort();}
    const name=decodeURIComponent(u.pathname.replace('/mumutori-dashboard/',''))||'index.html',file=path.join(ROOT,name);return route.fulfill({status:fs.existsSync(file)?200:404,contentType:TYPES[path.extname(file)]||'text/plain',body:fs.existsSync(file)?fs.readFileSync(file):'missing'});});
   const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
   const go=async()=>{await page.goto(ORIGIN+'characters.html');await page.locator('#cb-root .cb-pick').first().waitFor();};
@@ -73,7 +75,7 @@ const walk=dir=>fs.readdirSync(dir,{withFileTypes:true}).flatMap(e=>e.isDirector
  assert.deepEqual(await page.locator('.cb-pick b').allTextContents(),['도토리','해바라기씨','병아리콩','호박씨','땅콩','작은 씨앗']);
  assert.deepEqual(await page.locator('.cb-pick small').allTextContents(),['주인공','씨앗 친구','씨앗 친구','씨앗 친구','씨앗 친구','씨앗 친구']);
  assert.equal(await page.locator('.cb-slot').count(),14);
- assert.deepEqual(await page.locator('.cb-group').evaluateAll(l=>l.map(e=>e.firstChild.textContent.trim())),['기준 시트','표정 6종','대표 포즈 3종','3D 투명 PNG(웹용)']);
+ assert.deepEqual(await page.locator('.cb-group').evaluateAll(l=>l.map(e=>e.firstChild.textContent.trim())),['기준 시트','표정 6종','대표 포즈 3종','투명 PNG(웹용)']);
  assert.deepEqual(await page.locator('.cb-slot[data-slot^="sheet"] .cb-slothead b').allTextContents(),['정면','비스듬히(3/4)','옆','뒤']);
  assert.deepEqual(await page.locator('[data-cb-status="sheet-front"] option').allTextContents(),['할 일','작업 중','확정']);
  assert.equal(await saved(),null,'열어 보기만 해서는 저장하지 않는다');assert.equal(remote.writes.length,0,'열어 보기만 해서는 아무것도 보내지 않는다');assert.equal(await page.evaluate(k=>localStorage.getItem(k),KEY),null);
@@ -84,7 +86,7 @@ const walk=dir=>fs.readdirSync(dir,{withFileTypes:true}).flatMap(e=>e.isDirector
  await page.locator('.cb-ref img').first().scrollIntoViewIfNeeded();
  assert.equal(await page.locator('.cb-ref img').count(),6);assert(await page.locator('.cb-ref img').evaluateAll(l=>l.every(i=>i.complete&&i.naturalWidth>0)),'참고 그림 6장이 보인다');
  const refNote=await page.locator('.cb-refs').locator('xpath=preceding-sibling::div[1]').textContent();
- assert(/스타일이 서로 다릅니다/.test(refNote)&&/확정하는 분이 정합니다/.test(refNote),'참고 그림의 스타일 안내');
+ assert(/2D 손그림으로 정해졌습니다/.test(refNote)&&/예전 참고 그림/.test(refNote),'참고 그림의 스타일 안내(10/25 정본 v1: 2D 손그림, 아래 두 그림은 예전 것)');
  assert(await page.locator('[data-cb="export"]').isDisabled(),'확정된 캐릭터가 없으면 내보내기를 누를 수 없다');
  console.log('PASS 2 처음 화면: 캐릭터 6명 · 그림 14칸 · 참고 그림 6장과 스타일 안내 · 저장 없음');
 
@@ -259,10 +261,10 @@ const walk=dir=>fs.readdirSync(dir,{withFileTypes:true}).flatMap(e=>e.isDirector
  assert.equal(labels.length,12);assert.deepEqual(await g.locator('.cb-help-fields dt').allTextContents(),labels,'가이드의 칸 이름 = 화면의 프로필 칸 이름(순서까지)');
  assert(await g.locator('.cb-help-fields dd').evaluateAll(l=>l.length===12&&l.every(e=>e.textContent.trim().length>1)),'칸마다 예시가 하나씩');assert(/지어낸 예시/.test(await g.locator('#cb-help-fields').innerText()));
  const ai=await g.locator('#cb-help-ai').innerText();
- for(const must of ['투명','입체 3D 오브젝트','#EFE9E4','#FDE9BE','#6A3906','한 번에 3장까지만','기준 시트를 먼저','첨부','캐릭터이름_칸이름_v번호.png','무무토리 > 캐릭터 > 작업중','무무토리 > 캐릭터 > 확정','.png','바둑판무늬'])assert(ai.includes(must),'AI 쓰는 법에 있어야 함: '+must);
+ for(const must of ['투명','2D 손그림','#F5EBDD','#F3DDA0','#985028','한 번에 3장까지만','기준 시트를 먼저','첨부','캐릭터이름_칸이름_v번호.png','무무토리 > 캐릭터 > 작업중','무무토리 > 캐릭터 > 확정','.png','바둑판무늬'])assert(ai.includes(must),'AI 쓰는 법에 있어야 함: '+must);
  const prompts=await g.locator('.cb-help-prompt pre').allTextContents();assert.equal(prompts.length,3);
  assert(/\[캐릭터 이름\]/.test(prompts[0])&&/다듬어/.test(prompts[0])&&/지어내지 말 것/.test(prompts[0]),'프로필 다듬기 요청 글');
- assert(/정면 · 옆 · 뒤/.test(prompts[1])&&/모두 3장/.test(prompts[1])&&/완전히 투명/.test(prompts[1])&&/3D 오브젝트/.test(prompts[1])&&/#EFE9E4/.test(prompts[1])&&/닮지 않은/.test(prompts[1]),'기준 시트 요청 글');
+ assert(/정면 · 옆 · 뒤/.test(prompts[1])&&/모두 3장/.test(prompts[1])&&/완전히 투명/.test(prompts[1])&&/2D 손그림/.test(prompts[1])&&!/3D 오브젝트/.test(prompts[1])&&/#F5EBDD/.test(prompts[1])&&/닮지 않은/.test(prompts[1]),'기준 시트 요청 글');
  assert(/첨부한 그림과 똑같은 캐릭터/.test(prompts[2])&&/모두 3장/.test(prompts[2])&&/완전히 투명/.test(prompts[2]),'이어서 요청하는 글');
  await G.page.evaluate(()=>{window.__copied=[];navigator.clipboard.writeText=async t=>{window.__copied.push(t);};});
  await g.locator('[data-cb-copy="cb-prompt-sheet"]').click();await G.page.waitForFunction(()=>window.__copied.length===1);
@@ -287,5 +289,31 @@ const walk=dir=>fs.readdirSync(dir,{withFileTypes:true}).flatMap(e=>e.isDirector
  assert(await GM.page.locator('#cb-help .cb-help-fields > div').first().evaluate(e=>getComputedStyle(e).gridTemplateColumns.split(' ').length===1),'좁은 화면에서는 칸 이름 아래에 예시가 온다');
  assert.equal(GM.errors.length,0);await GM.context.close();
  console.log('PASS 12 처음이면 읽기: 순서 6단계 · 칸별 예시 12개(실제 칸 이름) · AI 요청 글 3개와 복사 · 저장 규칙 · 하지 말 것 4가지 · 막히면 · 접기 기억 · 모바일');
+ // 13) 세계관 · 공통 프롬프트(총괄 #25): 맨 위 접는 칸 · 한 줄 · 규칙 · 직무 · 말투 · 검수표 · 공통 글 복사 · 캐릭터마다 블록 복사 · 못 읽으면 그 칸만 숨김
+ const W=await open();await W.go();const wp=W.page.locator('#cb-world');await wp.waitFor();
+ assert(await W.page.evaluate(()=>{const w=document.getElementById('cb-world'),t=document.querySelector('.cb-top');return !!(w.compareDocumentPosition(t)&Node.DOCUMENT_POSITION_FOLLOWING);}),'세계관 칸은 캐릭터 화면 맨 위(저장 줄보다 위)');
+ assert.equal(await wp.evaluate(e=>e.open),false,'처음에는 접혀 있다');await wp.locator('summary').click();
+ const wt=await wp.innerText();for(const must of ['시험용 한 줄 세계관','규칙 하나','규칙 둘','대표 · 시험 직무','매장지기','시험 말투 규칙','검수 하나','[TEST COMMON STYLE]','[AVOID]'])assert(wt.includes(must),'세계관 칸에 있어야 함: '+must);
+ const dotoriName=(boardOf(remote.tree)?.characters.find(c=>c.id==='dotori')?.name)||'도토리';   // 앞 시험(11)에서 바뀐 이름일 수 있다
+ assert.deepEqual(await wp.locator('.cb-world-org dt').allTextContents(),[dotoriName,'쌀'],'직무표 이름은 캐릭터 이름으로(보드에 있으면 그 이름, 없으면 정해 둔 이름)');
+ await W.page.evaluate(()=>{window.__copied=[];navigator.clipboard.writeText=async t=>{window.__copied.push(t);};});
+ await wp.locator('[data-cb="copy-world"]').click();await W.page.waitForFunction(()=>window.__copied.length===1);
+ assert.equal(await W.page.evaluate(()=>window.__copied[0]),'[TEST COMMON STYLE]\nFlat 2D test style.\n\n[AVOID]\n3D render, test.','공통 글 복사 = 공통 그림체 + 피할 것');
+ // 캐릭터 블록: 메모 칸 끝의 [CHARACTER …] — 없으면 단추가 꺼져 있고, 적으면 공통 글과 함께 복사
+ assert.equal(await W.page.locator('[data-cb="copy-char"]').isDisabled(),true,'메모에 블록이 없으면 꺼짐');
+ await W.page.locator('[data-cb-field="memo"]').fill('한국어 메모\n\n[CHARACTER 9 — TEST (test)]\nA test seed.');await W.page.locator('h1').click();await W.page.waitForTimeout(80);
+ await W.page.waitForFunction(()=>!document.querySelector('[data-cb="copy-char"]').disabled);
+ await W.page.locator('[data-cb="copy-char"]').click();await W.page.waitForFunction(()=>window.__copied.length===2);
+ assert.equal(await W.page.evaluate(()=>window.__copied[1]),'[TEST COMMON STYLE]\nFlat 2D test style.\n\n[AVOID]\n3D render, test.\n\n[CHARACTER 9 — TEST (test)]\nA test seed.','캐릭터 프롬프트 = 공통 + 피할 것 + 그 캐릭터 블록(한국어 메모는 빼고)');
+ assert(/그림 프롬프트를 복사했습니다/.test(await W.page.locator('#cb-msg').textContent()));
+ assert.equal(await wp.evaluate(e=>e.open),true,'저장으로 화면이 다시 그려져도 펼친 채로');
+ assert(world.reads>=1);assert(!remote.writes.some(w=>w.keys.some(k=>/World/.test(k))),'세계관 칸에는 쓰지 않는다');
+ assert.equal(W.errors.length,0,W.errors.join(' | '));assert.equal(W.outside.length,0);await W.context.close();
+ world.off=true;const W2=await open();await W2.go();await W2.page.waitForTimeout(300);
+ assert.equal(await W2.page.locator('#cb-world').count(),0,'못 읽으면 세계관 칸만 숨긴다');assert.equal(await W2.page.locator('.cb-pick').count()>0,true,'나머지 화면은 그대로');
+ assert.equal(W2.errors.length,0,W2.errors.join(' | '));await W2.context.close();world.off=false;
+ const WM=await open({width:390,height:844});await WM.go();await WM.page.locator('#cb-world summary').click();
+ assert(!await WM.page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),'모바일 폭에서 세계관 칸이 넘치지 않는다');await WM.context.close();
+ console.log('PASS 13 세계관 · 공통 프롬프트: 맨 위 접는 칸 · 내용 · 공통 글 복사 · 캐릭터 블록 복사 · 세계관 칸에 쓰지 않음 · 못 읽으면 숨김 · 모바일');
  await browser.close();
 })().catch(e=>{console.error(e);process.exit(1);});

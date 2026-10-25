@@ -6,13 +6,13 @@
 const B=document.body.dataset.build;
 const K=await import(`../characters-core.js?v=${B}`);
 const {STORAGE_KEY,MOVED_KEY,STATUS,GROUPS,SLOTS}=K;
-const {openStore}=await import(`../characters-sync.js?v=${B}`);
+const {openStore,readWorld}=await import(`../characters-sync.js?v=${B}`);
 const GUIDE=await import(`../characters-guide.js?v=${B}`);   // '처음이면 읽기' 가이드(화면 글만)
 const REFS=[['dotori','도토리'],['sunflower','해바라기씨'],['chickpea','병아리콩'],['peanut','땅콩'],['seed','작은 씨앗']];
 const FIELDS=[['name','이름','예: 도토리',30],['role','역할','예: 주인공, 씨앗 친구',40]];
 const LONG=[['voice','말투 · 대사 예시','이 캐릭터가 할 법한 말을 두세 줄 적어 주세요',600],['likes','좋아하는 것','',200],['dislikes','싫어하는 것','',200],['relations','세계관 속 관계','다른 캐릭터와 어떤 사이인지',600],['memo','메모','더 적어 둘 것',1000]];
 const LOOK=[['colors','색 (HEX)','예: 몸 #F2C58B, 모자 #6A3906',200],['ratio','비율','예: 머리와 몸이 1:1, 팔다리는 짧게',120],['must','꼭 지킬 특징','빠지면 이 캐릭터가 아닌 것',400],['never','하면 안 되는 것','예: 눈썹 그리지 않기',400]];
-let ctx=null,started=false,board=null,sel='',by='',msg=null,saveTimer=0,store=null,ready=false,link='connecting',stale=false,legacy=null;
+let ctx=null,started=false,board=null,sel='',by='',msg=null,saveTimer=0,store=null,ready=false,link='connecting',stale=false,legacy=null,world=null,worldOpen=false;
 
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const now=()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;};
@@ -41,6 +41,49 @@ const swatches=text=>(String(text).match(/#[0-9A-Fa-f]{6}\b/g)||[]).slice(0,8).m
 function download(data,name){
   const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,1)],{type:'application/json'})),a=document.createElement('a');
   a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);
+}
+
+// ---- 세계관 · 고정 프롬프트(정본 v1 — 사장님 10/25 "명확한 프롬프트를 정해 놓고 대시보드랑 옵시디언에 고정"). 읽기만, 글은 모두 esc.
+const WORLD_NAMES={dotori:'도토리 무무토리',chickpea:'병아리콩',chestnut:'밤',peanut:'땅콩',peas:'완두콩 삼형제',sunflower:'해바라기씨',rice:'쌀'};
+const str=(v,max)=>typeof v==='string'?v.slice(0,max):'';
+const strs=(v,max,n)=>(Array.isArray(v)?v:[]).filter(x=>typeof x==='string').slice(0,n).map(x=>x.slice(0,max));
+function normWorld(w){
+  if(!w)return null;
+  const org=Object.fromEntries(Object.entries(w.org&&typeof w.org==='object'?w.org:{}).filter(([,v])=>typeof v==='string').slice(0,20).map(([k,v])=>[k.slice(0,30),v.slice(0,80)]));
+  const x={version:str(w.version,20),oneLine:str(w.oneLine,300),rules:strs(w.rules,200,20),org,voiceRule:str(w.voiceRule,400),promptCommon:str(w.promptCommon,3000),promptAvoid:str(w.promptAvoid,1500),promptHowTo:str(w.promptHowTo,400),checklist:strs(w.checklist,200,20),updatedAt:str(w.updatedAt,30)};
+  return x.oneLine||x.promptCommon||x.rules.length?x:null;
+}
+const commonPrompt=()=>[world?.promptCommon,world?.promptAvoid].filter(Boolean).join('\n\n');
+const charBlock=c=>{const m=String(c?.memo||''),i=m.indexOf('[CHARACTER');return i<0?'':m.slice(i).trim();};   // 메모 칸 끝의 영문 캐릭터 블록
+function worldPanel(){
+  if(!world)return '';
+  const w=world,li=a=>a.map(x=>`<li>${esc(x)}</li>`).join(''),nameOf=id=>board?.characters.find(c=>c.id===id)?.name||WORLD_NAMES[id]||id;
+  const ids=[...(board?.characters||[]).map(c=>c.id),...Object.keys(WORLD_NAMES)],rank=k=>{const i=ids.indexOf(k);return i<0?999:i;};   // 직무표는 캐릭터 목록 순서로(장부 칸 이름순이 아니라)
+  const org=Object.entries(w.org).sort((a,b)=>rank(a[0])-rank(b[0]));
+  return `<details class="cb-world" id="cb-world"${worldOpen?' open':''}><summary><b>세계관 · 공통 프롬프트</b><small>${esc(w.version||'')} · 그림을 만들 때 그대로 붙여 쓰는 고정 글 (누르면 펼칩니다)</small></summary><div class="cb-world-body">
+    ${w.oneLine?`<p class="cb-world-one">${esc(w.oneLine)}</p>`:''}
+    <div class="cb-world-grid">
+      ${w.rules.length?`<section><h3>세계 규칙</h3><ul>${li(w.rules)}</ul></section>`:''}
+      ${org.length?`<section><h3>씨앗 컴퍼니 직무</h3><dl class="cb-world-org">${org.map(([k,v])=>`<div><dt>${esc(nameOf(k))}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl></section>`:''}
+      ${w.voiceRule?`<section><h3>말투 규칙</h3><p>${esc(w.voiceRule)}</p></section>`:''}
+      ${w.checklist.length?`<section><h3>뽑은 그림 검수표</h3><ul class="cb-world-check">${li(w.checklist)}</ul></section>`:''}
+    </div>
+    ${commonPrompt()?`<div class="cb-help-prompt"><div class="cb-help-prompthead"><b>공통 그림체 + 피할 것 (영문 — 고치지 말고 그대로)</b><button type="button" data-cb="copy-world">복사</button></div><pre id="cb-world-prompt" tabindex="0">${esc(commonPrompt())}</pre></div>`:''}
+    ${w.promptHowTo?`<p class="cb-world-how"><b>쓰는 법</b> ${esc(w.promptHowTo)} — 캐릭터 블록은 캐릭터마다 <b>그림 프롬프트 복사</b>를 누르면 공통 글과 함께 복사됩니다.</p>`:''}
+    <p class="cb-small muted">이 칸은 읽기만 합니다. 고칠 일이 생기면 정본(캐릭터 바이블)과 함께 고칩니다${w.updatedAt?' · 마지막 고침 '+esc(w.updatedAt.slice(0,16).replace('T',' ')):''}.</p>
+  </div></details>`;
+}
+function promptBar(c){
+  const block=charBlock(c);
+  return `<div class="cb-promptbar"><div><b>그림 프롬프트</b><span>${block?`[공통 그림체] + [피할 것] + [${esc(c.name||'이 캐릭터')} 블록]을 한 번에 복사합니다. 기준 시트 그림을 함께 첨부하고, 장면 · 형식만 덧붙여 쓰세요.`:'메모 칸에 영문 캐릭터 블록([CHARACTER …])이 아직 없습니다.'}</span></div>
+    <button type="button" data-cb="copy-char" ${block?'':'disabled'}>그림 프롬프트 복사</button></div>`;
+}
+// 복사: 클립보드 → 안 되면 숨긴 글상자를 골라 복사. 결과는 알림 줄과 단추 글로 보인다.
+async function copyText(text,btn,done){
+  let ok=false;try{await navigator.clipboard.writeText(text);ok=true;}catch(e){}
+  if(!ok){const t=document.createElement('textarea');t.value=text;t.setAttribute('readonly','');t.style.cssText='position:fixed;left:-9999px;top:0';document.body.append(t);t.select();try{ok=document.execCommand('copy');}catch(e){}t.remove();}
+  say(ok?done:'복사가 막혔습니다. 글을 직접 골라 복사해 주세요.',!ok);
+  if(btn){const old=btn.textContent;btn.textContent=ok?'복사했습니다':'복사 안 됨';setTimeout(()=>{btn.textContent=old;},2200);}
 }
 
 // ---- 화면
@@ -92,12 +135,12 @@ function images(c){
   </div></section>`;
 }
 function detail(c){
-  return `<div class="cb-detail" data-character="${esc(c.id)}">${lockBar(c)}${profile(c)}${images(c)}
+  return `<div class="cb-detail" data-character="${esc(c.id)}">${lockBar(c)}${promptBar(c)}${profile(c)}${images(c)}
     ${c.lock?'':`<div class="cb-danger"><button type="button" class="text danger" data-cb="remove">이 캐릭터를 목록에서 빼기</button></div>`}</div>`;
 }
 function refs(){
   return `<section class="panel"><div class="panelhead"><h2>참고 자료 — 지금 쓰는 그림</h2></div><div class="panelbody">
-    <div class="note amber"><b>두 그림은 스타일이 서로 다릅니다.</b> ① 캐릭터 기준 시트는 매끈한 점토 느낌이고, ② 투명 3D 그림은 보송보송한 털실 느낌입니다. 어느 스타일로 갈지는 <b>확정하는 분이 정합니다.</b> 정한 스타일은 캐릭터마다 '생김새 규칙'에 적어 주세요.</div>
+    <div class="note amber"><b>그림체는 2D 손그림으로 정해졌습니다</b>(캐릭터 바이블 정본 v1 — 맨 위 '세계관 · 공통 프롬프트'). 아래 두 그림은 그 전에 만든 <b>예전 참고 그림</b>(점토 · 털실 느낌)이라 새 그림의 기준으로 쓰지 않습니다.</div>
     <div class="cb-refs"><figure class="cb-ref wide"><img src="src/character-ref/ref-01-sheet.webp?v=${B}" alt="캐릭터 기준 시트: 도토리, 해바라기씨, 병아리콩, 호박씨, 땅콩, 작은 씨앗이 나란히 서 있는 그림"><figcaption>① 01 캐릭터 기준 시트 — 왼쪽부터 도토리 · 해바라기씨 · 병아리콩 · 호박씨 · 땅콩 · 작은 씨앗</figcaption></figure>
     <figure class="cb-ref"><div class="cb-ref3d">${REFS.map(([id,name])=>`<span><img src="src/character-ref/ref-05-${id}.webp?v=${B}" alt="투명 3D 그림: ${name}"><small>${name}</small></span>`).join('')}</div><figcaption>② 05 투명 3D 그림 — 홈페이지에 쓰는 배경 없는 그림 (호박씨는 아직 받은 그림이 없습니다)</figcaption></figure></div>
     <p class="cb-small muted">여기 그림은 보기 편하게 줄인 것입니다. 원본은 담당자에게 받아 주세요.</p>
@@ -127,9 +170,9 @@ function legacyBar(){
     <span class="cb-legacyact"><button type="button" class="primary" data-cb="legacy-up">예전 내용 올리기</button><button type="button" data-cb="legacy-file">파일로 받아 두기</button><button type="button" class="text" data-cb="legacy-hide">이 안내 닫기</button></span></div>`;
 }
 function view(){
-  if(!ready)return `<div class="note cb-wait${link==='denied'||link==='offline'?' error':''}" role="status">${link==='denied'||link==='offline'?'함께 보는 내용을 불러오지 못했습니다. 인터넷 연결을 확인하고 새로고침해 주세요. 계속 안 되면 담당자에게 알려 주세요.':'함께 보는 내용을 불러오는 중입니다…'}</div>${refs()}`;
+  if(!ready)return `${worldPanel()}<div class="note cb-wait${link==='denied'||link==='offline'?' error':''}" role="status">${link==='denied'||link==='offline'?'함께 보는 내용을 불러오지 못했습니다. 인터넷 연결을 확인하고 새로고침해 주세요. 계속 안 되면 담당자에게 알려 주세요.':'함께 보는 내용을 불러오는 중입니다…'}</div>${refs()}`;
   const c=cur();
-  return `${topbar()}${legacyBar()}<div class="note cb-guide"><b>이렇게 쓰세요</b> ① 아래에서 캐릭터를 고릅니다 → ② 프로필을 적습니다 → ③ 그림을 하나씩 만들어 상태를 바꿉니다 → ④ 다 되면 <b>확정(고정)</b>을 누릅니다.</div>
+  return `${worldPanel()}${topbar()}${legacyBar()}<div class="note cb-guide"><b>이렇게 쓰세요</b> ① 아래에서 캐릭터를 고릅니다 → ② 프로필을 적습니다 → ③ 그림을 하나씩 만들어 상태를 바꿉니다 → ④ 다 되면 <b>확정(고정)</b>을 누릅니다.</div>
     <div id="cb-msg" class="note cb-msg${msg?.error?' error':''}" role="status" ${msg?'':'hidden'}>${esc(msg?.text||'')}</div>
     ${roster()}${c?detail(c):'<div class="empty"><b>캐릭터가 없습니다</b>위의 ＋ 캐릭터 추가를 눌러 주세요.</div>'}${refs()}${handoff()}`;
 }
@@ -165,6 +208,9 @@ function onClick(e){
     if(act==='legacy-file'){if(legacy)download(K.exportAll(legacy,now()),`mumutori-characters-old-${day(now()).replace(/-/g,'')}.json`);say('예전 내용을 파일로 받았습니다. 이 파일은 파일 불러오기로 다시 열 수 있습니다.');return;}
     if(act==='legacy-hide'){try{localStorage.setItem(MOVED_KEY,'hidden '+now());}catch(e){}legacy=null;refresh();say('안내를 닫았습니다. 예전 내용은 이 브라우저에 그대로 남아 있습니다.');return;}
     if(act==='legacy-up'){uploadLegacy();return;}
+    if(act==='copy-world'){copyText(commonPrompt(),el,'공통 그림체 + 피할 것을 복사했습니다. 나오는 캐릭터 블록 · 장면 · 형식을 덧붙여 쓰세요.');return;}
+    if(act==='copy-char'){const block=charBlock(c);if(!block)throw Error('메모 칸에 영문 캐릭터 블록([CHARACTER …])이 없습니다.');
+      copyText([commonPrompt(),block].filter(Boolean).join('\n\n'),el,world?`'${c.name}' 그림 프롬프트를 복사했습니다 — [공통 그림체] + [피할 것] + [캐릭터 블록]. 장면 · 형식만 덧붙이세요.`:`'${c.name}' 캐릭터 블록만 복사했습니다(공통 그림체 칸을 불러오지 못했습니다).`);return;}
     if(act==='add'){const id=K.newId(board),nc=K.emptyCharacter(id,'새 캐릭터','씨앗 친구');board.characters.push(nc);sel=id;commit({['characters/'+id]:K.remoteCharacter(nc,nextOrder())});refresh();say('캐릭터를 추가했습니다. 이름부터 적어 주세요.');document.querySelector('[data-cb-field="name"]')?.select();return;}
     if(!c)return;
     const at=board.characters.indexOf(c);
@@ -181,7 +227,8 @@ function onInput(e){
   const t=e.target;if(!document.getElementById('cb-root')?.contains(t))return;
   if(t.matches('[data-cb-by]')){by=t.value;return;}
   const c=cur();if(!c)return;
-  if(t.dataset.cbField){if(setField(c,t.dataset.cbField,t.value)){commit(fieldUpdate(c,t.dataset.cbField),true);if(t.dataset.cbField==='look.colors'){const s=document.getElementById('cb-swatches');if(s)s.innerHTML=swatches(t.value);}}return;}
+  if(t.dataset.cbField){if(setField(c,t.dataset.cbField,t.value)){commit(fieldUpdate(c,t.dataset.cbField),true);if(t.dataset.cbField==='look.colors'){const s=document.getElementById('cb-swatches');if(s)s.innerHTML=swatches(t.value);}
+    if(t.dataset.cbField==='memo'){const pb=document.querySelector('.cb-promptbar');if(pb)pb.outerHTML=promptBar(c);}}return;}   // 메모에 캐릭터 블록을 적으면 복사 단추가 바로 켜진다
   const slot=t.dataset.cbLink||t.dataset.cbNote;
   if(slot&&!K.slotLocked(c,slot)){const k=t.dataset.cbLink?'link':'note';c.images[slot][k]=t.value;commit({[path(c,'images/'+slot+'/'+k)]:t.value},true);}
 }
@@ -242,6 +289,8 @@ export default function renderPage(c){
   if(!started){started=true;board=K.defaultBoard();sel=board.characters[0].id;legacy=readLegacy();
     document.addEventListener('click',onClick);document.addEventListener('input',onInput);document.addEventListener('change',onChange);document.addEventListener('focusout',onFocusOut);
     addEventListener('pagehide',()=>{clearTimeout(saveTimer);store?.flush();});   // 창을 닫을 때 아직 안 보낸 것이 있으면 보낸다
-    store=openStore({onChange:onRemote,onStatus:onLink});}
+    document.addEventListener('toggle',e=>{if(e.target?.id==='cb-world')worldOpen=e.target.open;},true);   // 다시 그려도 펼친 상태 유지
+    store=openStore({onChange:onRemote,onStatus:onLink});
+    readWorld().then(w=>{world=normWorld(w);if(!world)return;if(typingEl())stale=true;else refresh(true);});}   // 못 읽으면 그 칸만 숨김
   return ctx.head('캐릭터 만들기','캐릭터마다 프로필과 그림을 채우고, 다 되면 확정(고정)합니다. 확정한 캐릭터는 파일로 내보내 자사몰에 넣습니다.','')+GUIDE.guideHtml({shared:true})+`<div id="cb-root">${view()}</div>`;
 }

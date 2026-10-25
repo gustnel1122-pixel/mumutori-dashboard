@@ -10,7 +10,7 @@ export const GROUPS=[
   {id:'sheet',label:'기준 시트',hint:'같은 캐릭터를 네 방향에서 본 그림',slots:[['sheet-front','정면'],['sheet-34','비스듬히(3/4)'],['sheet-side','옆'],['sheet-back','뒤']]},
   {id:'face',label:'표정 6종',hint:'어떤 표정인지 옆 칸에 적어 주세요',slots:[1,2,3,4,5,6].map(n=>['face-'+n,'표정 '+n])},
   {id:'pose',label:'대표 포즈 3종',hint:'이 캐릭터다운 자세',slots:[1,2,3].map(n=>['pose-'+n,'포즈 '+n])},
-  {id:'web',label:'3D 투명 PNG(웹용)',hint:'배경이 없는 그림 — 홈페이지에 올릴 것',slots:[['web-3d','3D 투명 PNG']]}
+  {id:'web',label:'투명 PNG(웹용)',hint:'배경이 없는 그림 — 홈페이지에 올릴 것',slots:[['web-3d','투명 PNG']]}   // 칸 id 'web-3d'는 저장된 자료와 맞추려고 그대로(10/25 2D 손그림으로 바뀜)
 ];
 export const SLOTS=GROUPS.flatMap(g=>g.slots.map(([id,label])=>({id,label,group:g.id})));
 const SLOT_IDS=SLOTS.map(s=>s.id);
