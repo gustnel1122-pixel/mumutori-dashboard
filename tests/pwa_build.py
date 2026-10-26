@@ -68,7 +68,9 @@ class BuildContract(unittest.TestCase):
             self.assertEqual(hashlib.sha256(raw).hexdigest(), digest, file)
             self.assertNotIn('data/', file)
             self.assertFalse(file.endswith(('.json', '.json.gz')))
-        self.assertFalse(set(pages) & {'index.html', 'finance.html', 'bank.html', 'quick.html', 'sourcing.html', 'characters.html', 'branding.html'})
+        self.assertFalse(set(pages) & {'index.html', 'finance.html', 'bank.html', 'quick.html', 'sourcing.html', 'characters.html', 'branding.html', 'letter-hub.html'})
+        documents = json.loads(re.search(r'^const DOCUMENTS = (.+);$', worker, re.M)[1])
+        self.assertIn('letter-hub.html', documents)
         for file in assets:
             name = Path(file).name
             self.assertNotIn(name, {'fbauth.js', 'home-fin.js', 'finance.js', 'bank.js', 'overview.js'})

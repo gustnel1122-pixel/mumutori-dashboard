@@ -29,12 +29,12 @@ export const PROJECTS = [
       "대필 편지는 다희 님이 작성",
       "봉투 선택은 준비 중"
     ],
-    "next": "고객 작성 링크의 접수를 연결하고 실제 저장 확인",
+    "next": "레터 운영 허브에서 관리자 로그인 후 접수 목록 확인",
     "href": "project-hub.html?project=letter",
     "links": [
       {
-        "label": "레터 운영 페이지",
-        "href": "https://letter.mumutori.com/"
+        "label": "레터 운영 허브",
+        "href": "letter-hub.html"
       },
       {
         "label": "인쇄 편지 작성",

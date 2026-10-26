@@ -1,0 +1,1064 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>레터 운영 허브 · 무무토리 스튜디오</title>
+
+<link rel="icon" href="https://letter.mumutori.com/img/brand/logo-color.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@400;500;600&family=Nanum+Gothic+Coding:wght@400;700&display=swap">
+<style>
+:root{
+  color-scheme:light;
+  --bg:#EFE9E4;--paper:#FBF7F0;--paper-2:#F5EDE1;--cream:#FDEEC9;--cream-2:#FDE9BE;
+  --ink:#2A1A10;--ink-2:#5E4A3B;--ink-3:#8C7A6B;
+  --brand:#74380F;--brand-d:#702B02;--brand-2:#B9753D;--brand-3:#DE9854;--brand-soft:#F1E1CF;
+  --line:#DCCDBB;--ok:#4F6B45;--ok-soft:#E1EAD8;--warn:#9A3B1B;--warn-soft:#F7E0D5;--blue:#3F5E86;--blue-soft:#DFE7F1;
+  --serif:"Gowun Batang","Nanum Myeongjo",serif;
+  --sans:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --type:"Nanum Gothic Coding","D2Coding",ui-monospace,monospace;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15.5px;line-height:1.65;word-break:keep-all}
+h1,h2,h3,h4{font-family:var(--serif);margin:0;line-height:1.35;font-weight:700;text-wrap:balance}
+p{margin:0}
+button{font:inherit;cursor:pointer}
+a{color:var(--brand)}
+.mono{font-family:var(--type)}
+.muted{color:var(--ink-2)}.faint{color:var(--ink-3)}
+.small{font-size:13.5px}
+.num{font-variant-numeric:tabular-nums}
+
+/* layout */
+.app{display:grid;grid-template-columns:260px minmax(0,1fr);min-height:100%}
+.side{background:var(--paper);border-right:1px solid var(--line);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;height:100dvh}
+.side .logo{padding:22px 20px 18px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
+.side .logo img{width:84px}
+.side .logo b{font-family:var(--serif);font-size:19px}
+.side .logo span{font-family:var(--type);font-size:11.5px;letter-spacing:.08em;color:var(--brand)}
+.nav{list-style:none;margin:0;padding:12px;display:flex;flex-direction:column;gap:2px;overflow-y:auto;flex:1}
+.nav button{width:100%;display:grid;grid-template-columns:26px 1fr auto;align-items:center;gap:6px;background:none;border:0;border-radius:8px;padding:10px 12px;text-align:left;color:var(--ink-2);font-size:14.5px}
+.nav button .n{font-family:var(--type);font-size:11.5px;color:var(--ink-3)}
+.nav button .c{font-family:var(--type);font-size:11px;background:var(--bg);border-radius:999px;padding:1px 7px;color:var(--ink-2)}
+.nav button:hover{background:var(--bg)}
+.nav button.on{background:var(--brand);color:#FDF3E6}
+.nav button.on .n,.nav button.on .c{color:#F3D9B8;background:transparent}
+.side .foot{border-top:1px solid var(--line);padding:14px 20px;display:flex;flex-direction:column;gap:6px;font-size:13px}
+.side .foot div{display:flex;justify-content:space-between;gap:8px}
+.side .foot b{font-family:var(--type);color:var(--brand)}
+.mode{font-family:var(--type);font-size:11.5px;padding:3px 8px;border-radius:4px;align-self:flex-start}
+.mode.demo{background:var(--cream);color:var(--brand)}
+.mode.live{background:var(--ok-soft);color:var(--ok)}
+
+.main{min-width:0;display:flex;flex-direction:column}
+.top{position:sticky;top:0;z-index:5;background:rgba(239,233,228,.94);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);padding:14px 32px;display:flex;align-items:center;gap:12px}
+.top .t{font-family:var(--type);font-size:12.5px;color:var(--brand)}
+.top h1{font-size:18px;flex:1}
+.top .sp{display:flex;gap:6px}
+.ib{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:6px 11px;font-size:12.5px;font-family:var(--type);color:var(--ink-2)}
+.ib:hover{border-color:var(--brand);color:var(--brand)}
+.menu{display:none}
+.page{padding:28px 32px 80px;display:flex;flex-direction:column;gap:28px;max-width:1120px;width:100%}
+.sec[hidden]{display:none!important}
+.sec{display:flex;flex-direction:column;gap:22px}
+.shead{display:flex;flex-direction:column;gap:6px}
+.eyebrow{font-family:var(--type);font-size:12px;letter-spacing:.1em;color:var(--brand)}
+.shead h2{font-size:26px}
+.lead{color:var(--ink-2);max-width:70ch}
+.panel{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:22px;display:flex;flex-direction:column;gap:14px}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.grid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+
+/* home */
+.hero{background:var(--paper);border:1px solid var(--line);border-top:4px solid var(--brand);border-radius:10px;padding:34px 36px;display:grid;grid-template-columns:minmax(0,1fr) 200px;gap:28px;align-items:center;position:relative;overflow:hidden}
+.hero::after{content:"";position:absolute;right:-60px;bottom:-60px;width:320px;height:320px;background:url(https://letter.mumutori.com/pattern.jpg) center/cover;opacity:.18;border-radius:50%;pointer-events:none}
+.hero .kick{font-family:var(--type);font-size:12.5px;letter-spacing:.1em;color:var(--brand)}
+.hero h2{font-size:clamp(28px,4vw,40px);margin:10px 0 14px}
+.hero h2 em{font-style:normal;color:var(--brand-2)}
+.hero p{color:var(--ink-2);max-width:56ch}
+.hero .tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+.tag{font-family:var(--type);font-size:12.5px;padding:7px 12px;border-radius:4px;background:var(--brand);color:#FDF3E6;text-decoration:none}
+.tag.o{background:var(--cream-2);color:var(--brand)}
+.tag.k{background:var(--ink);color:#FDF3E6}
+.hero img{width:100%;max-width:200px;position:relative;z-index:1}
+.ms{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:1.5px solid var(--ink)}
+.ms > div{padding:14px 16px 16px 0;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:6px;cursor:pointer}
+.ms > div + div{padding-left:16px}
+.ms > div:last-child{border-right:0}
+.ms .l{font-family:var(--type);font-size:11.5px;color:var(--ink-3)}
+.ms .v{font-family:var(--serif);font-size:24px;color:var(--brand);line-height:1.2}
+.ms .v.done{color:var(--ok)}
+.ms .d{font-size:13px;color:var(--ink-2)}
+.meter{height:5px;background:var(--line);border-radius:3px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--brand-2)}
+.flow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.flow div{background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:4px;position:relative}
+.flow b{font-family:var(--serif);font-size:15.5px}
+.flow span{font-size:13px;color:var(--ink-2)}
+.flow .s{font-family:var(--type);font-size:11px;color:var(--brand)}
+.dday{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.dday input{font:inherit;font-family:var(--type);font-size:14px;border:1px solid var(--line);border-radius:6px;padding:6px 8px;background:#fff;color:var(--ink)}
+
+/* tasks */
+.filters{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.fbtn{background:var(--paper);border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:13px;color:var(--ink-2)}
+.fbtn.on{background:var(--ink);color:#FDF3E6;border-color:var(--ink)}
+.group{display:flex;flex-direction:column;gap:8px}
+.ghead{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.ghead h3{font-size:18px}
+.ghead .p{font-family:var(--type);font-size:12.5px;color:var(--ink-3)}
+.ghead .meter{flex:1;min-width:80px;max-width:220px}
+.tasks{background:var(--paper);border:1px solid var(--line);border-radius:10px;display:flex;flex-direction:column}
+.task{display:grid;grid-template-columns:22px minmax(0,1fr) auto auto auto;gap:10px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line)}
+.task:last-child{border-bottom:0}
+.task input[type=checkbox]{width:17px;height:17px;accent-color:var(--brand)}
+.task .tx{font-size:14.5px;outline:none;border-radius:4px;padding:2px 4px;margin:-2px -4px}
+.task .tx:focus{background:#fff;box-shadow:0 0 0 2px var(--brand-soft)}
+.task .src{display:block;font-family:var(--type);font-size:11px;color:var(--ink-3);margin-top:2px}
+.task.done .tx{color:var(--ink-3);text-decoration:line-through}
+.task select{font:inherit;font-size:12.5px;font-family:var(--type);border:1px solid var(--line);border-radius:999px;padding:3px 8px;background:var(--bg);color:var(--ink-2)}
+.task select[data-o="현수"]{background:var(--brand-soft);color:var(--brand)}
+.task select[data-o="다희"]{background:var(--cream-2);color:var(--ink)}
+.task select[data-o="둘 다"]{background:var(--ok-soft);color:var(--ok)}
+.del{background:none;border:0;color:var(--ink-3);font-size:16px;padding:2px 6px;border-radius:4px}
+.del:hover{color:var(--warn);background:var(--warn-soft)}
+.add{display:flex;gap:8px;padding:10px 14px;border-top:1px dashed var(--line)}
+.add input{flex:1;min-width:0;font:inherit;font-size:14px;border:0;background:transparent;outline:none;color:var(--ink)}
+.add button{background:var(--brand);color:#FDF3E6;border:0;border-radius:6px;padding:5px 12px;font-size:13px}
+
+/* customer pages */
+.cp{display:grid;grid-template-columns:320px minmax(0,1fr);gap:24px;align-items:start}
+.phone{width:320px;max-width:100%;height:640px;border:10px solid #2A1A10;border-radius:34px;overflow:hidden;background:#EFE9E4;box-shadow:0 20px 40px -24px rgba(40,20,5,.6);position:relative}
+.phone iframe{width:100%;height:100%;border:0;display:block}
+.phone .fb{position:absolute;inset:0;display:none;align-items:center;justify-content:center;text-align:center;padding:20px;font-size:13.5px;color:var(--ink-2)}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tab{background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:8px 14px;font-size:14px;color:var(--ink-2)}
+.tab.on{background:var(--brand);border-color:var(--brand);color:#FDF3E6}
+.comp{display:flex;flex-direction:column;border-top:1px solid var(--line)}
+.comp div{display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}
+.comp .i{font-family:var(--type);font-size:12px;color:var(--brand);padding-top:2px}
+.comp b{font-weight:600}
+.comp p{font-size:13.5px;color:var(--ink-2)}
+.linkrow{display:flex;gap:8px;flex-wrap:wrap}
+
+/* tables */
+.tbl{overflow-x:auto;background:var(--paper);border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;min-width:720px;font-size:14px}
+th,td{text-align:left;vertical-align:top;padding:11px 14px;border-bottom:1px solid var(--line)}
+th{font-family:var(--type);font-size:11.5px;font-weight:400;color:var(--ink-3);background:var(--paper-2);letter-spacing:.04em}
+tr:last-child td{border-bottom:0}
+td .q{font-family:var(--serif);font-size:15px;color:var(--ink)}
+td.n{font-family:var(--type);color:var(--brand);width:40px}
+.st{display:inline-block;font-family:var(--type);font-size:11.5px;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.s-have{background:var(--ok-soft);color:var(--ok)}
+.s-shoot{background:var(--warn-soft);color:var(--warn)}
+.s-write{background:var(--cream-2);color:var(--brand)}
+.s-after{background:var(--blue-soft);color:var(--blue)}
+.s-cap{background:var(--brand-soft);color:var(--brand)}
+.legend{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--ink-2)}
+
+/* spec */
+.kv{display:flex;flex-direction:column;border-top:1px solid var(--line)}
+.kv div{display:flex;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid var(--line);font-size:14.5px}
+.kv b{font-family:var(--type);text-align:right}
+.envs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.envc{display:flex;flex-direction:column;gap:6px}
+.face{aspect-ratio:3/2;border-radius:6px;position:relative;overflow:hidden;box-shadow:0 6px 16px -12px rgba(60,30,10,.6);max-width:100%}
+.face .to{position:absolute;left:50%;top:52%;transform:translate(-50%,-50%);font-family:var(--type);font-size:12px;color:#3a2a1c;white-space:nowrap}
+.face.kraft{background:linear-gradient(135deg,#C9A57B,#B98F62)}
+.face.kraft .seal{position:absolute;left:50%;top:50%;width:26%;aspect-ratio:1;transform:translate(-50%,-60%);border-radius:50%;background:radial-gradient(circle at 35% 35%,#9b3a22,#6d1f10)}
+.face.kraft .to{top:78%}
+.face.ivory{background:#F4ECDD}
+.face.ivory img{position:absolute;right:8%;top:10%;width:24%}
+.face.airmail{background:#fff}
+.face.airmail::before{content:"";position:absolute;inset:0;border:7px solid transparent;border-image:repeating-linear-gradient(45deg,#C0392B 0 10px,#fff 10px 16px,#2E5AA8 16px 26px,#fff 26px 32px) 7}
+.face.airmail .pm{position:absolute;right:10%;top:14%;font-family:var(--type);font-size:9px;color:#2E5AA8;border:1.5px solid #2E5AA8;border-radius:50%;width:34px;height:34px;display:grid;place-items:center;transform:rotate(-12deg);line-height:1.1;text-align:center}
+.face.pattern{background:#fff url(https://letter.mumutori.com/pattern.jpg) center/140% no-repeat}
+.face.pattern .to{background:rgba(255,255,255,.85);padding:2px 8px;border-radius:3px}
+.qlist{display:flex;flex-direction:column;border-top:1px solid var(--line)}
+.qlist div{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:14.5px}
+.qlist .i{font-family:var(--type);color:var(--brand);font-size:12.5px;padding-top:2px}
+.qlist small{display:block;color:var(--ink-3);font-size:12.5px}
+
+/* inbox */
+.inbox{display:flex;flex-direction:column;gap:10px}
+.lt{background:var(--paper);border:1px solid var(--line);border-radius:10px}
+.lt summary{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 16px;cursor:pointer;list-style:none}
+.lt summary::-webkit-details-marker{display:none}
+.lt .ty{font-family:var(--type);font-size:11.5px;padding:2px 8px;border-radius:999px}
+.lt .ty.print{background:var(--blue-soft);color:var(--blue)}
+.lt .ty.ghost{background:var(--cream-2);color:var(--brand)}
+.lt .body{padding:0 16px 16px;display:flex;flex-direction:column;gap:10px}
+.lt pre{margin:0;font-family:var(--type);font-size:13px;white-space:pre-wrap;background:#FFFDF8;border:1px solid var(--line);border-radius:6px;padding:12px}
+.empty{background:var(--paper);border:1px dashed var(--line);border-radius:10px;padding:26px;text-align:center;color:var(--ink-2);font-size:14px}
+.login{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.btn{background:var(--brand);color:#FDF3E6;border:0;border-radius:8px;padding:9px 16px;font-size:14px}
+.note{background:var(--cream);border-radius:8px;padding:12px 14px;font-size:13.5px;color:var(--brand)}
+
+
+/* auth + spec editor */
+.auth{display:flex;align-items:center;gap:6px}
+.auth .who{font-family:var(--type);font-size:11.5px;background:var(--ok-soft);color:var(--ok);padding:4px 8px;border-radius:4px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.applybar{position:sticky;top:61px;z-index:4;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;box-shadow:0 8px 20px -18px rgba(40,20,5,.5)}
+.applybar .state{display:flex;align-items:center;gap:8px;flex:1;min-width:220px;flex-wrap:wrap}
+.applybar .meta{font-size:12.5px;color:var(--ink-3);font-family:var(--type)}
+.pill{font-family:var(--type);font-size:12px;padding:4px 10px;border-radius:999px;white-space:nowrap}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.info{background:var(--cream);color:var(--brand)}
+.btn.ghost{background:transparent;color:var(--brand);border:1px solid var(--brand)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.specgrid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:22px;align-items:start}
+.specprev{position:sticky;top:140px;display:flex;flex-direction:column;gap:10px;align-items:center}
+.specprev .tabs{justify-content:center}
+.specprev .phone{height:600px}
+.speced{display:flex;flex-direction:column;gap:18px;min-width:0}
+.ph{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.ph h3{flex:1}
+.fgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.fl{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--ink-2);min-width:0}
+.fl input,.fl select,.fl textarea,.inl{font:inherit;font-size:14px;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:6px;padding:8px 10px;width:100%;min-width:0}
+.fl textarea{min-height:60px;resize:vertical}
+.fl input:focus,.fl select:focus,.fl textarea:focus,.inl:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(116,56,15,.12)}
+.envrow{display:grid;grid-template-columns:120px minmax(0,1fr) auto;gap:14px;align-items:start;padding:14px 0;border-top:1px solid var(--line)}
+.envrow .face{width:120px}
+.envrow .flds{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.envrow .flds .full{grid-column:1/-1}
+.rowact{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+.chk{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink-2);white-space:nowrap}
+.chk input{accent-color:var(--brand)}
+.mini{background:var(--paper-2);border:1px solid var(--line);border-radius:6px;padding:4px 9px;font-size:12.5px;color:var(--ink-2);font-family:var(--type)}
+.mini:hover{border-color:var(--brand);color:var(--brand)}
+.mini.del:hover{border-color:var(--warn);color:var(--warn);background:var(--warn-soft)}
+.relrow{display:flex;flex-wrap:wrap;gap:8px}
+.relrow .rel{display:flex;align-items:center;gap:4px;background:#fff;border:1px solid var(--line);border-radius:999px;padding:3px 4px 3px 10px}
+.relrow .rel input{border:0;outline:none;font:inherit;font-size:14px;width:7.5em;background:transparent;color:var(--ink)}
+.relrow .rel code{font-family:var(--type);font-size:10.5px;color:var(--ink-3)}
+.qrow{border-top:1px solid var(--line);padding:14px 0;display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:12px}
+.qrow .qn{font-family:var(--type);color:var(--brand);font-size:13px;padding-top:9px}
+.qrow .qf{display:grid;grid-template-columns:minmax(0,1fr) 150px 70px;gap:8px;align-items:start}
+.qrow .qf .full{grid-column:1/-1}
+.qrow details summary{cursor:pointer;font-size:12.5px;color:var(--ink-2);font-family:var(--type)}
+.qrow details .fgrid{margin-top:8px}
+.addbtn{align-self:flex-start;background:var(--cream);color:var(--brand);border:1px dashed var(--brand-2);border-radius:8px;padding:8px 14px;font-size:13.5px}
+.task input[type=date]{font:inherit;font-size:12px;font-family:var(--type);border:1px solid var(--line);border-radius:6px;padding:3px 6px;background:var(--bg);color:var(--ink-2);width:128px}
+.task input[type=date].set{background:var(--blue-soft);color:var(--blue);border-color:transparent}
+.upc{display:flex;flex-direction:column;border-top:1px solid var(--line)}
+.upc div{display:grid;grid-template-columns:86px minmax(0,1fr) auto;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px}
+.upc .d{font-family:var(--type);color:var(--blue);font-size:12.5px;padding-top:2px}
+@media (max-width:1100px){.specgrid{grid-template-columns:1fr}.specprev{position:static}}
+@media (max-width:820px){.applybar{top:55px}.fgrid{grid-template-columns:1fr 1fr}.envrow{grid-template-columns:90px minmax(0,1fr)}.envrow .face{width:90px}.rowact{grid-column:1/-1;flex-direction:row;justify-content:flex-end}.envrow .flds{grid-template-columns:1fr}.qrow{grid-template-columns:28px minmax(0,1fr)}.qrow .rowact{grid-column:1/-1;flex-direction:row;justify-content:flex-end}.qrow .qf{grid-template-columns:1fr 1fr}.task input[type=date]{grid-column:2;width:auto}}
+.face.photo{background:#eee center/cover no-repeat}
+.face.plain{background:var(--paper-2);border:1px dashed var(--line)}
+.face.plain .lbl{position:absolute;left:8px;top:6px;font-family:var(--type);font-size:10px;color:var(--ink-3)}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+
+@media (max-width:1000px){
+  .grid4,.envs{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .flow{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .cp{grid-template-columns:1fr}
+  .phone{margin:0 auto}
+}
+@media (max-width:820px){
+  .app{grid-template-columns:1fr}
+  .side{position:fixed;inset:0 auto 0 0;width:270px;z-index:20;transform:translateX(-100%);transition:transform .2s;box-shadow:0 0 40px rgba(0,0,0,.2)}
+  .side.open{transform:none}
+  .menu{display:inline-block}
+  .top{padding:12px 16px}
+  .page{padding:20px 16px 70px}
+  .hero{grid-template-columns:1fr;padding:24px 20px}
+  .hero img{max-width:120px;order:-1}
+  .ms{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .ms > div:nth-child(2){border-right:0}
+  .ms > div:nth-child(3){padding-left:0}
+  .grid2,.grid3{grid-template-columns:1fr}
+  .task{grid-template-columns:22px minmax(0,1fr) auto;row-gap:6px}
+  .task select{grid-column:2;justify-self:start}
+  .task .del{grid-column:3;grid-row:1}
+}
+@media (max-width:480px){.flow,.envs{grid-template-columns:1fr}.ms{grid-template-columns:1fr}.ms > div{border-right:0;padding-left:0!important;border-bottom:1px solid var(--line)}}
+
+@media (max-width:820px){
+  .applybar{position:static;padding:12px 14px;gap:8px}
+  .applybar .state{min-width:0;flex-basis:100%}
+  .applybar .btn{flex:1;padding:9px 10px;font-size:13.5px}
+  .specprev .phone{display:none}
+  .specprev .pvopen{display:flex}
+  .task{grid-template-columns:22px minmax(0,1fr) auto;row-gap:8px}
+  .task > div{grid-column:2}
+  .task input[type=date]{grid-column:2;grid-row:2;width:140px}
+  .task select{grid-column:2;grid-row:2;justify-self:end}
+  .task .del{grid-column:3;grid-row:1}
+  .top h1{font-size:16px}
+  .top .t{display:none}
+}
+.pvopen{display:none;gap:8px;flex-wrap:wrap;justify-content:center}
+@media (prefers-reduced-motion:reduce){.side{transition:none}}
+/* 패키지·구매 탭 (2026-10-20 letter-hub-kit) — 사진 크게, 글 짧게, 휴대폰도 2열 */
+.kit img{display:block;width:100%;height:auto;border-radius:10px;background:#fff}
+.kit .hero2{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:20px;align-items:start}
+.kit ol.layers{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+.kit .g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.kit .g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.kit figure{margin:0;display:flex;flex-direction:column;gap:8px}
+.kit figcaption b{display:block;font-family:var(--type)}
+.kit .chips{display:flex;flex-wrap:wrap;gap:6px}
+.kit .chip{font-size:12px;padding:4px 9px;border-radius:999px;border:1px solid var(--line);background:var(--paper);color:var(--ink-2)}
+.kit .chip.ok{background:var(--cream);color:var(--brand);border-color:transparent}
+.kit table{width:100%;border-collapse:collapse;font-size:13.5px}
+.kit th,.kit td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+.kit th{white-space:nowrap}
+@media (max-width:760px){.kit .hero2{grid-template-columns:1fr}.kit .g3{grid-template-columns:repeat(2,minmax(0,1fr))}.kit .g2,.kit .g3{gap:10px}.kit figcaption{font-size:12.5px}}
+
+/* Keep management UI closed until Firebase confirms the administrator. */
+#hubApp[hidden], #hubGate[hidden], body.hub-locked #hubApp{display:none!important}
+.hub-gate{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:24px}
+.hub-gate-card{width:min(100%,460px);background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:30px;display:flex;flex-direction:column;gap:18px}
+.hub-gate-card h1{font-size:25px}
+.hub-gate-card p{color:var(--ink-2)}
+.hub-gate-actions{display:flex;flex-wrap:wrap;gap:10px}
+.hub-gate-card a{font-size:14px;align-self:flex-start}
+</style>
+</head>
+<body class="hub-locked">
+<main class="hub-gate" id="hubGate" aria-labelledby="hubGateTitle">
+  <section class="hub-gate-card">
+    <h1 id="hubGateTitle">레터 운영 허브</h1>
+    <p id="hubGateMessage" role="status">관리자 로그인을 확인하고 있어요. 연결되지 않으면 새로고침해 주세요.</p>
+    <div class="hub-gate-actions" id="hubGateActions"></div>
+    <a href="https://gustnel1122-pixel.github.io/mumutori-dashboard/index.html#projects">운영 홈으로</a>
+    <noscript><p>관리자 확인을 위해 JavaScript를 켠 뒤 새로고침해 주세요.</p></noscript>
+  </section>
+</main>
+
+<div class="app" id="hubApp" hidden inert aria-hidden="true">
+  <aside class="side" id="side">
+    <div class="logo">
+      <img src="https://letter.mumutori.com/img/brand/logo-color.png" alt="무무토리">
+      <span>MUMUTORI · PROJECT 02</span>
+      <b>무무토리 레터서비스</b>
+      <span class="mode demo" id="mode">미리보기 모드</span>
+    </div>
+    <ul class="nav" id="nav"></ul>
+    <div class="foot">
+      <div><span>오픈까지</span><b id="f-dday">날짜 미정</b></div>
+      <div><span>전체 진행</span><b id="f-prog">0%</b></div>
+      <div><span>남은 일</span><b id="f-left">0</b></div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="top">
+      <button class="ib menu" id="menu" aria-label="메뉴 열기">☰</button>
+      <span class="t" id="t-no">01</span><h1 id="t-name">홈</h1>
+      <div class="auth" id="authSlot"></div><div class="sp"><button class="ib" id="prevS" aria-label="이전 섹션">←</button><button class="ib" id="nextS" aria-label="다음 섹션">→</button></div>
+    </header>
+
+    <div class="page">
+<a class="ib" href="https://gustnel1122-pixel.github.io/mumutori-dashboard/index.html#projects" style="align-self:flex-start;text-decoration:none">← 운영 홈으로</a>
+
+      <!-- 01 홈 -->
+      <section class="sec" data-s="home" data-name="홈">
+        <div class="hero">
+          <div>
+            <span class="kick">MUMUTORI LETTER SERVICE · 2026</span>
+            <h2>말로 다 못 한 마음,<br><em>편지</em>로 옮겨드려요</h2>
+            <p>설문으로 마음을 꺼내 병아리콩이 편지로 옮기는 대필 서비스, 직접 쓴 글을 수동 타자기로 찍어주는 인쇄 서비스. 두 서비스를 열기까지 필요한 모든 것을 이 페이지에서 관리한다.</p>
+            <div class="tags">
+              <a class="tag" href="#" data-go="pages">결제 후 고객 페이지 2종</a>
+              <span class="tag k">대필 21,900원 · 인쇄 14,900원 · 무료배송</span>
+              <span class="tag o">월 목표 약 242통</span>
+            </div>
+          </div>
+          <img src="https://letter.mumutori.com/img/brand/char-mumutori.png" alt="">
+        </div>
+        <div class="ms" id="ms"></div>
+        <div class="dday panel" style="flex-direction:row;padding:14px 18px">
+          <span class="small">오픈 목표일</span><input type="date" id="openDate"><span class="small faint" id="ddayText">날짜를 정하면 D-day가 표시돼요.</span>
+        </div>
+        <div class="shead"><span class="eyebrow">CUSTOMER JOURNEY</span><h2>고객이 편지를 받기까지</h2></div>
+        <div class="flow">
+          <div><span class="s">STEP 1</span><b>결제</b><span>식스샵에서 대필 또는 인쇄 상품 결제</span></div>
+          <div><span class="s">STEP 2</span><b>링크 받기</b><span>결제 완료 안내에 담긴 작성 페이지 링크</span></div>
+          <div><span class="s">STEP 3</span><b>작성</b><span>인쇄: 편지 쓰기 · 대필: 마음 설문 → 봉투 고르기</span></div>
+          <div><span class="s">STEP 4</span><b>제작</b><span>대필은 AI 초안 → 병아리콩 검토 → 고객 확인. 타자기 출력</span></div>
+          <div><span class="s">STEP 5</span><b>포장·발송</b><span>고른 봉투에 담아 포장, 선물 소품 같이 담기</span></div>
+        </div>
+        <div class="shead"><span class="eyebrow">THIS WEEK</span><h2>남은 일 · 담당자별</h2></div>
+        <div class="grid3" id="whoBoard"></div>
+      </section>
+
+      <!-- 02 체크리스트 -->
+      <section class="sec" data-s="tasks" data-name="체크리스트" hidden>
+        <div class="shead"><span class="eyebrow">CHECKLIST</span><h2>레터서비스를 열기까지</h2>
+          <p class="lead">고객 페이지, 봉투, 촬영, 상세페이지 기획안에서 나온 일을 묶었다. 항목 글자를 눌러 바로 고치고, 담당자를 바꾸고, 새 일을 추가할 수 있다. 회색 작은 글씨는 이 일이 나온 곳이다.</p></div>
+        <div class="filters" id="filters"></div>
+        <div id="groups" style="display:flex;flex-direction:column;gap:26px"></div>
+      </section>
+
+      <!-- 03 고객 페이지 -->
+      <section class="sec" data-s="pages" data-name="고객 페이지" hidden>
+        <div class="shead"><span class="eyebrow">AFTER PAYMENT</span><h2>결제 후 고객에게 보내는 두 페이지</h2>
+          <p class="lead">결제를 마친 고객에게 링크로 보내는 작성 페이지다. 대필 페이지는 일반 타자기 페이지에 마음 설문과 "꼭 넣고 싶은 말"이 더해진 구조다. 휴대폰 화면에서 직접 눌러볼 수 있다.</p></div>
+        <div class="tabs" id="cpTabs"><button class="tab on" data-p="print">일반 타자기 · 14,900원</button><button class="tab" data-p="ghost">대필 타자기 · 21,900원</button></div>
+        <div class="cp">
+          <div class="phone"><iframe id="cpFrame" title="고객 페이지 미리보기" src="https://letter.mumutori.com/print.html"></iframe></div>
+          <div class="panel">
+            <h3 id="cpTitle">일반 타자기 서비스 페이지</h3>
+            <div class="comp" id="cpComp"></div>
+            <div class="linkrow"><a class="tag" id="cpOpen" href="https://letter.mumutori.com/print.html" target="_blank" rel="noopener">새 창에서 열기</a><span class="tag o" id="cpFile">print.html</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 04 상세페이지 기획안 -->
+      <section class="sec" data-s="detail" data-name="상세페이지 기획안" hidden>
+        <div class="shead"><span class="eyebrow">DETAIL PAGE PLAN</span><h2>상세페이지 기획안</h2>
+          <p class="lead">식스샵 상품 상세페이지(가로 860px) 구성안. 기존 레터 상세페이지 10장의 흐름(고민 → 이런 분께 → 레터서비스란 → 과정)을 살리고, 상품을 대필과 인쇄로 나눴다. 문구는 초안이고, 오른쪽은 그 블록에 필요한 자료와 상태다.</p></div>
+        <div class="legend"><span class="st s-have">있음</span><span class="st s-write">작성 필요</span><span class="st s-shoot">촬영 필요</span><span class="st s-cap">화면 캡처</span><span class="st s-after">시험 운영 후</span></div>
+        <div class="tabs" id="dpTabs"><button class="tab on" data-d="ghost">대필 상세 · 21,900원</button><button class="tab" data-d="print">인쇄 상세 · 14,900원</button></div>
+        <div class="tbl"><table><thead><tr><th>#</th><th>블록</th><th>문구 초안 · 내용</th><th>필요한 자료</th><th>상태</th></tr></thead><tbody id="dpBody"></tbody></table></div>
+        <div class="shead" style="margin-top:8px"><span class="eyebrow">SHOT LIST</span><h2>촬영 리스트</h2><p class="lead">두 상세페이지와 고객 페이지(봉투 선택)에 필요한 사진·영상을 모았다. 스튜디오 하루에 모두 찍는 기준이다.</p></div>
+        <div class="tbl"><table><thead><tr><th>#</th><th>컷</th><th>구도 · 연출</th><th>쓰이는 곳</th><th>형식</th></tr></thead><tbody id="shotBody"></tbody></table></div>
+      </section>
+
+      <!-- 05 규격·봉투·설문 -->
+      <section class="sec" data-s="spec" data-name="편지 규격·봉투·설문" hidden>
+        <div class="shead"><span class="eyebrow">SPEC · EDIT</span><h2>편지 규격 · 봉투 · 설문</h2>
+          <p class="lead">여기서 고친 내용은 먼저 초안으로 저장되고, [고객 페이지에 적용]을 눌러야 실제 고객 페이지에 반영된다. 옆 미리보기(휴대폰에서는 새 창)는 현재 고객 작성 화면이며, 편집 중인 초안을 보여주지 않는다. 초안은 현수·다희가 같이 본다.</p></div>
+        <div class="applybar" id="applyBar"></div>
+        <div class="specgrid">
+          <div class="speced" id="specEd"></div>
+          <div class="specprev">
+            <div class="tabs" id="pvMode"><button class="tab on" data-v="applied">현재 고객 화면</button></div>
+            <div class="tabs" id="pvPage"><button class="tab on" data-p="ghost">대필</button><button class="tab" data-p="print">일반 타자기</button></div>
+            <div class="phone"><iframe id="pvFrame" title="스펙 미리보기" src="https://letter.mumutori.com/ghost.html"></iframe></div>
+            <div class="pvopen"><a class="tag" id="pvOpen" href="https://letter.mumutori.com/ghost.html" target="_blank" rel="noopener">미리보기 새 창으로 열기</a></div>
+            <span class="small faint" id="pvNote">현재 고객 작성 화면이에요. 편집 중인 초안은 이 미리보기에 반영되지 않아요.</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 패키지·구매 (2026-10-20 총괄 letter-hub-kit-20261020-1820 · 사장님 18:08 "기존 프로젝트 페이지에 업데이트") -->
+      <section class="sec kit" data-s="kit" data-name="패키지·구매" hidden>
+        <div class="shead"><span class="eyebrow">PACKAGE · BUY</span><h2>편지 한 통의 포장과 살 것</h2>
+          <p class="lead">고객이 받는 구성, 봉투 네 가지, 로고 제작물, 살 것을 한곳에 모았다. 사진은 이해를 돕는 목업이다. 가격·재료비는 이 공개 페이지에 쓰지 않고 볼트 문서에만 둔다.</p></div>
+
+        <div class="shead"><span class="eyebrow">01</span><h2>받으시는 구성</h2></div>
+        <div class="hero2">
+          <img src="https://letter.mumutori.com/mall/img/letter/letter_kit_overview.jpg" alt="받으시는 구성 목업: 타자기 편지, 무무토리 카드, 고른 봉투와 로고 봉인, 투명 보호 봉투, 크라프트 안전봉투" loading="lazy">
+          <div class="panel"><h3>바깥에서 안으로</h3>
+            <ol class="layers"><li>크라프트 안전봉투(택배로 안전하게)</li><li>투명 보호 봉투(습기·구김 막기)</li><li>고른 봉투 + 로고 봉인</li><li>무무토리 카드(찍은 날·편지 번호)</li><li>타자기 편지(A5, 반 접어 넣음)</li></ol>
+            <p class="note">크라프트·아이보리 봉투에는 마끈 리본과 안개꽃 한 줄기를 더한다(10/20 기본 포함 결정).</p></div>
+        </div>
+
+        <div class="shead"><span class="eyebrow">02</span><h2>봉투 네 가지</h2></div>
+        <div class="g2">
+          <figure><img src="https://letter.mumutori.com/mall/img/letter/mock_kraft_logo_seal.jpg" alt="크라프트 봉투에 도토리 실링 목업" loading="lazy"><figcaption><b>크라프트 · 실링왁스</b><span class="chips"><span class="chip">로고 실링 도장</span><span class="chip">왁스 비즈</span><span class="chip ok">마끈·안개꽃</span></span></figcaption></figure>
+          <figure><img src="https://letter.mumutori.com/mall/img/letter/mock_ivory_logo_stamp.jpg" alt="아이보리 봉투에 소인 도장 목업" loading="lazy"><figcaption><b>아이보리 · 도토리 도장</b><span class="chips"><span class="chip">소인 스탬프</span><span class="chip">스탬프 잉크</span><span class="chip ok">마끈·안개꽃</span></span></figcaption></figure>
+          <figure><img src="https://letter.mumutori.com/mall/img/letter/mock_airmail_postage.jpg" alt="에어메일 봉투에 무무토리 우표와 소인 목업" loading="lazy"><figcaption><b>에어메일</b><span class="chips"><span class="chip">우표 스티커(03)</span><span class="chip">소인 스탬프</span></span></figcaption></figure>
+          <figure><img src="https://letter.mumutori.com/mall/img/letter/mock_pattern_tape.jpg" alt="무늬 테이프와 원형 봉인 라벨 목업" loading="lazy"><figcaption><b>무무토리 무늬</b><span class="chips"><span class="chip">원형 봉인 스티커(04)</span><span class="chip">무늬 테이프</span></span></figcaption></figure>
+        </div>
+
+        <div class="shead"><span class="eyebrow">03</span><h2>안개꽃 · 마끈</h2><p class="lead">크라프트와 아이보리 봉투에 기본으로 더한다.</p></div>
+        <div class="g2">
+          <figure><img src="https://letter.mumutori.com/mall/img/letter/mock_kraft_flower.jpg" alt="크라프트 봉투에 마끈과 안개꽃 목업" loading="lazy"><figcaption><b>크라프트</b></figcaption></figure>
+          <figure><img src="https://letter.mumutori.com/mall/img/letter/mock_ivory_flower.jpg" alt="아이보리 봉투에 마끈과 안개꽃 목업" loading="lazy"><figcaption><b>아이보리</b></figcaption></figure>
+        </div>
+
+        <div class="shead"><span class="eyebrow">04</span><h2>로고 제작물</h2></div>
+        <img src="https://letter.mumutori.com/img/kit/kit_logo_items.jpg" alt="로고 제작물 미리보기: 소인 스탬프, 실링 도장, 우표 스티커, 원형 봉인 스티커, 무늬 테이프" loading="lazy">
+        <div class="tbl"><table><thead><tr><th>파일</th><th>무엇</th><th>만드는 방법 · 지금</th></tr></thead><tbody>
+          <tr><th>01</th><td>소인 스탬프 30mm</td><td>업체 주문제작 · <b>이미 있음</b>(다른 곳에서 고른 것)</td></tr>
+          <tr><th>02</th><td>실링 도장 25mm</td><td>업체 주문제작 · <b>이미 있음</b></td></tr>
+          <tr><th>05b</th><td>무늬 마스킹테이프 12mm</td><td>업체 주문제작 · 사장님 직접 주문</td></tr>
+          <tr><th>06</th><td>동봉 카드 90×50 양면</td><td>업체 주문제작(명함)</td></tr>
+          <tr><th>03</th><td>우표 스티커</td><td>직접 출력 · <b>모양 바뀜</b>(우표 톱니 모양 + 우표 펀치) — 정리 중</td></tr>
+          <tr><th>04</th><td>원형 봉인 스티커 30mm</td><td>직접 출력 · 라벨지 바뀜(잉크젯 전용) — 정리 중</td></tr>
+          <tr><th>07</th><td>'편지가 들어 있어요' 스티커</td><td>직접 출력 · 방수 무광 잉크젯 라벨</td></tr>
+        </tbody></table></div>
+        <div class="g3">
+          <figure><img src="https://letter.mumutori.com/img/kit/kit_a4_square25.jpg" alt="A4 배치 미리보기: 정사각 25mm 70칸" loading="lazy"><figcaption>03 · 이전 규격(정사각) 미리보기</figcaption></figure>
+          <figure><img src="https://letter.mumutori.com/img/kit/kit_a4_round30.jpg" alt="A4 배치 미리보기: 원형 30mm 48칸" loading="lazy"><figcaption>04 · 원형 30mm 48칸</figcaption></figure>
+          <figure><img src="https://letter.mumutori.com/img/kit/kit_a4_label64.jpg" alt="A4 배치 미리보기: 64×33.8mm 24칸" loading="lazy"><figcaption>07 · 64×33.8mm 24칸</figcaption></figure>
+        </div>
+        <div class="panel"><h3>직접 출력 3단계</h3>
+          <ol class="layers"><li>라벨스페이스(space.label.kr)에서 라벨지 번호를 고른다</li><li>03·04·07 파일을 넣고 '모든 칸에 적용'</li><li>A4를 '실제 크기'로 인쇄한다(테두리 없음 인쇄는 쓰지 않음)</li></ol></div>
+
+        <div class="shead"><span class="eyebrow">05</span><h2>살 것</h2></div>
+        <div class="panel"><p><b>정리 중</b> — 사장님이 고르는 중이에요(10/20 19:29). 확정 목록이 오면 묶음별로 채운다.</p>
+          <p class="small">이미 있는 것: 크라프트 엽서봉투 · 타자기 용지 · 로고 실링 도장 · 커스텀 스탬프 · 마스킹테이프(사장님 직접 주문)</p></div>
+
+        <div class="shead"><span class="eyebrow">06</span><h2>아직 정할 것</h2></div>
+        <div class="panel"><div class="chips"><span class="chip">에어메일 소인 색</span><span class="chip">무늬 테이프 시점</span><span class="chip">편지지 색</span><span class="chip">아이보리 봉투 종이(레이드지·엠보싱)</span><span class="chip">에어메일 봉투 종류</span></div></div>
+      </section>
+
+      <!-- 06 접수함 -->
+      <section class="sec" data-s="inbox" data-name="접수함" hidden>
+        <div class="shead"><span class="eyebrow">INBOX</span><h2>접수된 편지</h2>
+          <p class="lead">고객 페이지에서 접수된 편지와 설문이 여기에 쌓인다. 개인정보가 담겨 있어서 Firebase 연결 후에는 관리자로 등록된 계정만 볼 수 있다.</p></div>
+        <div class="login" id="loginBox"></div>
+        <div class="inbox" id="inbox"></div>
+      </section>
+
+      <!-- 07 역할·링크 -->
+      <section class="sec" data-s="team" data-name="역할·링크" hidden>
+        <div class="shead"><span class="eyebrow">TEAM · LINKS</span><h2>역할과 링크</h2></div>
+        <div class="grid2">
+          <div class="panel"><h3>다희 · 병아리콩</h3><div class="kv"><div><span>맡는 일</span><b>대필 검토·수정, 설문 문항</b></div><div><span></span><b>편지 품질 기준, AI 작성 지침</b></div><div><span></span><b>브랜드 문구 검수</b></div></div></div>
+          <div class="panel"><h3>현수 · 도토리</h3><div class="kv"><div><span>맡는 일</span><b>고객 페이지, 주문 확인</b></div><div><span></span><b>타자·포장·발송</b></div><div><span></span><b>홈페이지·상세페이지·홍보</b></div></div></div>
+        </div>
+        <div class="panel"><h3>같이 정하는 것</h3><p class="muted">가격, 월 목표, 대필 단계 올리기, 새 서비스, 10만 원 이상 지출, 수익 배분·명의 (PROJECT 01 합의, 2026-09-27)</p><p class="note">아직 남은 결정: D7 AI 사용 고지·개인정보 문구, 수익 배분·명의·비용 분담</p></div>
+        <div class="panel"><h3>링크</h3><div class="kv">
+          <div><span>쇼핑몰</span><b><a href="https://mumutori.com" target="_blank" rel="noopener">mumutori.com</a></b></div>
+          <div><span>일반 타자기 페이지</span><b><a href="https://letter.mumutori.com/print.html" target="_blank" rel="noopener">print.html</a></b></div>
+          <div><span>대필 타자기 페이지</span><b><a href="https://letter.mumutori.com/ghost.html" target="_blank" rel="noopener">ghost.html</a></b></div>
+          <div><span>인스타그램</span><b><a href="https://www.instagram.com/mumutori_official/" target="_blank" rel="noopener">@mumutori_official</a></b></div>
+          <div><span>카카오톡 채널</span><b><a href="http://pf.kakao.com/_lqpZX" target="_blank" rel="noopener">무무토리 상점</a></b></div>
+          <div><span>볼트 기록</span><b>옵시디언 10_브랜드/무무토리 방향성</b></div></div></div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://letter.mumutori.com/firebase-config.js"></script>
+<script src="https://letter.mumutori.com/fb.js"></script>
+<script src="https://letter.mumutori.com/spec.js"></script>
+<script>
+(function(){
+var LETTER_BASE = 'https://letter.mumutori.com/';
+function letterAssetUrl(value){ try{return new URL(value, LETTER_BASE).href;}catch(e){return ''; } }
+var M = window.MMT || {}, store = M.store || {get:function(k,d){return d},set:function(){}};
+function clone(o){ return JSON.parse(JSON.stringify(o==null?null:o)); }
+var SPEC_FILE = clone(window.LETTER_SPEC || {});
+if (M.normSpec) SPEC_FILE = M.normSpec(SPEC_FILE);
+function boot(){
+  var $ = function(s,r){return (r||document).querySelector(s)}, $$ = function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))};
+  function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+  var S = window.LETTER_SPEC || SPEC_FILE;   // 고객 페이지가 지금 쓰는 값(적용본 또는 기본값)
+  var user = null, admin = false, db = M.live ? M.fb.db : null;
+
+  var authEpoch = 0, authMessage = '';
+  var authAvailable = !!(M.live && M.fb && M.fb.auth && window.firebase && firebase.auth);
+  function renderGate(){
+    var granted = !!(authAvailable && admin && user);
+    var app = $('#hubApp'), gate = $('#hubGate');
+    app.hidden = !granted; app.inert = !granted;
+    app.setAttribute('aria-hidden', granted ? 'false' : 'true');
+    document.body.classList.toggle('hub-locked', !granted);
+    gate.hidden = granted;
+    if(granted) return;
+    $('#hubGateMessage').textContent = authMessage || (!authAvailable
+      ? '로그인 연결을 불러오지 못했어요. 새로고침 후 다시 시도해 주세요.'
+      : user ? '관리자 권한을 확인하고 있어요.' : '관리자 Google 계정으로 로그인해 주세요.');
+    $('#hubGateActions').innerHTML = !authAvailable ? '' : user
+      ? '<button class="btn ghost" data-logout>로그아웃</button>'
+      : '<button class="btn" data-login>Google 계정으로 로그인</button>';
+  }
+  function stopPrivateSubscriptions(){
+    [boardRef, draftRef, inboxRef].forEach(function(r){ if(r) r.off(); });
+    boardRef = draftRef = inboxRef = null;
+    clearTimeout(saveTimer); clearTimeout(pvTimer); pendingRemote = null;
+  }
+
+
+  /* ================= 체크리스트 ================= */
+  var GROUPS = [
+    {id:'page', ms:'고객 페이지', name:'결제 후 고객 페이지', desc:'일반 타자기 · 대필 작성 페이지'},
+    {id:'env',  ms:'고객 페이지', name:'봉투 · 패키지', desc:'봉투 선택 화면과 실제 포장'},
+    {id:'shoot',ms:'타자기 촬영', name:'타자기 촬영', desc:'스튜디오 대여, 사진·영상'},
+    {id:'detail',ms:'상세페이지', name:'상세페이지', desc:'대필 · 인쇄 상세페이지'},
+    {id:'start',ms:'시작하기', name:'시작하기', desc:'시험 운영과 오픈'}
+  ];
+  var SEED = [
+    ['page','타자기 한 줄 글자 수·한 장 줄 수 실측 → 편지 규격 수정·적용','편지 규격'],
+    ['page','타자기로 찍을 수 있는 문자·기호 확인 → 안내 문구 수정','편지 쓰기 화면'],
+    ['page','편지 쓰기 화면 안내 문구·글자 제한 검토','일반 타자기 페이지'],
+    ['page','대필 설문 문항 확정 → 허브에서 수정·적용','대필 페이지 · 설문'],
+    ['page','대필 초안을 만들 AI 도구 정하기','대필 운영 방식'],
+    ['page','설문 → AI 초안 작성 지침(프롬프트) 초안','대필 운영 방식'],
+    ['page','대필 초안 고객 확인 방법 정하기 (카카오톡 채널 등)','대필 · 완료 안내'],
+    ['page','개인정보 동의 문구 · AI 사용 고지 확정 (D7)','확인 단계'],
+    ['page','식스샵 개인정보처리방침에 레터 수집 항목 추가','확인 단계'],
+    ['page','주문 확인 방식 확정 (이름·휴대폰 뒤 4자리)','주문 확인 단계'],
+    ['page','Firebase 프로젝트·데이터베이스·보안 규칙 연결','접수 저장 · 9/27 완료','현수',true],
+    ['page','GitHub Pages 배포','배포 · 9/27 완료','현수',true],
+    ['page','관리자 계정 등록 (현수 · 다희)','접수함 · 공유 저장'],
+    ['page','새 접수 알림 받는 방법 정하기','접수함'],
+    ['page','(선택) letter.mumutori.com 도메인 연결','배포'],
+    ['page','식스샵 결제 완료 안내에 작성 링크 넣기 (인쇄·대필 각각)','STEP 2 링크 받기'],
+    ['page','휴대폰으로 두 페이지 끝까지 접수 테스트','고객 페이지'],
+    ['page','연결 테스트 접수(TEST-0001) 지우기','접수함'],
+    ['env','봉투 디자인 확정 → 허브 봉투 목록 수정·적용','봉투 고르기 단계'],
+    ['env','봉투·편지지·실링왁스·스티커 샘플 구매','봉투 · 패키지'],
+    ['env','봉투 실물 사진을 올려 봉투 이미지 교체','봉투 고르기 단계'],
+    ['env','포장 구성 정하기 (카드, 스티커, 선물 소품 같이 담기)','STEP 5 포장·발송'],
+    ['shoot','스튜디오 후보 찾기·예약','촬영 리스트'],
+    ['shoot','촬영 컷 리스트 확정','상세페이지 기획안'],
+    ['shoot','촬영 소품 준비 (타자기, 편지지, 봉투, 실링왁스, 선물 소품)','촬영 리스트'],
+    ['shoot','촬영 진행','촬영 리스트'],
+    ['shoot','사진 보정·누끼, 영상 편집 (릴스 15초, 과정 60초)','촬영 리스트'],
+    ['detail','대필 상세페이지 구성 확정','상세페이지 기획안'],
+    ['detail','인쇄 상세페이지 구성 확정','상세페이지 기획안'],
+    ['detail','상세페이지 문구 작성·검수','상세페이지 기획안'],
+    ['detail','상세페이지 디자인 (가로 860px)','상세페이지 기획안'],
+    ['detail','식스샵 상품 등록 (대필 21,900원 · 인쇄 14,900원 · 무료배송)','상세페이지'],
+    ['start','지인 시험 운영 5~10통 (대필 7 · 인쇄 3)','시작하기'],
+    ['start','실측값으로 가격 계산기 다시 보기','PROJECT 01 계산기'],
+    ['start','후기·편지 샘플 공개 동의 받기','상세페이지 · 후기 블록'],
+    ['start','정식 오픈','시작하기']
+  ];
+  var OWNERS = ['현수','다희','둘 다','미정'];
+  var KEY = 'mmt-hub-v2';
+  function seedBoard(){ return { openDate:'', tasks: SEED.map(function(t,i){return {id:'t'+(i+1), g:t[0], text:t[1], src:t[2], owner:t[3]||'미정', done:!!t[4], due:''}}) }; }
+  function normBoard(b){ b=b||{}; var t=b.tasks; if(t && !Array.isArray(t)) t=Object.keys(t).map(function(k){return t[k]}); b.tasks=(t||[]).filter(Boolean).map(function(x){ x.due=x.due||''; x.owner=x.owner||'미정'; x.done=!!x.done; return x; }); b.openDate=b.openDate||''; return b; }
+  var hub = normBoard(store.get(KEY, null) || seedBoard());
+  var filter = '전체', boardRef = null;
+
+  function persist(){
+    store.set(KEY, hub);
+    if (boardRef) boardRef.set(hub).catch(function(e){ console.warn(e); });
+    renderSide(); renderMs(); renderWho();
+  }
+
+  /* ================= 네비게이션 ================= */
+  var secs = $$('.sec');
+  $('#nav').innerHTML = secs.map(function(s,i){
+    var id=s.dataset.s, c = id==='tasks' ? '<span class="c" id="navCount"></span>' : (id==='spec' ? '<span class="c" id="navSpec"></span>' : '<span></span>');
+    return '<li><button data-go="'+id+'"><span class="n">'+String(i+1).padStart(2,'0')+'</span><span>'+s.dataset.name+'</span>'+c+'</button></li>';
+  }).join('');
+  function go(id){
+    var idx = 0;
+    secs.forEach(function(s,i){ var on = s.dataset.s===id; s.hidden=!on; if(on) idx=i; });
+    $$('#nav button').forEach(function(b){ b.classList.toggle('on', b.dataset.go===id) });
+    $('#t-no').textContent = String(idx+1).padStart(2,'0'); $('#t-name').textContent = secs[idx].dataset.name;
+    $('#side').classList.remove('open'); window.scrollTo(0,0);
+    try{ history.replaceState(null,'','#'+id) }catch(e){}
+    if(id==='spec') refreshPreview(true);
+  }
+  document.addEventListener('click', function(e){ var b=e.target.closest('[data-go]'); if(b){ e.preventDefault(); go(b.dataset.go); } });
+  function cur(){ return secs.findIndex(function(s){return !s.hidden}) }
+  $('#prevS').onclick=function(){ var i=cur(); if(i>0) go(secs[i-1].dataset.s) };
+  $('#nextS').onclick=function(){ var i=cur(); if(i<secs.length-1) go(secs[i+1].dataset.s) };
+  $('#menu').onclick=function(){ $('#side').classList.toggle('open') };
+
+  /* ================= 사이드 · 홈 ================= */
+  function stats(list){ var d=list.filter(function(t){return t.done}).length; return {d:d,n:list.length,p:list.length?Math.round(d/list.length*100):0} }
+  function dday(){
+    if(!hub.openDate) return null;
+    var t=new Date(hub.openDate+'T00:00:00'), n=new Date(); n.setHours(0,0,0,0);
+    var d=Math.round((t-n)/864e5); return d>0?'D-'+d:(d===0?'D-DAY':'D+'+(-d));
+  }
+  function mmdd(d){ return d ? d.slice(5).replace('-','/') : '' }
+  function renderSide(){
+    var s=stats(hub.tasks); $('#f-prog').textContent=s.p+'%'; $('#f-left').textContent=(s.n-s.d)+'개';
+    $('#f-dday').textContent=dday()||'날짜 미정';
+    var nc=$('#navCount'); if(nc) nc.textContent=s.n-s.d;
+    $('#openDate').value=hub.openDate||'';
+    $('#ddayText').textContent = hub.openDate ? (dday()+' · '+hub.openDate.replace(/-/g,'.')+' 오픈') : '날짜를 정하면 D-day가 표시돼요.';
+  }
+  function renderMs(){
+    var names=['타자기 촬영','상세페이지','고객 페이지','시작하기'], desc={'타자기 촬영':'스튜디오 대여 · 사진·영상','상세페이지':'대필 · 인쇄 상세','고객 페이지':'작성 페이지 2종 · 봉투','시작하기':'시험 운영 · 오픈'};
+    $('#ms').innerHTML = names.map(function(n){
+      var gs=GROUPS.filter(function(g){return g.ms===n}).map(function(g){return g.id});
+      var s=stats(hub.tasks.filter(function(t){return gs.indexOf(t.g)>-1}));
+      return '<div data-go="tasks"><span class="l">'+n+'</span><span class="v num'+(s.p===100?' done':'')+'">'+s.p+'%</span><div class="meter"><i style="width:'+s.p+'%"></i></div><span class="d">'+desc[n]+' · '+s.d+'/'+s.n+'</span></div>';
+    }).join('');
+  }
+  function renderWho(){
+    var up=hub.tasks.filter(function(t){return !t.done && t.due}).sort(function(a,b){return a.due<b.due?-1:1}).slice(0,8);
+    var box='<div class="panel" style="grid-column:1/-1"><h3>다가오는 일정</h3>'+(up.length?'<div class="upc">'+up.map(function(t){return '<div><span class="d">'+mmdd(t.due)+'</span><span>'+esc(t.text)+'</span><span class="small faint">'+esc(t.owner)+'</span></div>'}).join('')+'</div>':'<p class="small muted">체크리스트에서 예정일을 넣으면 여기에 날짜순으로 모여요. 담당과 예정일은 다희와 같이 보면서 정하면 돼요.</p>')+'</div>';
+    $('#whoBoard').innerHTML = box + OWNERS.map(function(o){
+      var left=hub.tasks.filter(function(t){return t.owner===o && !t.done});
+      return '<div class="panel"><h3>'+o+' <span class="faint small mono">남은 일 '+left.length+'</span></h3><div class="kv">'+(left.slice(0,4).map(function(t){return '<div><span>'+esc(t.text)+'</span></div>'}).join('')||'<div><span class="faint">남은 일이 없어요</span></div>')+'</div>'+(left.length>4?'<button class="ib" data-go="tasks">전체 '+left.length+'개 보기</button>':'')+'</div>';
+    }).join('');
+  }
+  $('#openDate').addEventListener('change', function(e){ hub.openDate=e.target.value; persist(); });
+
+  /* ================= 체크리스트 ================= */
+  function renderFilters(){
+    $('#filters').innerHTML = ['전체'].concat(OWNERS).map(function(o){return '<button class="fbtn'+(filter===o?' on':'')+'" data-f="'+o+'">'+o+'</button>'}).join('') + '<span class="small faint" style="margin-left:6px">'+(boardRef?'현수·다희 실시간 공유 중':(M.live?'로그인하면 두 분이 같은 체크리스트를 봐요':'이 기기에 저장 중'))+'</span>';
+  }
+  function renderTasks(){
+    renderFilters();
+    $('#groups').innerHTML = GROUPS.map(function(g){
+      var all=hub.tasks.filter(function(t){return t.g===g.id}), s=stats(all);
+      var list=all.filter(function(t){return filter==='전체'||t.owner===filter});
+      return '<div class="group"><div class="ghead"><h3>'+g.name+'</h3><span class="p">'+g.desc+' · '+s.d+'/'+s.n+'</span><div class="meter"><i style="width:'+s.p+'%"></i></div></div><div class="tasks">'+
+        list.map(function(t){
+          return '<div class="task'+(t.done?' done':'')+'" data-id="'+t.id+'"><input type="checkbox" aria-label="완료"'+(t.done?' checked':'')+'><div><span class="tx" contenteditable="true" spellcheck="false">'+esc(t.text)+'</span>'+(t.src?'<span class="src">'+esc(t.src)+'</span>':'')+'</div><input type="date" aria-label="예정일" title="예정일" value="'+esc(t.due)+'"'+(t.due?' class="set"':'')+'><select data-o="'+t.owner+'" aria-label="담당">'+OWNERS.map(function(o){return '<option'+(o===t.owner?' selected':'')+'>'+o+'</option>'}).join('')+'</select><button class="del" aria-label="삭제" title="삭제">×</button></div>';
+        }).join('') + '<form class="add" data-g="'+g.id+'"><input placeholder="+ 이 묶음에 할 일 추가" aria-label="할 일 추가"><button>추가</button></form></div></div>';
+    }).join('');
+  }
+  var G = $('#groups');
+  G.addEventListener('change', function(e){
+    var row=e.target.closest('.task'); if(!row) return; var t=find(row.dataset.id); if(!t) return;
+    if(e.target.type==='checkbox'){ t.done=e.target.checked; row.classList.toggle('done',t.done); }
+    if(e.target.type==='date'){ t.due=e.target.value; e.target.classList.toggle('set',!!t.due); }
+    if(e.target.tagName==='SELECT'){ t.owner=e.target.value; e.target.dataset.o=t.owner; }
+    persist(); renderTasksKeep();
+  });
+  G.addEventListener('focusout', function(e){
+    if(!e.target.classList.contains('tx')) return; var t=find(e.target.closest('.task').dataset.id);
+    var v=e.target.textContent.trim(); if(t && v && v!==t.text){ t.text=v; persist(); }
+  });
+  G.addEventListener('keydown', function(e){ if(e.target.classList.contains('tx') && e.key==='Enter'){ e.preventDefault(); e.target.blur(); } });
+  G.addEventListener('click', function(e){
+    if(!e.target.classList.contains('del')) return; var row=e.target.closest('.task'), id=row.dataset.id;
+    if(row.dataset.confirm){ hub.tasks=hub.tasks.filter(function(t){return t.id!==id}); persist(); renderTasks(); }
+    else { row.dataset.confirm='1'; e.target.textContent='삭제?'; setTimeout(function(){ if(row.isConnected){ delete row.dataset.confirm; e.target.textContent='×'; } },2500); }
+  });
+  G.addEventListener('submit', function(e){
+    e.preventDefault(); var inp=$('input',e.target), v=inp.value.trim(); if(!v) return;
+    hub.tasks.push({id:'t'+Date.now(), g:e.target.dataset.g, text:v, owner:filter!=='전체'?filter:'미정', src:'직접 추가', done:false, due:''});
+    persist(); renderTasks();
+  });
+  $('#filters').addEventListener('click', function(e){ var b=e.target.closest('.fbtn'); if(!b) return; filter=b.dataset.f; renderTasks(); });
+  function find(id){ return hub.tasks.filter(function(t){return t.id===id})[0] }
+  function renderTasksKeep(){ $$('.ghead').forEach(function(h,i){ var g=GROUPS[i], all=hub.tasks.filter(function(t){return t.g===g.id}), s=stats(all); $('.p',h).textContent=g.desc+' · '+s.d+'/'+s.n; $('.meter i',h).style.width=s.p+'%'; }); }
+
+  /* ================= 고객 페이지 ================= */
+  function comp(p){
+    var A=appliedSpec();
+    if(p==='print') return {title:'일반 타자기 서비스 페이지', file:LETTER_BASE+'print.html', items:[
+      ['주문 확인','주문자 이름 · 휴대폰 뒤 4자리로 결제와 편지를 연결한다.'],
+      ['편지 쓰기','받는 분 · 내용 · 보내는 분. 한 줄 '+A.lineChars+'자, 한 장 '+A.maxLines+'줄 제한. 타자기에 없는 글자(이모지 등)는 찾아서 지우게 한다.'],
+      ['타자기 미리보기','타자기로 찍힐 모습을 줄 단위로 바로 보여준다.'],
+      ['봉투 고르기','봉투 '+(A.envelopes||[]).filter(function(e){return !e.hidden}).length+'종 중 선택, 봉투 앞면에 받는 분 이름 찍기 여부.'],
+      ['확인하고 보내기','요약, 개인정보 수집·이용 동의, 접수. 접수번호 발급.']]};
+    return {title:'대필 타자기 서비스 페이지', file:LETTER_BASE+'ghost.html', items:[
+      ['주문 확인','일반 타자기와 같다.'],
+      ['마음 설문','관계 '+(A.relations||[]).length+'종 선택 → 받는 분·보내는 분 → 질문 '+(A.survey||[]).length+'개(필수 '+(A.survey||[]).filter(function(q){return q.req}).length+'개).'],
+      ['꼭 넣고 싶은 말','그대로 넣을 문장, 빼고 싶은 이야기 (선택, '+A.memoMax+'자).'],
+      ['봉투 고르기','일반 타자기와 같다.'],
+      ['확인하고 보내기','요약, 동의(AI 사용 고지 자리 포함 · D7 결정 후 문구 확정), 접수.']]};
+  }
+  var cpCur='print';
+  function showCp(p){
+    cpCur=p; var c=comp(p); $$('#cpTabs .tab').forEach(function(b){b.classList.toggle('on',b.dataset.p===p)});
+    if($('#cpFrame').getAttribute('src')!==c.file) $('#cpFrame').src=c.file;
+    $('#cpOpen').href=c.file; $('#cpFile').textContent=c.file; $('#cpTitle').textContent=c.title;
+    $('#cpComp').innerHTML=c.items.map(function(it,i){return '<div><span class="i">'+String(i+1).padStart(2,'0')+'</span><span><b>'+it[0]+'</b><p>'+it[1]+'</p></span></div>'}).join('');
+  }
+  $('#cpTabs').addEventListener('click', function(e){ var b=e.target.closest('.tab'); if(b) showCp(b.dataset.p); });
+
+  /* ================= 상세페이지 기획안 ================= */
+  var ST={have:['있음','s-have'],write:['작성 필요','s-write'],shoot:['촬영 필요','s-shoot'],cap:['화면 캡처','s-cap'],after:['시험 운영 후','s-after']};
+  var DP = {
+    ghost: [
+      ['훅','"마음은 있는데, 문장으로 나오지 않을 때"','편지를 쓰다 멈춘 손, 구겨진 편지지','shoot'],
+      ['이런 분께','글씨가 부담돼요 / 감정을 글로 표현하기 어려워요 / 시작이 막막해요 / 시간이 없어요 (기존 2.jpg 문구)','기존 상세 2.jpg 재활용','have'],
+      ['무무토리 대필이란','질문 몇 개에 말하듯 답하면, 편지 쓰는 씨앗 병아리콩이 편지로 옮기고 타자기로 찍어 보내드려요','브랜드 문장(방향성 문서), 병아리콩 캐릭터','write'],
+      ['과정 4컷','설문 → 병아리콩이 편지로 → 수동 타자기 출력 → 포장·발송','과정 사진 4컷','shoot'],
+      ['설문 미리보기','"이 질문들은 글을 잘 쓰기 위한 질문이 아니에요. 마음을 정리하기 위한 질문이에요." + 질문 예시 3개','대필 페이지 화면 캡처','cap'],
+      ['쓰는 사람','병아리콩 소개 (합의한 공개 범위까지) + AI 초안·작가 검토 방식 안내 (D7 결정 후)','소개 문구, 캐릭터 이미지','write'],
+      ['타자기 영상','탁, 탁, 한 자씩 찍히는 소리 (자동재생 무음 + 소리 켜기)','타자기 15초 영상','shoot'],
+      ['봉투 4종','크라프트·실링 / 아이보리·도장 / 에어메일 / 무무토리 무늬 — 작성 페이지에서 고른다','봉투 4종 실물 사진','shoot'],
+      ['편지 샘플','실제 대필 편지 1~2통 (보낸 분 동의)','시험 운영 편지','after'],
+      ['후기','시험 운영 참여자 후기','후기 캡처','after'],
+      ['진행 순서','결제 → 작성 링크 → 설문 → 초안 확인(카카오톡) → 타자기 제작 → 발송','일정 도식','write'],
+      ['선물 같이 담기','편지만 건네기 쑥스러운 날, 함께 보낼 작은 선물','소품 누끼 (기존 촬영본)','have'],
+      ['가격·취소 안내','21,900원 · 무료배송(택배) · 수정 1회 무료 · 확정 뒤 3일 안 출고. 설문 전 전액 환불, 초안 작업 후 50%, 내용 확정 후 불가 (이용약관 제14조의2)','약관 요약','have'],
+      ['FAQ','며칠 걸려요? / 초안 수정은 몇 번? / 손글씨로도 되나요? / 해외 발송?','답변 작성','write']
+    ],
+    print: [
+      ['훅','"하고 싶은 말은 있는데, 손글씨가 부끄러울 때"','타자기 자판 클로즈업','shoot'],
+      ['이런 분께','글씨가 부담돼요 / 예쁘게 꾸밀 자신이 없어요 / 특별한 편지를 주고 싶어요','기존 상세 1·2.jpg 문구 재구성','have'],
+      ['무무토리 타자기 편지란','적어주신 글을 수동 타자기로 한 자 한 자 찍고, 무무토리 봉투에 담아 포장해 보내드려요','브랜드 문장','write'],
+      ['편지 쓰기 화면','결제 후 받은 링크에서 편지를 쓰면 타자기로 찍힐 모습을 바로 볼 수 있어요. 한 줄 '+S.lineChars+'자 · 한 장 '+S.maxLines+'줄','일반 타자기 페이지 화면 캡처','cap'],
+      ['타자기 영상','종이가 한 줄씩 올라오는 장면','타자기 15초 영상','shoot'],
+      ['봉투 4종','작성 페이지에서 4종 중 선택','봉투 4종 실물 사진','shoot'],
+      ['완성품','편지 + 봉투 + 실링, 선물과 함께 놓은 컷','완성품 사진','shoot'],
+      ['대필 안내','"쓸 말이 떠오르지 않는다면" → 대필 상품 링크','대필 상품 배너','write'],
+      ['선물 같이 담기','함께 보낼 작은 선물','소품 누끼 (기존 촬영본)','have'],
+      ['가격·취소 안내','14,900원 · 무료배송(택배) · 확정 뒤 3일 안 출고. 내용 확정 후 제작 시작, 단순 변심 취소 불가','약관 요약','have'],
+      ['FAQ','몇 자까지 쓸 수 있어요? / 이모지는요? / 며칠 걸려요?','답변 작성','write']
+    ]
+  };
+  function showDp(d){
+    $$('#dpTabs .tab').forEach(function(b){b.classList.toggle('on',b.dataset.d===d)});
+    $('#dpBody').innerHTML = DP[d].map(function(r,i){return '<tr><td class="n">'+String(i+1).padStart(2,'0')+'</td><td><b>'+r[0]+'</b></td><td><span class="q">'+esc(r[1])+'</span></td><td>'+esc(r[2])+'</td><td><span class="st '+ST[r[3]][1]+'">'+ST[r[3]][0]+'</span></td></tr>'}).join('');
+  }
+  var SHOTS=[
+    ['타자기 전체','정면·45도, 배경은 우드 톤 책상','대필·인쇄 훅, 홈페이지 배너','사진'],
+    ['자판 클로즈업','손가락이 키를 누르는 순간','인쇄 훅, 과정 4컷','사진'],
+    ['종이가 올라오는 장면','한 줄씩 찍히며 올라오는 종이','타자기 영상','영상 15초'],
+    ['편지 쓰다 멈춘 손','펜을 든 채 멈춘 손, 구겨진 편지지','대필 훅','사진'],
+    ['실링왁스 찍기','왁스를 녹이고 도장을 누르는 과정','과정 4컷, 릴스','사진·영상'],
+    ['봉투 4종','같은 배경·같은 각도로 한 장씩 (정면 3:2)','작성 페이지 봉투 선택, 상세 봉투 블록','사진 4장'],
+    ['포장 과정','편지 접기 → 봉투 → 실링 → 선물과 함께','과정 4컷','사진 4장'],
+    ['완성품 플랫레이','편지 + 봉투 + 선물 소품','인쇄 완성품 블록, 인스타','사진'],
+    ['편지 한 통 완성 과정','설문 화면 → 타자 → 포장 → 발송','상세 상단, 릴스','영상 30~60초']
+  ];
+  $('#dpTabs').addEventListener('click', function(e){ var b=e.target.closest('.tab'); if(b) showDp(b.dataset.d); });
+  $('#shotBody').innerHTML = SHOTS.map(function(r,i){return '<tr><td class="n">'+String(i+1).padStart(2,'0')+'</td><td><b>'+r[0]+'</b></td><td>'+r[1]+'</td><td>'+r[2]+'</td><td class="mono small">'+r[3]+'</td></tr>'}).join('');
+
+  /* ================= 스펙 편집 (초안 → 적용) ================= */
+  var applied = null;   // {spec, meta}
+  if(!M.live){ applied = store.get('mmt-spec-applied', null); }
+  var draft = norm(store.get('mmt-spec-draft', null) || appliedSpec());
+  var draftRef = null, pvMode = 'applied', pvPage = 'ghost', pendingRemote = null, pvTimer = null, saveTimer = null;
+  function norm(s){ return M.normSpec ? M.normSpec(clone(s)) : clone(s); }
+  function appliedSpec(){ var b=clone(SPEC_FILE); if(applied && applied.spec){ var a=norm(applied.spec); for(var k in a) b[k]=a[k]; } return b; }
+  function canon(v){
+    if(v==null || v==='' || v===false) return undefined;
+    if(Array.isArray(v)) return v.length ? v.map(function(x){ var c=canon(x); return c===undefined?null:c; }) : undefined;
+    if(typeof v==='object'){ var o={}, n=0; Object.keys(v).sort().forEach(function(k){ var c=canon(v[k]); if(c!==undefined){ o[k]=c; n++; } }); return n?o:undefined; }
+    if(typeof v==='string' && /^\d+$/.test(v)) return +v;
+    return v;
+  }
+  var PARTS=[['편지 규격',['lineChars','maxLines','memoMax','allowed']],['봉투',['envelopes']],['관계',['relations']],['설문 문항',['survey']]];
+  function sig(s,keys){ return JSON.stringify(canon(keys.map(function(k){return s[k]}))); }
+  function changedParts(){ var A=appliedSpec(); return PARTS.filter(function(p){ return sig(draft,p[1])!==sig(A,p[1]); }).map(function(p){return p[0]}); }
+  function partChip(name){ return changedParts().indexOf(name)>-1 ? '<span class="pill warn">변경됨 · 미적용</span>' : '<span class="pill ok">고객 페이지와 같음</span>'; }
+  function fmt(ts){ if(!ts) return ''; var d=new Date(ts); return d.toLocaleDateString('ko-KR')+' '+d.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}); }
+
+  function renderApplyBar(){
+    var ch=changedParts(), meta=applied&&applied.meta;
+    var canApply = ch.length && (!M.live || admin);
+    var st = ch.length ? '<span class="pill warn">미적용 변경 '+ch.length+'곳</span><span class="small">'+ch.join(' · ')+'</span>' : '<span class="pill ok">고객 페이지에 적용됨</span><span class="small muted">초안과 고객 페이지 내용이 같아요</span>';
+    var m = meta ? '마지막 적용 '+fmt(meta.appliedAt)+(meta.by?' · '+esc(meta.by):'') : '아직 적용한 적 없음 · 고객 페이지는 기본값을 쓰는 중';
+    var lock = (M.live && !admin) ? '<span class="pill info">'+(user?'이 계정은 관리자가 아니에요':'적용·공유 저장은 관리자 로그인 후')+'</span>' : '';
+    var bar=$('#applyBar');
+    if(!$('#applyBtn',bar)) bar.innerHTML='<div class="state" id="abState"></div><span id="abLock"></span><button class="btn ghost" id="revertBtn">적용본으로 되돌리기</button><button class="btn" id="applyBtn">고객 페이지에 적용</button>';
+    $('#abState').innerHTML=st+'<span class="meta">'+m+'</span>'; $('#abLock').innerHTML=lock;
+    $('#applyBtn').disabled=!canApply; $('#revertBtn').disabled=!ch.length;
+    var ns=$('#navSpec'); if(ns) ns.textContent = ch.length ? '미적용' : '';
+  }
+  $('#applyBar').addEventListener('click', function(e){
+    if(e.target.id==='applyBtn') applyDraft();
+    if(e.target.id==='revertBtn'){
+      if(!e.target.dataset.confirm){ e.target.dataset.confirm='1'; e.target.textContent='초안을 버릴까요? 한 번 더 누르기'; setTimeout(function(){ if(e.target.isConnected){ delete e.target.dataset.confirm; e.target.textContent='적용본으로 되돌리기'; } },3000); return; }
+      draft=norm(appliedSpec()); saveDraft(true); renderSpecEd();
+    }
+  });
+  function applyDraft(){
+    var payload={spec:clone(draft), meta:{appliedAt: M.live ? firebase.database.ServerValue.TIMESTAMP : Date.now(), by: user ? user.email : '미리보기'}};
+    if(M.live){
+      if(!admin) return;
+      var up={'config/spec':payload}; if(applied) up['config/specPrev']=applied;
+      db.ref().update(up).catch(function(err){ alertBar('적용하지 못했어요: '+err.message); });
+    } else {
+      payload.meta.appliedAt=Date.now(); applied=payload; store.set('mmt-spec-applied', applied); afterApplied();
+    }
+  }
+  function alertBar(msg){ var b=$('#applyBar'); var p=document.createElement('span'); p.className='pill warn'; p.textContent=msg; b.appendChild(p); }
+  function afterApplied(){ S = appliedSpec(); renderApplyBar(); renderSpecEd(true); showCp(cpCur); refreshPreview(true); }
+
+  function saveDraft(now){
+    store.set('mmt-spec-draft', draft);
+    renderApplyBar(); refreshPreview(false);
+    if(draftRef){ clearTimeout(saveTimer); var push=function(){ draftRef.set(clone(draft)).catch(function(e){ console.warn(e); }); }; if(now) push(); else saveTimer=setTimeout(push, 600); }
+  }
+  function refreshPreview(force){
+    if(!$('#pvFrame')) return;
+    clearTimeout(pvTimer);
+    var go=function(){ var u=LETTER_BASE+pvPage+'.html?t='+Date.now(); $('#pvOpen').href=u; if(getComputedStyle($('.specprev .phone')).display!=='none') $('#pvFrame').src = u; $('#pvNote').textContent = '현재 고객 작성 화면이에요. 편집 중인 초안은 이 미리보기에 반영되지 않아요.'; };
+    if(force) go();
+  }
+  $('#pvMode').addEventListener('click', function(e){ var b=e.target.closest('.tab'); if(!b) return; pvMode=b.dataset.v; $$('#pvMode .tab').forEach(function(x){x.classList.toggle('on',x===b)}); refreshPreview(true); });
+  $('#pvPage').addEventListener('click', function(e){ var b=e.target.closest('.tab'); if(!b) return; pvPage=b.dataset.p; $$('#pvPage .tab').forEach(function(x){x.classList.toggle('on',x===b)}); refreshPreview(true); });
+
+  function envFace(e, to){
+    to = to===undefined ? '<span class="to">받는 분 에게</span>' : to;
+    if(e.img) return '<div class="face photo" style="background-image:url(\''+esc(letterAssetUrl(e.img)).replace(/'/g,'%27')+'\')">'+to+'</div>';
+    if(e.id==='kraft') return '<div class="face kraft"><span class="seal"></span>'+to+'</div>';
+    if(e.id==='ivory') return '<div class="face ivory"><img src="https://letter.mumutori.com/stamp.png" alt="">'+to+'</div>';
+    if(e.id==='airmail') return '<div class="face airmail"><span class="pm">MUMU<br>TORI</span>'+to+'</div>';
+    if(e.id==='pattern') return '<div class="face pattern">'+to+'</div>';
+    return '<div class="face plain"><span class="lbl">'+esc(e.name)+'</span>'+to+'</div>';
+  }
+  var TYPES=[['text','한 줄 답'],['textarea','여러 줄 답'],['radio','하나 고르기'],['checks','여러 개 고르기']];
+  function inp(path, val, attrs){ return '<input data-p="'+path+'" value="'+esc(val==null?'':val)+'" '+(attrs||'')+'>'; }
+  function renderSpecEd(keepScroll){
+    var d=draft, rel=d.relations||[];
+    var approx=Math.round((+d.lineChars||0)*Math.max(0,(+d.maxLines||0)-4)*0.85);
+    var h='';
+    h+='<div class="panel"><div class="ph"><h3>편지 규격</h3>'+partChip('편지 규격')+'</div><div class="fgrid">'+
+      '<label class="fl">한 줄 글자 수'+inp('lineChars',d.lineChars,'type="number" min="10" max="80" data-t="n"')+'</label>'+
+      '<label class="fl">한 장 최대 줄 수 (호칭·서명 포함)'+inp('maxLines',d.maxLines,'type="number" min="5" max="60" data-t="n"')+'</label>'+
+      '<label class="fl">대필 "꼭 넣고 싶은 말" 최대 글자'+inp('memoMax',d.memoMax,'type="number" min="0" max="600" data-t="n"')+'</label>'+
+      '<label class="fl" style="grid-column:1/-1">고객에게 보여줄 "쓸 수 있는 글자" 안내'+inp('allowed',d.allowed)+'</label></div>'+
+      '<p class="small faint">본문으로 대략 '+approx+'자 정도 들어가요. 타자기 실측 후 숫자를 바꾸고 적용하세요.</p></div>';
+    h+='<div class="panel"><div class="ph"><h3>봉투</h3>'+partChip('봉투')+'</div><p class="small muted">사진 주소를 넣으면 그림 대신 실물 사진이 보여요. 숨김을 켜면 고객 화면에서 빠져요.</p>'+
+      (d.envelopes||[]).map(function(e,i){ var p='envelopes.'+i;
+        return '<div class="envrow">'+envFace(e,'')+'<div class="flds"><label class="fl">이름'+inp(p+'.name',e.name)+'</label><label class="fl">설명'+inp(p+'.desc',e.desc)+'</label><label class="fl full">사진 주소 (촬영 후)'+inp(p+'.img',e.img,'placeholder="https://… 비워두면 기본 그림"')+'</label></div>'+
+          '<div class="rowact"><label class="chk"><input type="checkbox" data-p="'+p+'.hidden" data-t="b"'+(e.hidden?' checked':'')+'> 숨김</label><div style="display:flex;gap:4px"><button class="mini" data-act="up" data-l="envelopes" data-i="'+i+'" aria-label="위로">↑</button><button class="mini" data-act="down" data-l="envelopes" data-i="'+i+'" aria-label="아래로">↓</button><button class="mini del" data-act="del" data-l="envelopes" data-i="'+i+'">삭제</button></div></div></div>';
+      }).join('')+'<button class="addbtn" data-act="add-env">+ 봉투 추가</button></div>';
+    h+='<div class="panel"><div class="ph"><h3>대필 · 관계 선택지</h3>'+partChip('관계')+'</div><p class="small muted">설문 첫 질문 "누구에게 보내는 편지인가요?"의 선택지예요. 관계마다 질문 예시 문구를 따로 둘 수 있어요.</p><div class="relrow">'+
+      rel.map(function(r,i){ return '<span class="rel"><input data-p="relations.'+i+'.label" value="'+esc(r.label)+'" aria-label="관계 이름"><button class="mini del" data-act="del" data-l="relations" data-i="'+i+'" aria-label="삭제">×</button></span>'; }).join('')+
+      '<button class="addbtn" data-act="add-rel">+ 관계 추가</button></div></div>';
+    h+='<div class="panel"><div class="ph"><h3>대필 설문 문항</h3>'+partChip('설문 문항')+'</div><p class="small muted">순서, 질문, 답 형식, 필수 여부, 보기, 도움말을 바꿀 수 있어요. 보기는 쉼표로 나눠 적어요.</p>'+
+      (d.survey||[]).map(function(q,i){ var p='survey.'+i, isOpt=q.type==='radio'||q.type==='checks';
+        var ex = (q.type==='text'||q.type==='textarea') ? '<details class="full"'+(q.ex?' open':'')+'><summary>관계별 예시 문구 (입력칸 안에 흐리게 보이는 글)</summary><div class="fgrid">'+rel.map(function(r){ return '<label class="fl">'+esc(r.label)+inp(p+'.ex.'+r.id, q.ex&&q.ex[r.id])+'</label>'; }).join('')+'</div></details>' : '';
+        return '<div class="qrow"><span class="qn">'+String(i+1).padStart(2,'0')+'</span><div class="qf">'+
+          '<label class="fl">질문'+inp(p+'.q',q.q)+'</label>'+
+          '<label class="fl">답 형식<select data-p="'+p+'.type" data-r="1">'+TYPES.map(function(t){return '<option value="'+t[0]+'"'+(q.type===t[0]?' selected':'')+'>'+t[1]+'</option>'}).join('')+'</select></label>'+
+          '<label class="fl">필수<span class="chk" style="padding:8px 0"><input type="checkbox" data-p="'+p+'.req" data-t="b"'+(q.req?' checked':'')+'> 필수</span></label>'+
+          (isOpt?'<label class="fl full">보기 (쉼표로 구분)'+inp(p+'.options',(q.options||[]).join(', '),'data-t="list"')+'</label>':'')+
+          '<label class="fl full">도움말 (질문 아래 작은 글씨, 선택)'+inp(p+'.help',q.help)+'</label>'+ex+
+          '</div><div class="rowact"><button class="mini" data-act="up" data-l="survey" data-i="'+i+'" aria-label="위로">↑</button><button class="mini" data-act="down" data-l="survey" data-i="'+i+'" aria-label="아래로">↓</button><button class="mini del" data-act="del" data-l="survey" data-i="'+i+'">삭제</button></div></div>';
+      }).join('')+'<button class="addbtn" data-act="add-q">+ 질문 추가</button></div>';
+    var y=window.scrollY; $('#specEd').innerHTML=h; if(keepScroll) window.scrollTo(0,y);
+    renderApplyBar();
+  }
+  function setPath(o, path, v){ var ks=path.split('.'), last=ks.pop(); var t=o; ks.forEach(function(k){ if(t[k]==null) t[k]={}; t=t[k]; }); if(v===''||v==null||v===false){ delete t[last]; } else t[last]=v; }
+  var ED=$('#specEd');
+  ED.addEventListener('input', onEd); ED.addEventListener('change', onEd);
+  function onEd(e){
+    var el=e.target, p=el.dataset.p; if(!p) return;
+    if(e.type==='input' && (el.type==='checkbox'||el.tagName==='SELECT')) return;
+    var t=el.dataset.t, v;
+    if(el.type==='checkbox') v=el.checked;
+    else if(t==='n') v=el.value===''?'':+el.value;
+    else if(t==='list') v=el.value.split(',').map(function(x){return x.trim()}).filter(Boolean);
+    else v=el.value;
+    setPath(draft, p, v);
+    if(p==='lineChars'||p==='maxLines'){ if(draft[p]==null) draft[p]=SPEC_FILE[p]; }
+    saveDraft(false);
+    $$('.ph .pill', ED).forEach(function(x){}); // chips refresh below
+    if(e.type==='change' && (el.dataset.r || el.type==='checkbox' || /\.img$/.test(p) || /relations\.\d+\.label/.test(p))) renderSpecEd(true);
+    else refreshChips();
+  }
+  function refreshChips(){ var ch=changedParts(); $$('#specEd .panel').forEach(function(pn,i){ var name=PARTS[i][0], pill=$('.ph .pill',pn); if(!pill) return; var c=ch.indexOf(name)>-1; pill.className='pill '+(c?'warn':'ok'); pill.textContent=c?'변경됨 · 미적용':'고객 페이지와 같음'; }); }
+  ED.addEventListener('click', function(e){
+    var b=e.target.closest('[data-act]'); if(!b) return; e.preventDefault();
+    var act=b.dataset.act, L=b.dataset.l, i=+b.dataset.i, uid=Date.now().toString(36);
+    if(act==='add-env') (draft.envelopes=draft.envelopes||[]).push({id:'env-'+uid, name:'새 봉투', desc:''});
+    if(act==='add-rel') (draft.relations=draft.relations||[]).push({id:'r-'+uid, label:'새 관계'});
+    if(act==='add-q') (draft.survey=draft.survey||[]).push({id:'q-'+uid, q:'새 질문', type:'text', req:false});
+    if(act==='up' && i>0){ var a=draft[L]; a.splice(i-1,0,a.splice(i,1)[0]); }
+    if(act==='down'){ var a2=draft[L]; if(i<a2.length-1) a2.splice(i+1,0,a2.splice(i,1)[0]); }
+    if(act==='del'){
+      if(!b.dataset.confirm){ b.dataset.confirm='1'; var t0=b.textContent; b.textContent='삭제?'; setTimeout(function(){ if(b.isConnected){ delete b.dataset.confirm; b.textContent=t0; } },2500); return; }
+      draft[L].splice(i,1);
+    }
+    saveDraft(true); renderSpecEd(true);
+  });
+  ED.addEventListener('focusout', function(){ setTimeout(function(){ if(pendingRemote && !ED.contains(document.activeElement)){ draft=norm(pendingRemote); pendingRemote=null; store.set('mmt-spec-draft',draft); renderSpecEd(true); } },50); });
+
+  /* ================= 로그인 · 공유 · 접수함 ================= */
+  function letterText(p){
+    if(p.type==='print') return (p.letter.to?p.letter.to+'에게\n\n':'')+(p.letter.body||'')+'\n\n— '+(p.letter.from||'');
+    var A=appliedSpec(), out=['관계: '+p.relation,'받는 분: '+p.letter.to+' / 보내는 분: '+p.letter.from,''];
+    (A.survey||[]).forEach(function(q){ var v=p.survey&&p.survey[q.id]; if(v&&(v.length)) out.push('Q. '+q.q+'\nA. '+(Array.isArray(v)?v.join(', '):v)+'\n'); });
+    if(p.memo) out.push('꼭 넣고 싶은 말: '+p.memo);
+    return out.join('\n');
+  }
+  function renderInbox(list, note){
+    var A=appliedSpec();
+    $('#inbox').innerHTML = (note?'<p class="note">'+note+'</p>':'') + (list.length ? list.map(function(p){
+      var env=(A.envelopes||[]).filter(function(e){return e.id===(p.envelope&&p.envelope.id)})[0];
+      var when=new Date(p.createdAt||Date.now()).toLocaleString('ko-KR');
+      return '<details class="lt"><summary><span class="ty '+p.type+'">'+(p.type==='print'?'인쇄':'대필')+'</span><span><b>'+esc(p.order&&p.order.name)+'</b> <span class="faint small mono">휴대폰 뒤 4자리 '+esc(p.order&&p.order.phone4)+' · 접수 '+esc(p.id||'')+'</span></span><span class="small faint">'+when+'</span></summary><div class="body"><div class="kv"><div><span>상태</span><b>'+esc(p.status==='received'?'접수':(p.status||'접수'))+'</b></div><div><span>봉투</span><b>'+esc(env?env.name:(p.envelope&&p.envelope.id)||'')+(p.envelope&&p.envelope.writeName?' · 이름 찍기':'')+'</b></div><div><span>연락처 뒤 4자리</span><b>'+esc(p.order&&p.order.phone4)+'</b></div></div><pre>'+esc(letterText(p))+'</pre></div></details>';
+    }).join('') : '<div class="empty">아직 접수된 편지가 없어요.</div>');
+  }
+  function renderAuth(){
+    renderGate();
+    var box=$('#authSlot'), lb=$('#loginBox');
+    if(!M.live){ box.innerHTML='<span class="pill info">미리보기 모드</span>'; lb.innerHTML='<span class="mode demo">미리보기 모드</span><span class="small muted">이 기기에서 접수한 테스트 편지가 보여요.</span>'; return; }
+    if(!user){
+      box.innerHTML='<button class="ib" data-login>Google 로그인</button>';
+      lb.innerHTML='<button class="btn" data-login>Google 계정으로 로그인</button><span class="small muted">관리자 계정만 접수함·공유 체크리스트·스펙 적용을 쓸 수 있어요.</span>';
+      return;
+    }
+    box.innerHTML='<span class="who" title="'+esc(user.email)+'">'+esc(user.email)+'</span>'+(admin?'':'<span class="pill warn">관리자 아님</span>')+'<button class="ib" data-logout>로그아웃</button>';
+    lb.innerHTML='<span class="mode live">'+esc(user.email)+'</span><span class="small faint mono">UID '+user.uid+'</span>'+(admin?'':'<span class="small muted">이 계정은 아직 관리자가 아니에요. UID를 현수에게 알려주세요.</span>');
+  }
+  document.addEventListener('click', function(e){
+    if(e.target.closest('[data-login]')){
+      if(!authAvailable) return;
+      authMessage = 'Google 로그인을 진행하고 있어요.'; renderGate();
+      M.fb.auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(function(){
+        if(!admin){ authMessage = '로그인을 완료하지 못했어요. 다시 시도해 주세요.'; renderGate(); }
+      });
+    }
+    if(e.target.closest('[data-logout]')){
+      if(!authAvailable) return;
+      // Close immediately, before signOut and any older permission promise settle.
+      authEpoch++; admin = false; authMessage = '로그아웃하고 있어요.';
+      stopPrivateSubscriptions(); renderAuth(); renderInbox([], '로그인하면 접수된 편지가 보여요.');
+      M.fb.auth.signOut().catch(function(){
+        authMessage = '로그아웃을 완료하지 못했어요. 다시 시도하거나 새로고침해 주세요.'; renderGate();
+      });
+    }
+  });
+  var inboxRef=null;
+  function startLive(){
+    db.ref('config/spec').on('value', function(snap){ applied=snap.val(); S=appliedSpec(); if(!draftRef && !store.get('mmt-spec-draft',null)) draft=norm(appliedSpec()); renderApplyBar(); refreshChips(); showCp(cpCur); });
+    M.fb.auth.onAuthStateChanged(function(u){
+      var epoch = ++authEpoch;
+      user = u; admin = false; authMessage = '';
+      stopPrivateSubscriptions(); renderAuth();
+      renderInbox([], '로그인하면 접수된 편지가 보여요.');
+      if(!u){ renderFilters(); renderApplyBar(); return; }
+      function current(){
+        return epoch === authEpoch && user && user.uid === u.uid &&
+          M.fb.auth.currentUser && M.fb.auth.currentUser.uid === u.uid;
+      }
+      function revoke(){
+        if(!current()) return;
+        authEpoch++; admin = false;
+        authMessage = '이 계정의 관리자 권한을 확인하지 못했어요. 관리자 Google 계정으로 다시 로그인해 주세요.';
+        stopPrivateSubscriptions(); renderAuth();
+        renderInbox([], '관리자 권한을 확인하지 못했어요.'); renderFilters(); renderApplyBar();
+      }
+      db.ref('hub/board').once('value').then(function(snap){
+        if(!current()) return;
+        admin = true; var v = snap.val();
+        boardRef = db.ref('hub/board');
+        if(v && v.tasks){ hub=normBoard(v); store.set(KEY,hub); } else { boardRef.set(hub).catch(revoke); }
+        boardRef.on('value', function(s2){
+          if(!current() || !admin) return;
+          var v2=s2.val(); if(v2&&v2.tasks){ hub=normBoard(v2); store.set(KEY,hub); renderSide(); renderMs(); renderWho(); if(!$('#groups').contains(document.activeElement)) renderTasks(); }
+        }, revoke);
+        var sessionDraftRef = draftRef = db.ref('hub/specDraft');
+        sessionDraftRef.once('value').then(function(ds){
+          if(!current() || !admin) return;
+          var dv=ds.val(); if(dv){ draft=norm(dv); store.set('mmt-spec-draft',draft); } else { sessionDraftRef.set(clone(draft)).catch(revoke); }
+          renderSpecEd(true);
+          sessionDraftRef.on('value', function(s3){
+            if(!current() || !admin) return;
+            var v3=s3.val(); if(!v3) return; if(JSON.stringify(canon(v3))===JSON.stringify(canon(draft))) return;
+            if(ED.contains(document.activeElement)){ pendingRemote=v3; return; }
+            draft=norm(v3); store.set('mmt-spec-draft',draft); renderSpecEd(true); refreshPreview(false);
+          }, revoke);
+        }).catch(revoke);
+        inboxRef=db.ref('letters').orderByChild('createdAt').limitToLast(100);
+        inboxRef.on('value', function(s4){
+          if(!current() || !admin) return;
+          var list=[]; s4.forEach(function(c){ var x=c.val(); x.id=c.key.slice(-8).toUpperCase(); list.unshift(x); }); renderInbox(list);
+        }, function(){
+          if(current() && admin) renderInbox([], '접수 목록을 읽지 못했어요. 관리자 계정과 연결 상태를 확인해 주세요.');
+        });
+        renderAuth(); renderAll(); renderApplyBar();
+      }).catch(revoke);
+    }, function(){
+      authEpoch++; admin=false; authMessage='로그인 상태를 확인하지 못했어요. 새로고침해 주세요.';
+      stopPrivateSubscriptions(); renderAuth();
+    });
+  }
+
+  function renderAll(){ renderSide(); renderMs(); renderWho(); renderTasks(); }
+  if(M.live){ var m=$('#mode'); m.className='mode live'; m.textContent='Firebase 연결됨'; }
+  renderAll(); showCp('print'); showDp('ghost'); renderSpecEd(); renderAuth();
+  if(authAvailable) startLive(); else { renderGate(); renderInbox([], '관리자 로그인을 확인할 수 없어요.'); }
+  var h=(location.hash||'').replace('#',''); go(secs.some(function(s){return s.dataset.s===h})?h:'home');
+  window.addEventListener('storage', function(e){ if(e.key==='mmt-demo-letters' && !M.live) renderInbox(store.get('mmt-demo-letters',[])); });
+}
+if (M.loadSpec) M.loadSpec(boot); else boot();
+})();
+</script>
+
+
+</body>
+</html>

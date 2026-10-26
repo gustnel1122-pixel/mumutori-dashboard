@@ -23,7 +23,9 @@ generate_icons(R)
 seed=R/'data/seed.json'
 if seed.exists(): (R/'data/seed.json.gz').write_bytes(gzip.compress(seed.read_bytes(),mtime=0))
 pages={'index':('overview','운영 홈'),'finance':('finance','재무'),'bank':('bank','재무 · 계좌별'),'products':('products','상품'),'purchases':('purchases','구매·원가'),'sourcing':('sourcing','소싱'),'sales':('sales','판매·정산'),'stock':('stock','물류·재고'),'partners':('partners','거래처'),'audit':('audit','변경 이력'),'settings':('settings','설정·백업'),'branding':('branding','브랜딩'),'characters':('characters','캐릭터'),'agents':('agents','AI 조직도')}
+private_documents=['letter-hub.html']
 version_files=[R/'build.py',R/'manifest.webmanifest',R/'offline.html']
+version_files += [R/name for name in private_documents]
 version_files += [p for folder in ['src','assets','_tools'] for p in (R/folder).rglob('*') if p.is_file() and '__pycache__' not in p.parts and p.suffix!='.pyc']
 # Include paths as well as bytes: renaming/removing a resource must change the worker.
 version=hashlib.sha256(b''.join(p.relative_to(R).as_posix().encode()+b'\0'+content_bytes(p)+b'\0' for p in sorted(version_files))).hexdigest()[:12]
@@ -78,7 +80,7 @@ assets['manifest.webmanifest']=hashlib.sha256(content_bytes(R/'manifest.webmanif
 cached_pages={f'{name}.html':hashlib.sha256(content_bytes(R/f'{name}.html')).hexdigest()
               for name in pages if name not in {'index','finance','bank','sourcing','characters','branding'}}
 cached_pages.update({f'{name}.html':hashlib.sha256(content_bytes(R/f'{name}.html')).hexdigest() for name in operations_pages})
-worker=(R/'_tools/sw-template.js').read_text(encoding='utf-8').replace('__PWA_VERSION__',version).replace('__PWA_ASSETS__',json.dumps(assets,ensure_ascii=False,sort_keys=True)).replace('__PWA_PAGES__',json.dumps(cached_pages,sort_keys=True)).replace('__PWA_DOCUMENTS__',json.dumps([name+'.html' for name in pages]+[name+'.html' for name in operations_pages]+['quick.html','offline.html']))
+worker=(R/'_tools/sw-template.js').read_text(encoding='utf-8').replace('__PWA_VERSION__',version).replace('__PWA_ASSETS__',json.dumps(assets,ensure_ascii=False,sort_keys=True)).replace('__PWA_PAGES__',json.dumps(cached_pages,sort_keys=True)).replace('__PWA_DOCUMENTS__',json.dumps([name+'.html' for name in pages]+[name+'.html' for name in operations_pages]+['quick.html','offline.html']+private_documents))
 (R/'sw.js').write_text(worker,encoding='utf-8',newline=chr(10))
 print(f'Built {len(pages)+len(operations_pages)+1} independent pages + service worker · {version}; seed unchanged')
 
