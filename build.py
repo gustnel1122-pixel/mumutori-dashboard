@@ -61,6 +61,11 @@ for filename,(page,title) in pages.items():
     (R/f'{filename}.html').write_text(html,encoding='utf-8',newline=chr(10))
 quick=(R/'src/quick-shell.html').read_text(encoding='utf-8').replace('{{PWA_HEAD}}',PWA_HEAD).replace('{{VERSION}}',version)
 (R/'quick.html').write_text(quick,encoding='utf-8',newline=chr(10))
+# Public operations pages share versioned source templates; keep their source in src.
+operations_pages={'palsibo-shopping':'shopping-shell.html','store-opening':'store-opening-shell.html','project-hub':'project-hub-shell.html'}
+for name,template in operations_pages.items():
+    shell=(R/'src'/template).read_text(encoding='utf-8').replace('{{PWA_HEAD}}',PWA_HEAD).replace('{{VERSION}}',version)
+    (R/f'{name}.html').write_text(shell,encoding='utf-8',newline=chr(10))
 # A strict allowlist keeps all JSON/seed, login, finance code and APIs out of Cache Storage.
 excluded={'fbauth.js','home-fin.js','finance.js','bank.js','overview.js'}
 assets={p.relative_to(R).as_posix():hashlib.sha256(content_bytes(p)).hexdigest()
@@ -72,6 +77,8 @@ assets['manifest.webmanifest']=hashlib.sha256(content_bytes(R/'manifest.webmanif
 # Network-backed/private screens fall back to the neutral offline screen, never cached HTML.
 cached_pages={f'{name}.html':hashlib.sha256(content_bytes(R/f'{name}.html')).hexdigest()
               for name in pages if name not in {'index','finance','bank','sourcing','characters','branding'}}
-worker=(R/'_tools/sw-template.js').read_text(encoding='utf-8').replace('__PWA_VERSION__',version).replace('__PWA_ASSETS__',json.dumps(assets,ensure_ascii=False,sort_keys=True)).replace('__PWA_PAGES__',json.dumps(cached_pages,sort_keys=True)).replace('__PWA_DOCUMENTS__',json.dumps([name+'.html' for name in pages]+['quick.html','offline.html']))
+cached_pages.update({f'{name}.html':hashlib.sha256(content_bytes(R/f'{name}.html')).hexdigest() for name in operations_pages})
+worker=(R/'_tools/sw-template.js').read_text(encoding='utf-8').replace('__PWA_VERSION__',version).replace('__PWA_ASSETS__',json.dumps(assets,ensure_ascii=False,sort_keys=True)).replace('__PWA_PAGES__',json.dumps(cached_pages,sort_keys=True)).replace('__PWA_DOCUMENTS__',json.dumps([name+'.html' for name in pages]+[name+'.html' for name in operations_pages]+['quick.html','offline.html']))
 (R/'sw.js').write_text(worker,encoding='utf-8',newline=chr(10))
-print(f'Built {len(pages)+1} independent pages + service worker · {version}; seed unchanged')
+print(f'Built {len(pages)+len(operations_pages)+1} independent pages + service worker · {version}; seed unchanged')
+

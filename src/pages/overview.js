@@ -3,6 +3,7 @@
 // - 로그인돼 있으면 home-fin.js가 장부를 읽어(쓰지 않음) #home-need-line · #home-month-body를 바로 바꿔 넣는다.
 // - 아래 기본 글은 로그인 전 모습: 재무 · 폰 장부 화면이 이 브라우저에 남긴 '건수와 시각'(fin-form rememberNeeds) 또는 안내.
 // - 시연 모드(?demo=1)면 가짜 장부로 바로 센다.
+const {renderOperationsEntrance} = await import(`../project-hub.js?v=${document.body.dataset.build}`);
 const NEEDS_KEY='mmt-fin-needs-v1';
 function finHint(){
   const F=window.FinCore,demo=window.__MMT_DEMO__&&window.__MMT_TEST_FIN__;
@@ -36,6 +37,7 @@ export default function overview(ctx){
     :`<p class="month-empty">이번 달 매출 · 지출 · 돈 흐름은 <b>재무 화면 맨 위</b>에 있어요(폰 · PC 같은 공용 장부).</p>${link('finance','재무에서 이번 달 보기')}`;
   const audit=data.erp.audit.slice(0,3);
   return `<div class="home-heading"><div><div class="eyebrow">무무토리 운영실</div><h1>오늘도, 무무토리<span class="title-dot">.</span></h1></div><span class="today-date">${date}</span></div>`+
+    `<div id="projects">${renderOperationsEntrance()}</div>`+
     `<div class="home-top"><section class="panel task-panel"><div class="panelhead"><h2>다음으로 챙길 일 <span class="accent-orange">✳</span></h2>${badge('실제 할 일')}</div><div class="task-list">${needLine}</div>`+
       // 옛 장부(과거 기록 포함) 숫자는 사장님 할 일이 아니라 참고값이라 접어 둔다(검수 기준 2)
       `<details class="legacy-tasks"><summary>옛 장부 참고 숫자 <small>과거 기록 포함 · 지금 할 일 아님</small></summary><div class="task-list">${tasks.map(([v,a,dept,label,count,unit,tone])=>`<a class="task-link" href="${v}.html?attention=${a}"><span class="task-dept tone-${tone}">${dept}</span><b>${label}</b><strong>${won(count)}<em>${unit}</em></strong><span class="task-arrow">↗</span></a>`).join('')}</div><div class="task-foot">10/03 이전 옛 장부(이 PC 브라우저)에서 센 숫자예요. 실제 미수금 · 미입고 확정 건수는 아닙니다.</div></details></section>`+
@@ -49,3 +51,4 @@ export default function overview(ctx){
     (audit.length?`<section class="panel activity-panel home-activity"><div class="panelhead"><h2>최근의 발자취</h2><small class="task-basis">이 PC 브라우저의 등록 · 수정</small>${link('audit','전체 보기')}</div><div class="panelbody">${audit.map(a=>`<div class="activity"><i></i><div><b>${esc(a.label)}</b><small>${esc(a.action)} · ${dateTime(a.date)}</small></div></div>`).join('')}</div></section>`:'')+
     workflowStrip();
 }
+
