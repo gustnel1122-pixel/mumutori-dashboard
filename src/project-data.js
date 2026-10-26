@@ -1,6 +1,11 @@
 // 운영 홈과 프로젝트 페이지가 함께 쓰는 공개 요약. 금액·계정·개인정보를 넣지 않습니다.
 export const PROJECT_UPDATED_AT = '2026-10-26';
 export const PROJECT_CHECK_NOTE = '10/26 정본 확인';
+// 실제 체크·메모·기기 간 이어쓰기는 오프라인 프로젝트에서만 합니다.
+export const PALSIBO_SHOPPING = {
+  href: 'https://gustnel1122-pixel.github.io/mumutori-offline-pages/?shopping=palsibo-20261026#buylist',
+  counts: {today:10, verify:5, elsewhere:6, owned:4}
+};
 export const PROJECTS = [
   {
     "id": "offline",
@@ -12,11 +17,11 @@ export const PROJECTS = [
       "구매 여부가 불분명한 품목은 확인 필요"
     ],
     "next": "오늘 구매 목록에서 기존 비품을 먼저 확인하고, 테이블을 실측",
-    "href": "store-opening.html",
+    "href": "https://gustnel1122-pixel.github.io/mumutori-offline-pages/",
     "links": [
       {
-        "label": "오늘 팔시보 구매",
-        "href": "palsibo-shopping.html"
+        "label": "오프라인 프로젝트 → 오늘 팔시보 구매",
+        "href": "https://gustnel1122-pixel.github.io/mumutori-offline-pages/?shopping=palsibo-20261026#buylist"
       }
     ]
   },

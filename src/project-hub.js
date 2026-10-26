@@ -1,39 +1,17 @@
-const {PROJECTS, PROJECT_UPDATED_AT, PROJECT_CHECK_NOTE} = await import(`./project-data.js?v=${document.body.dataset.build || 'operations-20261026-1'}`);
+const {PROJECTS, PROJECT_UPDATED_AT, PROJECT_CHECK_NOTE, PALSIBO_SHOPPING} = await import(`./project-data.js?v=${document.body.dataset.build || 'operations-20261026-1'}`);
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const dateLabel = () => new Intl.DateTimeFormat('sv-SE', {timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-const SHOPPING_KEY = 'mumutori-palsibo-20261026-v1';
-
-function shoppingProgress(){
-  try {
-    const data = JSON.parse(localStorage.getItem(SHOPPING_KEY) || 'null');
-    if (!data || data.version !== 1 || !data.checked || typeof data.checked !== 'object') return '';
-    const count = Object.values(data.checked).filter(value => value === true).length;
-    return count ? `이 기기에서 체크 ${count}개` : '이 기기에서 아직 체크하지 않았어요';
-  } catch { return ''; }
-}
-
 export function renderProjectCards(currentId = ''){
   return `<div class="ops-project-grid">${PROJECTS.map((project, index) => `<article class="ops-project-card${currentId === project.id ? ' is-current' : ''}" data-project="${esc(project.id)}"><div class="ops-project-meta"><span>${esc(project.kicker)}</span><span class="ops-project-number">${String(index + 1).padStart(2, '0')}</span></div><h3><a href="${esc(project.href)}">${esc(project.title)}<span aria-hidden="true">↗</span></a></h3><ul class="ops-status-list">${project.status.map(line => `<li>${esc(line)}</li>`).join('')}</ul><div class="ops-next"><span>다음 할 일</span><p>${esc(project.next)}</p></div><a class="ops-project-link" href="${esc(project.href)}">프로젝트 열기 <span aria-hidden="true">→</span></a></article>`).join('')}</div>`;
 }
 
 export function renderOperationsEntrance(){
   const today = dateLabel() === '2026-10-26';
-  const progress = shoppingProgress();
-  return `<section class="ops-entrance" aria-label="프로젝트 입구"><a class="ops-shopping-card" href="palsibo-shopping.html"><div class="ops-shopping-copy"><div class="ops-shopping-kicker"><span class="ops-date-badge">10/26 월</span><span>매장에 가기 전, 이 목록 하나</span></div><h2>${today ? '오늘 팔시보 구매' : '팔시보 구매 목록'}<span aria-hidden="true">↗</span></h2><p>다희 님 배치안과 최신 준비물을 한곳에 모았어요.<br>구역별로 확인하고, 산 물건은 휴대폰에서 체크하세요.</p><span class="ops-shopping-action">구매 목록 열기 <b aria-hidden="true">→</b></span><small class="ops-shopping-progress" data-shopping-progress${progress ? '' : ' hidden'}>${progress ? esc(progress) + ' · 같은 브라우저에만 저장' : ''}</small></div><div class="ops-shopping-art" aria-hidden="true"><span class="ops-note-sheet"><i>✓</i><b></b><i>✓</i><b></b><i>○</i><b></b></span><span class="ops-art-label">11/1 OPEN</span></div></a><div class="ops-section-head"><div><span class="ops-eyebrow">PROJECTS</span><h2>모든 프로젝트, 여기에서</h2></div><p><time datetime="${esc(PROJECT_UPDATED_AT)}">${esc(PROJECT_CHECK_NOTE)}</time><span>확인된 상태와 다음 할 일</span></p></div>${renderProjectCards()}</section>`;
+  const counts = PALSIBO_SHOPPING.counts;
+  return `<section class="ops-entrance" aria-label="프로젝트 입구"><a class="ops-shopping-card" href="${esc(PALSIBO_SHOPPING.href)}"><div class="ops-shopping-copy"><div class="ops-shopping-kicker"><span class="ops-date-badge">10/26 월</span><span>오프라인 프로젝트에서 이어서 준비</span></div><h2>${today ? '오늘 팔시보 구매' : '팔시보 구매 목록'}<span aria-hidden="true">↗</span></h2><p>다희 님 배치안 반영 · 오늘 구매 후보 ${counts.today}개.<br>현장 확인 ${counts.verify}개 · 별도 준비 ${counts.elsewhere}개 · 보유 ${counts.owned}개.</p><span class="ops-shopping-action">오프라인 프로젝트 → 오늘 팔시보 구매 <b aria-hidden="true">↗</b></span></div><div class="ops-shopping-art" aria-hidden="true"><span class="ops-note-sheet"><i>✓</i><b></b><i>✓</i><b></b><i>○</i><b></b></span><span class="ops-art-label">11/1 OPEN</span></div></a><div class="ops-section-head"><div><span class="ops-eyebrow">PROJECTS</span><h2>모든 프로젝트, 여기에서</h2></div><p><time datetime="${esc(PROJECT_UPDATED_AT)}">${esc(PROJECT_CHECK_NOTE)}</time><span>확인된 상태와 다음 할 일</span></p></div>${renderProjectCards()}</section>`;
 }
 
-
-function refreshShoppingProgress(){
-  const progress = shoppingProgress();
-  for (const node of document.querySelectorAll('[data-shopping-progress]')) {
-    node.hidden = !progress;
-    node.textContent = progress ? `${progress} · 같은 브라우저에만 저장` : '';
-  }
-}
-// 뒤로가기로 돌아온 화면도 현장에서 체크한 상태를 바로 보여 줍니다.
-globalThis.addEventListener?.('pageshow', refreshShoppingProgress);
-globalThis.addEventListener?.('storage', event => { if (event.key === SHOPPING_KEY || event.key === null) refreshShoppingProgress(); });
 
 function renderProjectPage(){
   const root = document.getElementById('project-content');
