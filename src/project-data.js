@@ -3,8 +3,8 @@ export const PROJECT_UPDATED_AT = '2026-10-26';
 export const PROJECT_CHECK_NOTE = '10/26 정본 확인';
 // 실제 체크·메모·기기 간 이어쓰기는 오프라인 프로젝트에서만 합니다.
 export const PALSIBO_SHOPPING = {
-  href: 'https://gustnel1122-pixel.github.io/mumutori-offline-pages/?shopping=palsibo-20261026#buylist',
-  counts: {today:10, verify:5, elsewhere:6, owned:4}
+  href: 'https://gustnel1122-pixel.github.io/mumutori-offline-pages/#preparation',
+  counts: {total:51}
 };
 export const PROJECTS = [
   {
@@ -13,15 +13,15 @@ export const PROJECTS = [
     "kicker": "공간 · 집기",
     "status": [
       "11월 1일(일) 오픈 준비",
-      "다희 님 배치안 기준으로 집기 정리",
-      "구매 여부가 불분명한 품목은 확인 필요"
+      "구매·포장·준비표를 한 목록으로 통합",
+      "하자·보류·안 함과 진행 상태를 함께 확인"
     ],
-    "next": "오늘 구매 목록에서 기존 비품을 먼저 확인하고, 테이블을 실측",
+    "next": "매장 준비 목록에서 하자·보류·안 함을 함께 정하기",
     "href": "https://gustnel1122-pixel.github.io/mumutori-offline-pages/",
     "links": [
       {
-        "label": "오프라인 프로젝트 → 오늘 팔시보 구매",
-        "href": "https://gustnel1122-pixel.github.io/mumutori-offline-pages/?shopping=palsibo-20261026#buylist"
+        "label": "매장 준비 목록 열기",
+        "href": "https://gustnel1122-pixel.github.io/mumutori-offline-pages/#preparation"
       }
     ]
   },
