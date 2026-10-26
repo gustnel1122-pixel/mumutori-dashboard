@@ -21,7 +21,7 @@ export const SOURCE = s => !s || s === 'phone' || s === 'manual' ? '' : s === 'a
 export function entryRow(e, actions = '') {
   const src = SOURCE(e.source), acct = F().accountOf(e), move = e.kind === 'move';
   const title = move ? `${e.from || acct || '?'} → ${e.to || '받는 통장 확인'}` : (e.vendor || e.category || '분류 필요');
-  const where = acct || e.method || '수단 미기록';
+  const where = (acct || e.method || '수단 미기록') + (e.card ? ` · 카드 상품 ${e.card}` : '');
   const cat = move ? '내 계좌 이동' : (e.category || '분류 필요') + (e.tag ? ' · ' + e.tag : '');
   return `<div class="q-line${e.status === 'void' ? ' void' : ''}${move ? ' move' : ''}" data-id="${esc(e.id)}"><div><b>${esc(title)}</b><small>${esc(e.date)}${e.time ? ' ' + esc(e.time) : ''} · ${esc(where)} · ${esc(cat)}${src ? ' · ' + esc(src) : ''}</small></div><strong class="amt ${e.kind === 'in' ? 'plus' : move ? 'move' : ''}">${e.kind === 'in' ? '+' : move ? '↔' : '−'}${won(e.amount)}</strong>${actions}</div>`;
 }
@@ -177,7 +177,8 @@ export function renderLists({ book, needsRoot, recentRoot, recentCount = 10, fil
   if (recentRoot) {
     const toggle = voids ? `<button type="button" class="q-link q-void-toggle" data-togglevoid="1" aria-pressed="${showVoid}">${showVoid ? '취소된 줄 숨기기' : `취소 포함 보기 (${voids})`}</button>` : '';
     const more = shown.length > recentCount ? `<p class="q-more-line">${won(shown.length)}줄 중 ${won(recentCount)}줄 <button type="button" class="q-link" data-more="1">더 보기</button></p>` : '';
-    recentRoot.innerHTML = (shown.slice(0, recentCount).map(e => entryRow(e, e.status === 'void' ? '<span class="q-void">취소됨</span>' : `<button type="button" class="q-link" data-void="${esc(e.id)}">취소</button>`)).join('') || `<p class="q-empty">${filter.account || filter.method ? '고른 계좌 · 수단의 줄이 없어요.' : '아직 기록이 없어요. 위에서 첫 줄을 넣어 보세요.'}</p>`) + more + toggle;
+    const testNote = book.inboxTestCount ? `<p class="q-msg ok" role="status">알림 연결 시험 ${won(book.inboxTestCount)}건 수신 · 장부 합계에서 제외</p>` : '';
+    recentRoot.innerHTML = testNote + (shown.slice(0, recentCount).map(e => entryRow(e, e.status === 'void' ? '<span class="q-void">취소됨</span>' : `<button type="button" class="q-link" data-void="${esc(e.id)}">취소</button>`)).join('') || `<p class="q-empty">${filter.account || filter.method ? '고른 계좌 · 수단의 줄이 없어요.' : '아직 기록이 없어요. 위에서 첫 줄을 넣어 보세요.'}</p>`) + more + toggle;
   }
   return needs.length;
 }

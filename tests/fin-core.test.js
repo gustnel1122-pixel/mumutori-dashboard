@@ -86,7 +86,7 @@ test('현대카드 알림(10/20 견본 모양, 가짜 값): 펼친 글에서 가
   const f=F.draftFromAlert({id:'-H2',src:'현대카드',ts:Date.parse('2026-10-19T14:58:30Z'),text},[],NOW2);   // 접힌 글만
   assert.equal(f.vendor,'');assert(f.memo.includes('가맹점 확인 필요'));assert.equal(f.amount,12300);
   assert(!/홍길동/.test(JSON.stringify(f)));
-  assert(F.sameMoment(a,f));                                    // 같은 결제(같은 금액 · 같은 분) → 하나만
+  assert(!F.sameMoment(a,f)); // 가맹점 없는 접힌 글은 같은 결제라고 단정하지 않는다.
   assert(!F.sameMoment(a,{...f,time:'23:57'}));
   assert.equal(F.draftFromAlert({id:'-W1',src:'지갑',text:'₩12,300 결제 완료 가짜편의점가짜점'},[],NOW2),null);   // 지갑 앱 '₩' 알림은 초안을 안 만듦
   F.validateEntry(a);F.validateEntry(f);
@@ -167,4 +167,15 @@ test('fromLedgerCSV: 볼트 임시 장부 칸 → 장부 줄(가짜 값)',()=>{
   assert.deepEqual(rows.map(r=>[r.date,r.category,r.method,r.amount,r.source,r.evidence]),[['2026-10-01','매입','현대카드',10000,'import','카드'],['2026-10-02','배송비','토스체크',4000,'import','카드'],['2026-10-03','매입 부대비','',3000,'import','없음']]);
   assert.equal(rows[0].memo,'시험, 따옴표');
   rows.forEach(r=>F.validateEntry(r));
+});
+
+test('현대 상품명 별도 저장 · 줄바꿈 · 할부 모양 · 다른 카드/가맹점 중복 아님',()=>{
+  const now=new Date('2026-10-26T13:35:00Z');
+  for(const card of ['MY BUSINESS','사업구매전용'])for(const pay of ['일시불','할부','할부 3개월','3개월']){
+    const x=F.draftFromAlert({id:'sample',src:'현대카드',ts:now.getTime(),big:`가상인 님, 현대 ${card} 승인\n12,500원 ${pay},\n10/26 22:34\n시험상점\n누적99,999원`},[],now);
+    assert.equal(x.card,card);assert.equal(x.vendor,'시험상점');assert.equal(x.amount,12500);assert.equal(x.date,'2026-10-26');assert.equal(x.time,'22:34');
+    assert(!JSON.stringify(x).includes('가상인'));assert(!JSON.stringify(x).includes('99,999'));
+    assert(F.sameMoment(x,{...x,id:'other'}));
+    for(const change of [{card:'다른상품'},{vendor:'다른상점'},{method:'토스체크'},{vendor:''},{time:'22:35'}])assert(!F.sameMoment(x,{...x,...change}));
+  }
 });

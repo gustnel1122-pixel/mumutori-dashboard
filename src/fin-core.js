@@ -266,7 +266,7 @@
   // 현대카드 = 사업용 등록 카드: 쓴 것은 전부 업무용으로 장부에 넣는다(사장님 규칙). 개인 사용을 거르지 않고, 분류는 가맹점 규칙표 → 없으면 '확인 필요'.
   const PATTERNS = [
     // 현대카드(10/20 견본 모양, 값은 가짜): '○○○ 님, 현대 MY BUSINESS 승인 / 12,300원 일시불, MM/DD HH:MM / 가맹점 / 누적…원' — 가맹점은 펼친 글 3번째 줄
-    { name: '현대카드', when: /현대/, vendor: /원\s*(?:일시불|할부\s*\d*\s*개?월?)\s*,\s*\d{1,2}[\/.]\d{1,2}\s+\d{1,2}:\d{2}\s+(.+?)\s*(?:누적|잔액|$)/ }
+    { name: '현대카드', when: /현대/, vendor: /원\s*(?:일시불|할부\s*\d*\s*개?월?|\d+개월)\s*,\s*\d{1,2}[\/.]\d{1,2}\s+\d{1,2}:\d{2}\s+(.+?)\s*(?:누적|잔액|$)/ }
   ];
   function draftFromAlert(item, rules, now = new Date()) {
     // 펼친 글(big)에 금액이 있으면 그걸 읽는다(접힌 글엔 가맹점이 없을 수 있음). 이름('홍길동 님,' · '김*수님')은 지운다.
@@ -286,6 +286,9 @@
       if (!validDate(date)) date = got;
     }
     const both = raw + ' ' + src;
+    // 상품명은 카드사/명의자 이름과 별도 보존한다. 승인과 금액 사이 줄바꿈은 위에서 정리됨.
+    const cardMatch = raw.match(/현대\s+([가-힣A-Za-z0-9 _()-]{1,40}?)\s+승인\s+\d/);
+    const card = cardMatch ? cardMatch[1].trim() : '';
     const transfer = /(입금|출금|이체|송금)/.test(raw);
     const method = /현대/.test(both) ? '현대카드' : /카카오|카뱅/.test(both) ? (transfer ? '카뱅이체' : '카뱅체크')   // 카카오뱅크(견본 아직 없음 — 일반 판정만, 총괄 #14)
       : /토스/.test(both) && transfer ? '토스이체' : /토스/.test(both) ? '토스체크' : '';
@@ -298,13 +301,15 @@
     const memo = [cancel ? '결제 취소 알림 — 원래 결제 줄과 맞춰 주세요' : '', vendor ? '' : '가맹점 확인 필요(알림에 가맹점이 없음)'].filter(Boolean).join(' · ');
     return normEntry({
       id: 'al_' + String(item?.id || ts).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 40), kind: cancel ? 'in' : 'out', amount: am[1], date, time, method,
-      category, vendor, memo, source: 'alert', inboxId: item?.id || ''
+      category, vendor, memo, ...(card ? { card } : {}), source: 'alert', inboxId: item?.id || ''
     }, now);
   }
-  // 같은 결제가 두 번 왔는지(카드사 알림 + 지갑 앱 알림 등): 같은 방향 · 같은 금액 · 같은 날 · 같은 분(시각이 있을 때)
+  // 금액/분만으로 다른 가맹점이나 카드의 거래를 버리지 않는다. 가맹점이 없으면 자동 병합하지 않는다.
   function sameMoment(a, b) {
     if (!a || !b || a.status === 'void' || b.status === 'void') return false;
     if (a.kind !== b.kind || a.amount !== b.amount || a.date !== b.date) return false;
+    if (!a.method || a.method !== b.method || (a.card || '') !== (b.card || '')) return false;
+    if (!a.vendor || !b.vendor || a.vendor.trim() !== b.vendor.trim()) return false;
     return !!a.time && !!b.time && a.time === b.time;
   }
 

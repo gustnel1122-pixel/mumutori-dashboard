@@ -13,7 +13,7 @@ const clone = v => v == null ? v : JSON.parse(JSON.stringify(v));
 
 export function openFinStore({ root = ROOT, onChange, onStatus } = {}) {
   const test = typeof window !== 'undefined' && window.__MMT_TEST_FIN__;
-  let book = { entries: {}, sales: {}, meta: {} }, timer = 0, state = '';
+  let book = { entries: {}, sales: {}, meta: {} }, timer = 0, state = '', inboxRun = null, visibilityHandler = null;
   const status = s => { if (s !== state) { state = s; onStatus?.(s); } };
   const emit = () => onChange?.(clone(book));
 
@@ -44,7 +44,7 @@ export function openFinStore({ root = ROOT, onChange, onStatus } = {}) {
       status('ok'); emit(); return clone(book);
     } catch (err) { if (state !== 'denied') status('offline'); throw err; }
   }
-  return {
+  const api = {
     load,
     book: () => clone(book),
     // 한 줄 넣기(새 id) — 다시 읽어 서버 값으로 확인한 줄을 돌려준다(완료 = 바뀐 상태를 다시 읽어 판정)
@@ -68,32 +68,45 @@ export function openFinStore({ root = ROOT, onChange, onStatus } = {}) {
     // 알림 입구(hub/financeInbox/<키>/<id>)의 새 글 → 초안 줄(확인 필요, 규칙표에 있으면 바로 분류) → 처리 표시(inboxSeen).
     // 입구 규칙 · 휴대폰 설정 전에는 입구가 비어 있어 아무 일도 하지 않는다. PC AI도 같은 순서로 처리한다(fin_hub.py, 2단계).
     async processInbox() {
-      const F = window.FinCore;
-      const inbox = test ? (test.__inbox || null) : await reqAbs('GET', INBOX_ROOT);
-      if (!inbox) return 0;
-      const seen = (await req('GET', PATHS.inboxSeen)) || {};
-      let made = 0;
-      for (const items of Object.values(inbox)) for (const [id, item] of Object.entries(items || {})) {
-        if (seen[id]) continue;
-        const draft = F.draftFromAlert({ ...item, id }, book.meta.rules);
-        // 같은 결제가 두 번 오면(카드사 알림 + 지갑 앱 알림 등) 같은 금액 · 같은 분이면 하나만 — 먼저 들어온 줄을 둔다
-        const dup = draft && Object.values(book.entries || {}).find(e => F.sameMoment(e, draft));
-        if (draft && !dup) { F.validateEntry(draft); await this.add(draft); made++; }
-        await req('PUT', `${PATHS.inboxSeen}/${id}`, { entryId: dup ? dup.id : (draft?.id || ''), skipped: !draft || !!dup, dup: !!dup, at: new Date().toISOString() });
-      }
-      return made;
+      if (inboxRun) return inboxRun;
+      inboxRun = (async () => {
+        const F = window.FinCore;
+        const inbox = test ? (test.__inbox || null) : await reqAbs('GET', INBOX_ROOT);
+        if (!inbox) return 0;
+        const seen = (await req('GET', PATHS.inboxSeen)) || {};
+        let made = 0, tests = 0;
+        for (const items of Object.values(inbox)) for (const [id, item] of Object.entries(items || {})) {
+          // 휴대폰 수동 연결 시험은 입구에만 보존하고 실제 지출/중복 판정에는 넣지 않는다.
+          if (/^md_trial_/.test(id)) { tests++; continue; }
+          if (seen[id]) continue;
+          const draft = F.draftFromAlert({ ...item, id }, book.meta.rules);
+          // 같은 수단/카드/가맹점/금액/분까지 일치할 때만 중복으로 처리한다.
+          const dup = draft && Object.values(book.entries || {}).find(e => F.sameMoment(e, draft));
+          if (draft && !dup) { F.validateEntry(draft); await this.add(draft); made++; }
+          await req('PUT', `${PATHS.inboxSeen}/${id}`, { entryId: dup ? dup.id : (draft?.id || ''), skipped: !draft || !!dup, dup: !!dup, at: new Date().toISOString() });
+        }
+        book.inboxTestCount = tests; emit();
+        return made;
+      })();
+      try { return await inboxRun; } finally { inboxRun = null; }
     },
     async addRule(rule) {
       const rules = [...(book.meta.rules || []).filter(r => r.match !== rule.match), rule];
       await req('PUT', `${PATHS.meta}/rules`, rules);
       book.meta.rules = rules; emit(); return rules;
     },
-    watch(ms = 60000) {   // 1단계: 1분마다 + 화면으로 돌아올 때 다시 읽기(실시간 연결은 알림 입구와 함께)
-      clearInterval(timer); timer = setInterval(() => load().catch(() => {}), ms);
-      if (typeof document !== 'undefined') document.addEventListener('visibilitychange', () => { if (!document.hidden) load().catch(() => {}); });
+    watch(ms = 60000) {
+      const refresh = () => load().then(() => api.processInbox()).catch(() => {});
+      clearInterval(timer); timer = setInterval(refresh, ms);
+      if (typeof document !== 'undefined') {
+        if (visibilityHandler) document.removeEventListener('visibilitychange', visibilityHandler);
+        visibilityHandler = () => { if (!document.hidden) refresh(); };
+        document.addEventListener('visibilitychange', visibilityHandler);
+      }
     },
-    close() { clearInterval(timer); }
+    close() { clearInterval(timer); if (visibilityHandler && typeof document !== 'undefined') document.removeEventListener('visibilitychange', visibilityHandler); }
   };
+  return api;
 }
 
 // 영수증 사진 줄이기: 긴 변 1280px, JPEG 품질을 낮춰 가며 300KB 이하로
