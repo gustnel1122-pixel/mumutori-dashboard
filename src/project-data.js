@@ -14,7 +14,7 @@ export const PROJECTS = [
     "status": [
       "11월 1일(일) 오픈 준비",
       "구매·포장·준비표를 한 목록으로 통합",
-      "하자·보류·안 함과 진행 상태를 함께 확인"
+      "버터 말랑이 벽돌 부착안은 실측 전 검토 중"
     ],
     "next": "매장 준비 목록에서 하자·보류·안 함을 함께 정하기",
     "href": "https://gustnel1122-pixel.github.io/mumutori-offline-pages/",

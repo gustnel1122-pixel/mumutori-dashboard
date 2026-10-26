@@ -14,7 +14,7 @@
 
 ## 프로젝트 입구
 
-운영 홈에는 프로젝트별 요약과 이동 링크만 둡니다. 팔시보 구매 체크·메모·기기 간 이어쓰기는 [오프라인 프로젝트](https://gustnel1122-pixel.github.io/mumutori-offline-pages/?shopping=palsibo-20261026#buylist)의 기존 구매 목록·06 준비표에서 합니다. `palsibo-shopping.html`은 옛 북마크를 유지하는 이동 페이지이며, 유효한 공유 연결 매개변수는 목적지로 그대로 전달합니다. 옛 브라우저 체크 키는 삭제하지 않고 프로젝트에서 한 번 가져옵니다.
+운영 홈에는 프로젝트별 요약과 이동 링크만 둡니다. 팔시보 구매 체크·메모·기기 간 이어쓰기는 [매장 준비 목록](https://gustnel1122-pixel.github.io/mumutori-offline-pages/#preparation)의 통합 준비표에서 합니다. `palsibo-shopping.html`은 옛 북마크를 유지하는 이동 페이지이며, 유효한 공유 연결 매개변수는 목적지로 그대로 전달합니다. 옛 브라우저 체크 키는 삭제하지 않고 프로젝트에서 한 번 가져옵니다.
 
 ## 저장
 
