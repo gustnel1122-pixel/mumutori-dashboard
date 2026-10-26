@@ -34,15 +34,15 @@ export const PROJECTS = [
     "links": [
       {
         "label": "레터 운영 페이지",
-        "href": "https://gustnel1122-pixel.github.io/mumutori-letter/"
+        "href": "https://letter.mumutori.com/"
       },
       {
         "label": "인쇄 편지 작성",
-        "href": "https://gustnel1122-pixel.github.io/mumutori-letter/print.html"
+        "href": "https://letter.mumutori.com/print.html"
       },
       {
         "label": "대필 편지 작성",
-        "href": "https://gustnel1122-pixel.github.io/mumutori-letter/ghost.html"
+        "href": "https://letter.mumutori.com/ghost.html"
       }
     ]
   },
