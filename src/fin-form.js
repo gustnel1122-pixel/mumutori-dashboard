@@ -3,6 +3,8 @@
 // '확인 필요' 목록: 분류가 비어 있는 줄(휴대폰 결제 알림이 채운 초안 · AI 기록 포함) — 분류 버튼 한 번으로 저장.
 // 입력 경로(수기 · 알림 · AI)가 달라도 줄 모양은 하나이고 '출처(source)' 칸만 다르다.
 import { shrinkPhoto } from './fin-hub.js';
+import { chooseCategory } from './fin-picker.js';
+import { AI_LABEL, VAT_LABEL } from './fin-classify.js';
 
 const F = () => window.FinCore;
 export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -29,7 +31,7 @@ export function entryRow(e, actions = '') {
 const FORM = `
   <label class="q-amount"><span class="sr">금액</span><input class="f-amt" inputmode="numeric" pattern="[0-9,]*" placeholder="금액" aria-label="금액(원)"><em>원</em></label>
   <div class="q-row f-methods" role="radiogroup" aria-label="결제 수단"></div>
-  <div class="q-row q-cats f-cats" role="radiogroup" aria-label="분류"></div>
+  <button class="q-category f-category" type="button" aria-haspopup="dialog">분류 고르기 <span aria-hidden="true">⌄</span></button>
   <details class="q-more"><summary>더보기 (날짜 · 거래처 · 메모 · 영수증 · 부가세)</summary>
     <label>날짜 <input class="f-date" type="date"></label>
     <label>거래처 <input class="f-vendor" maxlength="60" placeholder="예: 아이템스카우트" autocomplete="off"></label>
@@ -52,7 +54,7 @@ export function mountEntryForm(root, ctx) {
     chips($('.f-methods'), F_.METHODS, method, 'method');
     const cats = $('.f-in').checked ? F_.IN_CATEGORIES : F_.OUT_CATEGORIES;
     if (!cats.includes(category)) category = '';
-    chips($('.f-cats'), cats, category, 'cat');
+    $('.f-category').innerHTML = esc(category || '분류 고르기') + '<span aria-hidden="true">⌄</span>';
   };
   $('.f-evid').innerHTML = '<option value="">자동(수단 따라)</option>' + F_.EVIDENCE.map(v => `<option>${esc(v)}</option>`).join('');
   $('.f-date').value = F_.kstDate();
@@ -62,7 +64,7 @@ export function mountEntryForm(root, ctx) {
   root.addEventListener('click', ev => {
     const t = ev.target.closest('button'); if (!t || !root.contains(t)) return;
     if (t.dataset.method) { method = t.dataset.method; draw(); }
-    else if (t.dataset.cat) { category = t.dataset.cat; draw(); }
+    else if (t.classList.contains('f-category')) chooseCategory({categories:$('.f-in').checked?F_.IN_CATEGORIES:F_.OUT_CATEGORIES,value:category,onSelect:c=>{category=c;draw();}});
   });
   $('.f-in').addEventListener('change', draw);
   $('.f-amt').addEventListener('input', e => { const n = F_.toWon(e.target.value); if (Number.isFinite(n) && n > 0) e.target.value = won(n); });
@@ -74,7 +76,8 @@ export function mountEntryForm(root, ctx) {
       const amount = F_.toWon($('.f-amt').value);
       if (!(amount > 0)) throw Error('금액을 넣어 주세요.');
       const vendor = $('.f-vendor').value.trim(), book = ctx.book();
-      const auto = !category && vendor ? F_.classify(vendor, book.meta?.rules) : '';
+      const matched = !category && vendor ? F_.classify(vendor, book.meta?.rules) : '';
+      const auto = method === '현대카드' && matched === '사장님 인출' ? '' : matched;
       const entry = F_.validateEntry(F_.normEntry({
         kind: $('.f-in').checked ? 'in' : 'out', amount, method, category: category || auto, vendor, memo: $('.f-memo').value.trim(),
         date: $('.f-date').value || F_.kstDate(), vatIncluded: $('.f-vat').checked, evidence: $('.f-evid').value || undefined, source: ctx.source || 'manual'
@@ -156,6 +159,8 @@ let showVoid = false;
 // filter: {account, method} — 장부 목록만 거른다(계좌별 '이 계좌 줄 보기'). 반환: 확인 필요 건수.
 export function renderLists({ book, needsRoot, recentRoot, recentCount = 10, filter = {} }) {
   const F_ = F();
+  // Keep an active note editor alive during timer/onChange redraws.
+  if ([needsRoot,recentRoot].some(r=>r?.contains(document.activeElement) && document.activeElement.matches('[data-ai-note]'))) return Object.values(book.entries||{}).filter(e=>F_.checkReasons(e).length).length;
   const every = Object.values(book.entries || {}).sort((a, b) => ((b.date || '') + (b.time || '') + (b.createdAt || '')).localeCompare((a.date || '') + (a.time || '') + (a.createdAt || '')));
   const voids = every.filter(e => e.status === 'void').length;
   const all = showVoid ? every : every.filter(e => e.status !== 'void');
@@ -167,20 +172,31 @@ export function renderLists({ book, needsRoot, recentRoot, recentCount = 10, fil
     const rows = needsRoot.querySelector('.f-needs-rows') || needsRoot;
     rows.innerHTML = needs.map(e => {
       const why = F_.checkReasons(e);
-      const cat = why.includes('분류') ? `<div class="q-row q-fix"><span class="q-why">분류</span>${(e.kind === 'in' ? F_.IN_CATEGORIES : F_.OUT_CATEGORIES).map(c => `<button type="button" class="q-chip" data-fix="${esc(e.id)}" data-fixcat="${esc(c)}">${esc(c)}</button>`).join('')}${e.vendor ? `<label class="q-check"><input type="checkbox" data-rule="${esc(e.id)}"> 앞으로 이 거래처는 항상</label>` : ''}</div>` : '';
+      const cat = `<div class="q-fix q-tools"><button type="button" class="q-category" data-pick="${esc(e.id)}" aria-haspopup="dialog">${esc(e.category || '분류 고르기')} <span aria-hidden="true">⌄</span></button></div>`;
       const met = why.includes('수단') ? `<div class="q-row q-fix"><span class="q-why">결제 수단</span>${F_.METHODS.map(m => `<button type="button" class="q-chip" data-fixmethod="${esc(e.id)}" data-method="${esc(m)}">${esc(m)}</button>`).join('')}</div>` : '';
       // 가져올 때 적어 둔 '확인할 것'(받는 통장 등) — 확인했으면 '확인함'으로 지운다(줄 내용은 그대로)
       const chk = why.includes('확인') ? `<div class="q-row q-fix"><span class="q-why">확인</span><span class="q-checktext">${esc(e.check)}</span><button type="button" class="q-chip" data-checkdone="${esc(e.id)}">확인함</button></div>` : '';
-      return entryRow(e, cat + met + chk);
+      return entryRow(e, cat + met + chk + aiControl(e));
     }).join('');
   }
   if (recentRoot) {
     const toggle = voids ? `<button type="button" class="q-link q-void-toggle" data-togglevoid="1" aria-pressed="${showVoid}">${showVoid ? '취소된 줄 숨기기' : `취소 포함 보기 (${voids})`}</button>` : '';
     const more = shown.length > recentCount ? `<p class="q-more-line">${won(shown.length)}줄 중 ${won(recentCount)}줄 <button type="button" class="q-link" data-more="1">더 보기</button></p>` : '';
     const testNote = book.inboxTestCount ? `<p class="q-msg ok" role="status">알림 연결 시험 ${won(book.inboxTestCount)}건 수신 · 장부 합계에서 제외</p>` : '';
-    recentRoot.innerHTML = testNote + (shown.slice(0, recentCount).map(e => entryRow(e, e.status === 'void' ? '<span class="q-void">취소됨</span>' : `<button type="button" class="q-link" data-void="${esc(e.id)}">취소</button>`)).join('') || `<p class="q-empty">${filter.account || filter.method ? '고른 계좌 · 수단의 줄이 없어요.' : '아직 기록이 없어요. 위에서 첫 줄을 넣어 보세요.'}</p>`) + more + toggle;
+    recentRoot.innerHTML = testNote + (shown.slice(0, recentCount).map(e => entryRow(e, e.status === 'void' ? '<span class="q-void">취소됨</span>' : `${e.kind==='move'?'':`<button type="button" class="q-link" data-pick="${esc(e.id)}" aria-haspopup="dialog">분류 고르기</button>`}<button type="button" class="q-link" data-void="${esc(e.id)}">취소</button>${aiControl(e)}`)).join('') || `<p class="q-empty">${filter.account || filter.method ? '고른 계좌 · 수단의 줄이 없어요.' : '아직 기록이 없어요. 위에서 첫 줄을 넣어 보세요.'}</p>`) + more + toggle;
   }
   return needs.length;
+}
+
+// Drafts stay in memory through redraws and failed saves; no financial notes in localStorage.
+const aiDrafts = new Map();
+function aiControl(e) {
+  if(e.kind==='move') return '';
+  const status=AI_LABEL[e.ai?.status]||'', decision=['applied','review'].includes(e.ai?.status)?e.ai.decision:null;
+  const note=aiDrafts.has(e.id)?aiDrafts.get(e.id):e.ai?.note||'';
+  return `<div class="q-ai"><div class="q-ai-state">${status?`<span class="q-ai-badge">${esc(status)}</span>`:''}${e.vatTreatment?`<span>부가세 ${esc(VAT_LABEL[e.vatTreatment]||'확인 필요')}</span>`:''}${e.ai?.status==='applied'?`<button type="button" class="q-link" data-ai-undo="${esc(e.id)}">한 번에 되돌리기</button>`:''}</div>
+    ${decision?`<p class="q-ai-reason">${e.ai.status==='review'?`제안: ${esc(decision.category||'분류 확인')} · 부가세 ${esc(VAT_LABEL[decision.vatTreatment])} — `:''}${esc(decision.reason)}</p>`:''}
+    <details class="q-ai-editor"><summary>AI에게 물어보기</summary><label>이건 이런 거야<input type="text" maxlength="300" data-ai-note="${esc(e.id)}" value="${esc(note)}" placeholder="예: 포장할 때 쓰는 상자를 샀어" autocomplete="off"></label><small>이름·카드번호·결제 알림 원문은 적지 마세요. 설명만 저장해도 분류를 맡길 수 있어요.</small><button type="button" class="q-btn" data-ai-save="${esc(e.id)}">설명 저장 · AI에게 맡기기</button><p class="q-msg" role="status" data-ai-msg="${esc(e.id)}"></p></details></div>`;
 }
 
 // 장부 거르기(계좌 · 수단) — PC 재무 '장부' 위. 고른 값은 onChange({account, method})로.
@@ -223,9 +239,25 @@ export function accountsView(book, { compact = false } = {}) {
 
 // 목록 버튼(분류 정하기 · 취소 · 취소 포함 보기 · 확인함 · 더 보기)을 한 곳에서 처리. onError(msg), onRedraw() — 목록을 다시 그리는 화면 함수, onMore() — 더 보기
 export function bindListActions(root, { store, book, onError, onRedraw, onMore }) {
+  root.addEventListener('input', ev=>{if(ev.target.dataset.aiNote) aiDrafts.set(ev.target.dataset.aiNote,ev.target.value);});
   root.addEventListener('click', async ev => {
     const t = ev.target.closest('button'); if (!t) return;
     try {
+      if (t.dataset.pick) {
+        const e=book().entries[t.dataset.pick];
+        chooseCategory({categories:e.kind==='in'?F().IN_CATEGORIES:F().OUT_CATEGORIES,value:e.category,vendor:e.vendor,onSelect:async(c,always)=>{
+          await store().setCategory(e.id,c);
+          if(always&&e.vendor) await store().addRule({match:e.vendor,category:c});
+        }}); return;
+      }
+      if (t.dataset.aiSave) {
+        const id=t.dataset.aiSave, editor=t.closest('.q-ai-editor'), note=editor.querySelector('[data-ai-note]').value;
+        t.disabled=true;
+        try{await store().requestAi(id,note); aiDrafts.delete(id); onRedraw?.();}
+        finally{t.disabled=false;}
+        return;
+      }
+      if (t.dataset.aiUndo) { t.disabled=true;try{await store().undoAi(t.dataset.aiUndo);}finally{t.disabled=false;}return; }
       if (t.dataset.more) { onMore?.(); return; }   // 장부 '더 보기'
       if (t.dataset.togglevoid) { showVoid = !showVoid; onRedraw?.(); return; }
       if (t.dataset.checkdone) { await store().patch(t.dataset.checkdone, { check: null }); return; }   // '확인할 것' 지우기(null = 그 칸 지움)
@@ -238,7 +270,7 @@ export function bindListActions(root, { store, book, onError, onRedraw, onMore }
         const e = book().entries[t.dataset.fix];
         // '앞으로 항상' 체크는 저장 전에 읽는다(저장하면 목록이 다시 그려져 체크가 사라짐)
         const always = root.querySelector(`[data-rule="${CSS.escape(e.id)}"]`)?.checked;
-        await store().patch(e.id, { category: t.dataset.fixcat, status: 'ok' });
+        await store().setCategory(e.id, t.dataset.fixcat);
         if (always && e.vendor) await store().addRule({ match: e.vendor, category: t.dataset.fixcat });
       } else if (t.dataset.void) {
         if (confirm('이 줄을 취소할까요? (지우지 않고 \'취소됨\'으로 남겨요)')) await store().patch(t.dataset.void, { status: 'void' });

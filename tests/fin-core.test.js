@@ -20,15 +20,15 @@ test('validateEntry: 금액 · 날짜 · 목록 검사',()=>{
   assert.throws(()=>F.validateEntry(e({category:'없는분류'})),/분류/);
   assert.equal(F.validateEntry(e()).amount,11000);
 });
-test('summarize: 오늘 · 이번 달 지출, 부가세(카드 공제), 분류 필요, 취소 줄 제외',()=>{
+test('summarize: 오늘 · 이번 달 지출, 부가세(증빙만으로 공제하지 않음), 분류 필요, 취소 줄 제외',()=>{
   const rows=[e({id:'a'}),e({id:'b',date:'2026-10-02',amount:22000,method:'토스이체',category:'매입'}),e({id:'c',category:''}),e({id:'d',status:'void'}),e({id:'e',date:'2026-09-30'}),
     e({id:'s',kind:'in',category:'매출',amount:33000,method:'토스이체'})];
   const t=F.summarize(book(rows),'today',NOW),m=F.summarize(book(rows),'month',NOW);
   assert.equal(t.spend,22000);   // a + c(분류 필요도 나간 돈)
   assert.equal(m.spend,44000);   // a + b + c (d 취소 · e 지난달 제외)
   assert.equal(m.sales,33000);assert.equal(m.needs,1);
-  assert.equal(m.vatDeductible,2000);   // 카드 a·c 22000/11 — 토스이체(증빙 없음) b는 공제에서 뺌
-  assert.equal(m.vat,3000-2000);
+  assert.equal(m.vatDeductible,0); // 카드 알림은 적격증빙·세액 확인이 아님
+  assert.equal(m.vat,3000);
   assert.equal(m.net,33000-44000);
 });
 test('summarize: 채널 매출(2단계 칸)과 수수료 반영, 수수료 모르면 추정 표시',()=>{

@@ -21,7 +21,7 @@ function drawSummary() {
     (s.salesConnected
       ? card('남는 돈(추정)', s.net, (s.feeKnown ? '매출 − 수수료 − 지출' : '수수료 정산 전 · 추정') + (s.stockBuy ? ' · 매입 포함' : ''), s.net < 0 ? 'minus' : '')
       : card('돈 흐름', s.cashFlow, F.flowNote(s) + ' · 매출 연결 전이라 손익 아님' + (s.stockBuy ? ' · 상품 매입은 재고로 남는 돈' : ''))) +   // 검수 14
-    card('부가세 예상', s.vat, '참고용 · 신고는 세무 확인', s.vat < 0 ? 'minus' : '');
+    card('부가세 예상', s.vat, `확인된 매입세액만 반영 · 미확인 ${s.vatReview}건 · 신고는 세무 확인`, s.vat < 0 ? 'minus' : '');
   document.querySelectorAll('.q-tabs [data-period]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.period === period)));
 }
 function draw() {

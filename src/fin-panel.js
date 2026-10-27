@@ -17,7 +17,7 @@ const SHELL = `<div class="panelhead"><h2>이번 달 장부 · 수기 입력</h2
   <div class="fin-cols" hidden>
     <div><form class="fin-form" autocomplete="off"></form></div>
     <div>
-      <div class="fin-needs-box" id="fin-needs" hidden><h3>확인 필요 <b>0</b>건 <small>— 분류 · 결제 수단만 고르면 저장돼요</small></h3><div class="f-needs-rows"></div></div>
+      <div class="fin-needs-box" id="fin-needs" hidden><h3>확인 필요 <b>0</b>건 <small>— 분류를 고르거나 AI에게 설명해 주세요</small></h3><div class="f-needs-rows"></div></div>
       <h3 class="fin-recent-h" id="fin-ledger">장부 <small>모든 돈 · 계좌 · 수단으로 거르기</small></h3><div class="fin-filter-box"></div><div class="fin-recent"></div><p class="q-msg fin-list-msg" role="alert"></p>
       <a class="inline-link" href="quick.html">폰 화면으로 열기 <span aria-hidden="true">↗</span></a>
     </div>
@@ -45,7 +45,7 @@ function drawSummary(needs) {
     metric('이번 달 지출', s.spend, (s.byCategory.slice(0, 3).map(r => r.category).join(' · ') || '기록 없음')
       + (s.ownerMeal ? ` · 식비(본인) ${won(s.ownerMeal)}원 포함 — 신고 때 세무 확인` : '')) +   // 대표 본인 식사는 경비 인정이 안 될 수 있어 따로 보인다
     moneyCard(s) +
-    metric('확인 필요', needs, needs ? '누르면 그 줄로 · 분류 · 수단만 고르면 끝' : '지금 없음', needs ? 'attention' : '', needs ? '#fin-needs' : '');
+    metric('확인 필요', needs, needs ? '누르면 그 줄로 · 분류 고르기 또는 AI에게 설명' : '지금 없음', needs ? 'attention' : '', needs ? '#fin-needs' : '');
 }
 function draw() {
   if (!host) return;

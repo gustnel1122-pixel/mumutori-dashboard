@@ -13,7 +13,7 @@
   const OWNER_MEAL = '식비(본인)';
   // '사장님 인출'은 비용이 아니다(사장님 개인 통장으로 간 돈) — 돈 흐름의 나간 돈에는 넣고 지출 · 손익에서는 뺀다. '사장님 돈' 표에 따로.
   const OWNER_OUT = '사장님 인출', OWNER_IN = '자금 충전';
-  const OUT_CATEGORIES = ['매입', '매입 부대비', '배송비', '광고비', '수수료', '소모품', '식비', OWNER_MEAL, '차량(주유·주차)', '세금·공과', '임차료', '기타', OWNER_OUT];
+  const OUT_CATEGORIES = ['매입', '매입 부대비', '배송비', '광고비', '수수료', '구독료', '소모품', '식비', OWNER_MEAL, '접대(업무추진비)', '차량(주유·주차)', '세금·공과', '임차료', '기타', OWNER_OUT];
   const IN_CATEGORIES = ['매출', OWNER_IN, '환불 받음', '기타 수입'];
   const MOVE_CATEGORY = '내 계좌 이동';   // kind 'move': 내 계좌 사이 이동 — 손익 · 돈 흐름 · 확인 필요에서 빼고 계좌별 잔액에만
   const NOT_EXPENSE = new Set([OWNER_OUT]);
@@ -115,6 +115,8 @@
     const r = [];
     if (e.kind !== 'move' && (e.status === NEEDS || !e.category)) r.push('분류');
     if (e.kind === 'out' && !e.method) r.push('수단');
+    if (e.ai?.status === 'pending') r.push('AI 대기');
+    if (e.ai?.status === 'review' || (e.ai?.status === 'applied' && e.vatTreatment === 'review')) r.push('AI 확인');
     if (e.check) r.push('확인');   // 가져올 때 적어 둔 '확인할 것'(받는 통장 등) — '확인함'을 누르면 빠짐
     return r;
   }
@@ -132,8 +134,10 @@
     const manualSales = rows.filter(e => e.kind === 'in' && e.category === '매출');
     const salesGross = s.gross + sum(manualSales);
     const spend = sum(outRows);
-    const deductible = sum(outRows.filter(e => DEDUCTIBLE.has(e.evidence) && e.vatIncluded !== false));
-    const vat = Math.round(salesGross / 11) - Math.round(deductible / 11);
+    // Only verified tax amounts count. Card notifications alone do not establish VAT deductibility.
+    const deductibleVat = sum(outRows.filter(e => e.vatTreatment === 'deductible' && e.receiptVerified === true && DEDUCTIBLE.has(e.evidence) && ![OWNER_MEAL, OWNER_OUT, '접대(업무추진비)'].includes(e.category) && Number.isFinite(e.vatAmount) && e.vatAmount > 0 && e.vatAmount <= e.amount / 10), e => e.vatAmount);
+    const vatReview = outRows.filter(e => !e.vatTreatment || e.vatTreatment === 'review').length;
+    const vat = Math.round(salesGross / 11) - deductibleVat;
     // 돈 흐름은 실제 통장 · 카드 · 현금 기준: 쿠팡 정산(월렛) 안의 매출 · 차감은 빼고, 월렛에서 통장으로 온 돈(이동)만 들어온 돈에 넣는다.
     const real = rows.filter(e => !isWallet(e));
     const inReal = real.filter(e => e.kind === 'in');
@@ -156,7 +160,7 @@
       stockBuy: sum(outRows.filter(e => e.category === '매입')),   // 상품 매입(재고로 남는 돈)
       spend, fee: s.fee, feeKnown: s.feeKnown,
       net: salesGross - s.fee - spend,            // 남는 돈(추정): 매출 − 채널 수수료(알려진 만큼) − 지출
-      vat, vatSales: Math.round(salesGross / 11), vatDeductible: Math.round(deductible / 11),
+      vat, vatSales: Math.round(salesGross / 11), vatDeductible: deductibleVat, vatReview,
       needs: entries.filter(e => checkReasons(e).length).length,
       byCategory: OUT_CATEGORIES.filter(c => !NOT_EXPENSE.has(c)).map(c => ({ category: c, amount: sum(outRows.filter(e => e.category === c)) })).filter(r => r.amount),
       ownerMeal: sum(outRows.filter(e => e.category === OWNER_MEAL)),   // 지출에 들어 있음 — 신고 때 거를 후보(세무 확인)
@@ -301,7 +305,8 @@
     let vendor = raw.slice(am.index + am[0].length).replace(/^(\s*(일시불|할부\s*\d*\s*개?월?|승인|취소|사용|결제|체크|출금|입금)\s*,?)+/g, '')
       .replace(/^[,\s]*\d{1,2}[\/.]\d{1,2}\s+\d{1,2}:\d{2}\s*/, '').split(/누적|잔액|\[|\(누/)[0].replace(/^[,\s]+/, '').trim().slice(0, 40);
     for (const p of PATTERNS) if (p.when.test(both) && p.vendor) { const m = raw.match(p.vendor); if (m) vendor = m[1].trim().slice(0, 40); }
-    const category = cancel ? '' : classify(vendor, rules);
+    let category = cancel ? '' : classify(vendor, rules);
+    if (method === '현대카드' && category === OWNER_OUT) category = ''; // 사업용 카드에 개인 인출 규칙 자동 적용 금지
     const memo = [cancel ? '결제 취소 알림 — 원래 결제 줄과 맞춰 주세요' : '', vendor ? '' : '가맹점 확인 필요(알림에 가맹점이 없음)'].filter(Boolean).join(' · ');
     return normEntry({
       id: 'al_' + String(item?.id || ts).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 40), kind: cancel ? 'in' : 'out', amount: am[1], date, time, method,

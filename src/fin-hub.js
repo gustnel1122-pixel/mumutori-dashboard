@@ -2,6 +2,7 @@
 // SDK 없이 REST + ID 토큰(fbauth.dbUrl). 쓰기는 '한 줄' 단위(PUT entries/<id>) — 칸 전체를 덮어쓰지 않는다.
 // 시험: window.__MMT_TEST_FIN__ = {entries:{}, sales:{}, meta:{}} 가 있으면 네트워크 없이 메모리에서만 읽고 쓴다.
 import { dbUrl } from './fbauth.js';
+import { requestAi, manualCategory, undoAi } from './fin-classify.js';
 
 export const ROOT = 'hub/financeV1';
 // 칸 자리(1단계에서 쓰는 것: entries · receipts · meta, 2단계 · 알림 입구가 채울 것: sales · inboxSeen · imports · recon · legacy)
@@ -46,8 +47,36 @@ export function openFinStore({ root = ROOT, onChange, onStatus } = {}) {
       status('ok'); emit(); return clone(book);
     } catch (err) { if (state !== 'denied') status('offline'); throw err; }
   }
+  // Fresh read + conditional PUT prevents AI requests/undo from overwriting another device.
+  async function changeEntry(id, transform) {
+    if (!/^[A-Za-z0-9_-]{1,100}$/.test(id)) throw Error('거래 번호가 올바르지 않습니다.');
+    const path = `${PATHS.entries}/${id}`;
+    let before, tag, url;
+    if (test) before = await req('GET', path);
+    else {
+      url = await dbUrl(`${root}/${path}`);
+      const r = await fetch(url, {cache:'no-store', headers:{'X-Firebase-ETag':'true'}});
+      if (!r.ok) throw Error('거래를 다시 읽지 못했습니다.');
+      tag = r.headers.get('ETag'); before = await r.json();
+      if (!tag) throw Error('충돌 확인을 할 수 없어 저장하지 않았습니다.');
+    }
+    if (!before) throw Error('거래를 찾지 못했습니다.');
+    const next = transform(before, new Date().toISOString());
+    if (test) await req('PUT', path, next);
+    else {
+      const r = await fetch(url, {method:'PUT',headers:{'Content-Type':'application/json','if-match':tag},body:JSON.stringify(next)});
+      if (r.status === 412) throw Error('다른 곳에서 수정됐어요. 새로고침 후 다시 해 주세요.');
+      if (!r.ok) throw Error('저장하지 못했습니다. 다시 확인해 주세요.');
+    }
+    const saved = await req('GET',path);
+    if (!saved || saved.updatedAt !== next.updatedAt || saved.category !== next.category || saved.ai?.status !== next.ai?.status) throw Error('저장 결과가 달라요. 새로고침 후 확인해 주세요.');
+    book.entries[id]=saved; emit(); return saved;
+  }
   const api = {
     load,
+    requestAi(id, note) { return changeEntry(id, (e,now) => requestAi(e,note,'req_'+(globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)),now)); },
+    setCategory(id, category) { return changeEntry(id,(e,now) => manualCategory(e,category,now)); },
+    undoAi(id) { return changeEntry(id,(e,now) => undoAi(e,now)); },
     book: () => clone(book),
     // 한 줄 넣기(새 id) — 다시 읽어 서버 값으로 확인한 줄을 돌려준다(완료 = 바뀐 상태를 다시 읽어 판정)
     async add(entry) {
