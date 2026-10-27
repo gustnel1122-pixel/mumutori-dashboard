@@ -1,4 +1,6 @@
 // 운영 홈과 프로젝트 페이지가 함께 쓰는 공개 요약. 금액·계정·개인정보를 넣지 않습니다.
+export const OPENING_DATE = '2026-11-10';
+export const OPENING_LABEL = '11/10(화)';
 export const PROJECT_UPDATED_AT = '2026-10-27';
 export const PROJECT_CHECK_NOTE = '10/27 전체 점검';
 // 실제 체크·메모·기기 간 이어쓰기는 오프라인 프로젝트에서만 합니다.
@@ -9,10 +11,10 @@ export const PALSIBO_SHOPPING = {
 export const PROJECTS = [
   {
     "id": "offline",
-    "title": "오프라인 매장 · 11/1(일)",
+    "title": "오프라인 매장 · 11/10(화)",
     "kicker": "공간 · 집기",
     "status": [
-      "11월 1일(일) 오픈 준비",
+      "11월 10일(화) 오픈 준비 · 11/1은 이전 일정",
       "구매·포장·준비표를 한 목록으로 통합",
       "중앙 매대+맞춤 식탁보·MORE ARCH 2개로 확정"
     ],

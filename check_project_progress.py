@@ -27,7 +27,7 @@ def check(path):
         assert re.match(r'^(https://|[a-z][a-z0-9-]*\.html(?:[?#].*)?$)',p['href'])
     assert d['projects'] and d['milestones'] and d['agents']
     for m in d['milestones']:
-        assert set(m)=={'date','label','kind'} and m['kind'] in {'confirmed','proposed'}
+        assert set(m)=={'date','label','kind'} and m['kind'] in {'confirmed','proposed','previous'}
         date.fromisoformat(m['date'])
     for a in d['agents']:
         assert set(a)=={'name','doing','tone'} and a['tone'] in {'green','amber','red'}

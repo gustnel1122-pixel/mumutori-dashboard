@@ -1,4 +1,4 @@
-const {PROJECTS, PROJECT_UPDATED_AT, PROJECT_CHECK_NOTE, PALSIBO_SHOPPING} = await import(`./project-data.js?v=${document.body.dataset.build || 'operations-20261026-1'}`);
+const {PROJECTS, PROJECT_UPDATED_AT, PROJECT_CHECK_NOTE, PALSIBO_SHOPPING, OPENING_DATE, OPENING_LABEL} = await import(`./project-data.js?v=${document.body.dataset.build || 'operations-20261026-1'}`);
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const dateLabel = () => new Intl.DateTimeFormat('sv-SE', {timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
@@ -9,7 +9,7 @@ export function renderProjectCards(currentId = ''){
 export function renderOperationsEntrance(){
   const visitDate = dateLabel();
   const shoppingBadge = visitDate === '2026-10-26' ? '10/26 월' : '매장 준비';
-  const openingLabel = visitDate >= '2026-11-01' ? '오픈 예정일 11/1' : '11/1 오픈 준비';
+  const openingLabel = visitDate >= OPENING_DATE ? '오픈 예정일 '+OPENING_LABEL : OPENING_LABEL+' 오픈 준비';
   const counts = PALSIBO_SHOPPING.counts;
   return `<section class="ops-entrance" aria-label="프로젝트 입구"><a class="ops-shopping-card" href="${esc(PALSIBO_SHOPPING.href)}"><div class="ops-shopping-copy"><div class="ops-shopping-kicker"><span class="ops-date-badge">${esc(shoppingBadge)}</span><span>오프라인 프로젝트에서 이어서 준비</span></div><h2>매장 준비 목록<span aria-hidden="true">↗</span></h2><p>준비 항목 ${counts.total}개를 한곳에 모았어요.<br>전용 공유 링크에서는 두 분의 기록을 함께 저장합니다.</p><span class="ops-shopping-action">매장 준비 목록 열기 <b aria-hidden="true">↗</b></span></div><div class="ops-shopping-art" aria-hidden="true"><span class="ops-note-sheet"><i>✓</i><b></b><i>✓</i><b></b><i>○</i><b></b></span><span class="ops-art-label">${esc(openingLabel)}</span></div></a><div class="ops-section-head"><div><span class="ops-eyebrow">프로젝트</span><h2>모든 프로젝트, 여기에서</h2></div><p><time datetime="${esc(PROJECT_UPDATED_AT)}">${esc(PROJECT_CHECK_NOTE)}</time><span>확인된 상태와 다음 할 일</span></p></div>${renderProjectCards()}</section>`;
 }

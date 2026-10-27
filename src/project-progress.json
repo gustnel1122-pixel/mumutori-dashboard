@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-27T18:38:00+09:00",
+  "updatedAt": "2026-10-27T18:47:00+09:00",
   "checkedAt": "2026-10-27",
   "staleAfterDays": 7,
-  "openingDate": "2026-11-01",
+  "openingDate": "2026-11-10",
   "note": "단계는 완료한 관문 수입니다. 실제 공정률·매출 비율이 아닙니다. 상태는 정본·완료 회신 기준이며 실물·외부 실행은 별도 확인합니다.",
   "projects": [
     {
       "id": "offline",
-      "name": "오프라인 매장 · 11/1",
+      "name": "오프라인 매장 · 11/10(화)",
       "stage": 2,
       "stages": [
         "방향",
@@ -18,7 +18,7 @@
         "오픈"
       ],
       "state": "active",
-      "status": "중앙 매대+맞춤 식탁보, MORE ARCH 2개로 확정",
+      "status": "11/10(화)로 오픈 연기 · 중앙 매대+식탁보, MORE ARCH 2개",
       "next": "식탁보·간판·현수막과 미주문 항목 확정",
       "owners": [
         "현수",
@@ -28,7 +28,7 @@
       "blocked": "주문·도착·설치 여부는 현장 확인 필요",
       "lastActivity": "2026-10-27",
       "automation": "구매 상태·도착 예정·미결정 항목 모으기",
-      "evidence": "10/27 지시 장부 B22 · 운영 인계",
+      "evidence": "10/27 18:45 사장님 일정 변경 · B22 배치 기준",
       "href": "https://gustnel1122-pixel.github.io/mumutori-offline-pages/",
       "tone": "amber"
     },
@@ -722,31 +722,31 @@
   "milestones": [
     {
       "date": "2026-10-27",
-      "label": "배치·방향 확정",
+      "label": "배치 확정",
       "kind": "confirmed"
     },
     {
-      "date": "2026-10-28",
-      "label": "제작·주문 정리",
-      "kind": "proposed"
-    },
-    {
-      "date": "2026-10-29",
-      "label": "입고·진열 확인",
-      "kind": "proposed"
-    },
-    {
-      "date": "2026-10-30",
-      "label": "가격표·홍보 준비",
-      "kind": "proposed"
-    },
-    {
-      "date": "2026-10-31",
-      "label": "설치·결제 점검",
-      "kind": "proposed"
-    },
-    {
       "date": "2026-11-01",
+      "label": "이전 오픈 일정",
+      "kind": "previous"
+    },
+    {
+      "date": "2026-11-06",
+      "label": "제작물·입고 확인",
+      "kind": "proposed"
+    },
+    {
+      "date": "2026-11-08",
+      "label": "설치·진열",
+      "kind": "proposed"
+    },
+    {
+      "date": "2026-11-09",
+      "label": "결제·리허설",
+      "kind": "proposed"
+    },
+    {
+      "date": "2026-11-10",
       "label": "매장 오픈 목표",
       "kind": "confirmed"
     }
