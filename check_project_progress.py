@@ -20,7 +20,7 @@ GROUPS={
 
 def check(path):
     d=json.loads(Path(path).read_text(encoding='utf-8'))
-    assert set(d)=={'schemaVersion','updatedAt','checkedAt','staleAfterDays','openingDate','note','projects','milestones','agents','automation'}, 'unexpected root fields'
+    assert set(d)=={'schemaVersion','updatedAt','checkedAt','staleAfterDays','openingDate','note','projects','milestones','agents','automation','learning'}, 'unexpected root fields'
     assert d['schemaVersion']==1 and d['staleAfterDays']==7
     checked=date.fromisoformat(d['checkedAt'])
     assert datetime.fromisoformat(d['updatedAt']).utcoffset().total_seconds()==32400
@@ -59,6 +59,23 @@ def check(path):
     for a in d['agents']:
         assert set(a)=={'name','doing','tone'} and a['tone'] in {'green','amber','red'}
     assert set(d['automation'])=={'schedule','status','lastVerifiedRun'}
+    learning=d['learning']
+    assert set(learning)=={'checkedAt','windowDays','basis','roles'}
+    assert datetime.fromisoformat(learning['checkedAt']).utcoffset().total_seconds()==32400
+    assert learning['windowDays']==7 and isinstance(learning['basis'],str)
+    assert [r['id'] for r in learning['roles']]==['deploy','sourcing','operations','video']
+    for role in learning['roles']:
+        assert set(role)=={'id','name','records'}
+        assert isinstance(role['name'],str) and isinstance(role['records'],list)
+        seen=set()
+        for event in role['records']:
+            assert set(event)=={'date','kind','taskId','eventId','evidence'}
+            assert date.fromisoformat(event['date'])<=datetime.fromisoformat(learning['checkedAt']).date()
+            assert event['kind'] in {'completed','rework','correction'}
+            assert all(isinstance(event[k],str) and event[k] for k in ['taskId','eventId','evidence'])
+            assert re.fullmatch('[a-z0-9-]+',event['taskId']) and re.fullmatch('[a-z0-9-]+',event['eventId'])
+            assert event['eventId'] not in seen, 'duplicate learning event'
+            seen.add(event['eventId'])
     # No private source links, finance fields, credentials or customer/contact data.
     text=json.dumps(d,ensure_ascii=False)
     assert not re.search(r'drive\.google|docs\.google|script\.google|@|AIza|sk-proj|private_key|token|계좌번호|승인번호|원가|마진|\b01[016789][ -]?\d{3,4}[ -]?\d{4}\b',text,re.I)

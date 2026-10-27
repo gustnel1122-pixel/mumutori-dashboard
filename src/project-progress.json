@@ -408,5 +408,190 @@
     "schedule": "02:10 · 13:10 KST",
     "status": "02:10·13:10 예약 활성 확인 · 홈 갱신 첫 예약 회차 미검증",
     "lastVerifiedRun": null
+  },
+  "learning": {
+    "checkedAt": "2026-10-28T08:53:19+09:00",
+    "windowDays": 7,
+    "basis": "확인된 기록의 최소 건수 · 기록 없는 칸은 - · 전체 업무량 아님",
+    "roles": [
+      {
+        "id": "deploy",
+        "name": "배포",
+        "records": [
+          {
+            "date": "2026-10-27",
+            "kind": "completed",
+            "taskId": "deploy-setup-20261027",
+            "eventId": "deploy-setup-20261027-completed",
+            "evidence": "배포 도구 설치·접근 확인 결과"
+          },
+          {
+            "date": "2026-10-28",
+            "kind": "completed",
+            "taskId": "server-connect-20261027",
+            "eventId": "server-connect-20261027-completed",
+            "evidence": "서버 설치·업로드 시험 결과; 휴대폰 수신 별도 확인"
+          },
+          {
+            "date": "2026-10-28",
+            "kind": "rework",
+            "taskId": "server-connect-20261027",
+            "eventId": "server-connect-20261027-rework",
+            "evidence": "업로드 시험 방식·연결 설정 수정 결과"
+          },
+          {
+            "date": "2026-10-28",
+            "kind": "rework",
+            "taskId": "server-connect-20261027",
+            "eventId": "server-connect-parser-rework",
+            "evidence": "같은 작업의 파서·주소 재수정: 중복 집계 제외"
+          }
+        ]
+      },
+      {
+        "id": "sourcing",
+        "name": "소싱",
+        "records": [
+          {
+            "date": "2026-10-28",
+            "kind": "completed",
+            "taskId": "sourcing-cart-20261027",
+            "eventId": "sourcing-cart-20261027-completed",
+            "evidence": "옵션 가격 비교·적합 옵션 보드 등록 결과"
+          },
+          {
+            "date": "2026-10-28",
+            "kind": "rework",
+            "taskId": "sourcing-cart-20261027",
+            "eventId": "sourcing-cart-20261027-rework",
+            "evidence": "고리 규칙 적용 범위 수정 후 다시 검토"
+          },
+          {
+            "date": "2026-10-28",
+            "kind": "correction",
+            "taskId": "sourcing-cart-20261027",
+            "eventId": "sourcing-scope-20261028-0047",
+            "evidence": "사장님 고리 규칙 적용 범위 정정"
+          }
+        ]
+      },
+      {
+        "id": "operations",
+        "name": "운영·페이지",
+        "records": [
+          {
+            "date": "2026-10-26",
+            "kind": "completed",
+            "taskId": "operations-handover-palsibo-20261026",
+            "eventId": "operations-handover-palsibo-20261026-completed",
+            "evidence": "운영 홈·구매 목록 이관 검증 결과"
+          },
+          {
+            "date": "2026-10-26",
+            "kind": "completed",
+            "taskId": "palsibo-project-move-20261026",
+            "eventId": "palsibo-project-move-20261026-completed",
+            "evidence": "구매 목록 프로젝트 이동·공유 검증 결과"
+          },
+          {
+            "date": "2026-10-26",
+            "kind": "completed",
+            "taskId": "buylist-links-notes-20261026",
+            "eventId": "buylist-links-notes-20261026-completed",
+            "evidence": "링크·메모·항목 추가 검증 결과"
+          },
+          {
+            "date": "2026-10-26",
+            "kind": "completed",
+            "taskId": "letter-hub-login-fix-20261026",
+            "eventId": "letter-hub-login-fix-20261026-completed",
+            "evidence": "레터 허브 로그인 복구·공개 파일 검증 결과"
+          },
+          {
+            "date": "2026-10-27",
+            "kind": "completed",
+            "taskId": "ledger-classify-20261027",
+            "eventId": "ledger-classify-20261027-completed",
+            "evidence": "장부 분류 연결·되돌리기 마무리 검증 결과"
+          },
+          {
+            "date": "2026-10-27",
+            "kind": "completed",
+            "taskId": "drive-tidy-20261027",
+            "eventId": "drive-tidy-20261027-completed",
+            "evidence": "드라이브 1차 정리·저장 재조회 결과"
+          },
+          {
+            "date": "2026-10-27",
+            "kind": "completed",
+            "taskId": "home-progress-20261027",
+            "eventId": "home-progress-20261027-completed",
+            "evidence": "큰 프로젝트 그래프 게시·검증 결과"
+          },
+          {
+            "date": "2026-10-27",
+            "kind": "rework",
+            "taskId": "home-progress-20261027",
+            "eventId": "home-progress-20261027-rework",
+            "evidence": "큰 프로젝트 11개로 화면 재구성"
+          },
+          {
+            "date": "2026-10-27",
+            "kind": "correction",
+            "taskId": "home-progress-20261027",
+            "eventId": "home-major-20261027-2012",
+            "evidence": "사장님 큰 프로젝트·펼침 없음 정정"
+          },
+          {
+            "date": "2026-10-26",
+            "kind": "rework",
+            "taskId": "butter-brick-table-v2-20261026",
+            "eventId": "butter-brick-table-v2-20261026-rework",
+            "evidence": "테이블보 없이 옆면 벽돌 부착으로 목업 다시 제작"
+          },
+          {
+            "date": "2026-10-26",
+            "kind": "correction",
+            "taskId": "butter-brick-table-v2-20261026",
+            "eventId": "butter-20261026-1716",
+            "evidence": "사장님 버터 말랑이 부착 방식 정정"
+          },
+          {
+            "date": "2026-10-27",
+            "kind": "rework",
+            "taskId": "ledger-classify-20261027",
+            "eventId": "ledger-classify-20261027-rework",
+            "evidence": "서버 정규화로 실패한 되돌리기 비교 수정"
+          },
+          {
+            "date": "2026-10-26",
+            "kind": "completed",
+            "taskId": "butter-brick-table-v2-20261026",
+            "eventId": "butter-brick-table-v2-20261026-completed",
+            "evidence": "옆면 벽돌 부착 목업 3안 제작·저장 결과"
+          }
+        ]
+      },
+      {
+        "id": "video",
+        "name": "영상분석",
+        "records": [
+          {
+            "date": "2026-10-22",
+            "kind": "completed",
+            "taskId": "video-agent-20261022",
+            "eventId": "video-agent-20261022-completed",
+            "evidence": "첫 영상 전체 자막·저장소 분석 결과"
+          },
+          {
+            "date": "2026-10-27",
+            "kind": "completed",
+            "taskId": "video-20261027",
+            "eventId": "video-20261027-completed",
+            "evidence": "두 영상 전체 자막·공식 자료 대조 결과"
+          }
+        ]
+      }
+    ]
   }
 }
