@@ -2,7 +2,7 @@
 // 칸: 날짜 · 금액 · 수단 · 분류 · 거래처 · 메모 · 부가세 · 증빙 · 영수증 사진(+ 들어온 돈). 저장하면 hub/financeV1/entries 한 줄.
 // '확인 필요' 목록: 분류가 비어 있는 줄(휴대폰 결제 알림이 채운 초안 · AI 기록 포함) — 분류 버튼 한 번으로 저장.
 // 입력 경로(수기 · 알림 · AI)가 달라도 줄 모양은 하나이고 '출처(source)' 칸만 다르다.
-import { shrinkPhoto } from './fin-hub.js';
+import { shrinkPhoto } from './fin-hub.js?v=classify-undo-20261027';
 import { chooseCategory } from './fin-picker.js';
 import { AI_LABEL, VAT_LABEL } from './fin-classify.js';
 

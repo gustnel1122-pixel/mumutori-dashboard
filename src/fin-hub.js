@@ -2,7 +2,7 @@
 // SDK 없이 REST + ID 토큰(fbauth.dbUrl). 쓰기는 '한 줄' 단위(PUT entries/<id>) — 칸 전체를 덮어쓰지 않는다.
 // 시험: window.__MMT_TEST_FIN__ = {entries:{}, sales:{}, meta:{}} 가 있으면 네트워크 없이 메모리에서만 읽고 쓴다.
 import { dbUrl } from './fbauth.js';
-import { requestAi, manualCategory, undoAi } from './fin-classify.js';
+import { requestAi, manualCategory, undoAi } from './fin-classify.js?v=undo-20261027';
 
 export const ROOT = 'hub/financeV1';
 // 칸 자리(1단계에서 쓰는 것: entries · receipts · meta, 2단계 · 알림 입구가 채울 것: sales · inboxSeen · imports · recon · legacy)

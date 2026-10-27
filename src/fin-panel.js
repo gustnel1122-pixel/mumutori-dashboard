@@ -1,7 +1,7 @@
 // PC 재무 화면(finance.html) 맨 위 '수기 입력 · 확인 필요' 패널 — 휴대폰 화면(quick.html)과 같은 부품(fin-form) · 같은 공용 장부(hub/financeV1).
 // ERP 화면은 이 PC 저장(localStorage)으로 그려지고 자주 다시 그려지므로, 패널 자리(#fin-hub-panel)가 새로 생길 때마다 다시 붙인다(장부 연결은 하나로 유지).
 import { onAuth, signIn } from './fbauth.js';
-import { openFinStore } from './fin-hub.js';
+import { openFinStore } from './fin-hub.js?v=classify-undo-20261027';
 import { mountEntryForm, renderLists, bindListActions, rememberNeeds, coupangCalendar, ledgerFilter, esc, won } from './fin-form.js';
 
 let store = null, book = { entries: {}, sales: {}, meta: {} }, signedIn = false, host = null, loaded = false, jumped = false;

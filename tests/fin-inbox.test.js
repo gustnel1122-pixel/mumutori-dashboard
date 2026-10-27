@@ -5,7 +5,7 @@ const fs=require('node:fs');
 const F=require('../src/fin-core.js');
 const classifyURL='data:text/javascript;base64,'+Buffer.from(fs.readFileSync(require.resolve('../src/fin-classify.js'),'utf8')).toString('base64');
 const source=fs.readFileSync(require.resolve('../src/fin-hub.js'),'utf8').replace("import { dbUrl } from './fbauth.js';","const dbUrl=()=>{throw Error('Network forbidden in test')};");
-const linked=source.replace("'./fin-classify.js'",JSON.stringify(classifyURL));
+const linked=source.replace("'./fin-classify.js?v=undo-20261027'",JSON.stringify(classifyURL));
 const modulePromise=import('data:text/javascript;base64,'+Buffer.from(linked).toString('base64'));
 const item=(vendor='시험상점',card='사업구매전용')=>({text:`현대 ${card} 승인 12500원 일시불, 10/26 22:34 ${vendor}`,card,src:'현대카드',ts:new Date('2026-10-26T13:35:00Z').getTime()});
 test('연결 시험 합계 제외 · 동시 수집/재처리 멱등 · 다른 상품/가맹점 유지 · 열려 있는 화면 수집',async()=>{

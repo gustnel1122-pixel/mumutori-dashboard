@@ -1,7 +1,7 @@
 // 재무 빠른 장부(quick.html) — 휴대폰 화면. 위: 오늘 · 이번 달 요약, 가운데: 수기 입력(공용 부품 fin-form), 아래: 확인 필요 · 최근 기록.
 // 장부는 Firebase hub/financeV1(사장님 로그인 전용). PC 재무 화면(fin-panel.js)과 같은 부품 · 같은 줄 모양을 쓴다.
 import { onAuth, signIn } from './fbauth.js';
-import { openFinStore } from './fin-hub.js';
+import { openFinStore } from './fin-hub.js?v=classify-undo-20261027';
 import { mountEntryForm, renderLists, bindListActions, rememberNeeds, coupangCalendar, accountsView, esc, won } from './fin-form.js';
 
 const F = window.FinCore;
