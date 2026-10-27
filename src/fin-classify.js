@@ -71,6 +71,7 @@ export function applyDecision(e,d,now) {
   next.updatedAt=now; return next;
 }
 export function undoAi(e,now) {
-  if(e?.ai?.status!=='applied'||JSON.stringify(snapshot(e))!==JSON.stringify(e.ai.applied)) throw Error('그 뒤 수정된 거래입니다. 현재 내용을 먼저 확인해 주세요.');
-  return {...e,...e.ai.before,ai:{...e.ai,status:'undone',undoneAt:now},updatedAt:now};
+  // Firebase omits null properties and may reorder object keys on readback.
+  if(e?.ai?.status!=='applied'||!e.ai.before||!e.ai.applied||Object.entries(snapshot(e)).some(([k,v])=>v!==val(e.ai.applied,k))) throw Error('그 뒤 수정된 거래입니다. 현재 내용을 먼저 확인해 주세요.');
+  return {...e,...snapshot(e.ai.before),ai:{...e.ai,status:'undone',undoneAt:now},updatedAt:now};
 }
