@@ -46,6 +46,10 @@ class Handler(SimpleHTTPRequestHandler):
         pass
 
     def do_GET(self):
+        if getattr(self.server, 'offline', False):
+            self.close_connection = True
+            self.connection.close()
+            return
         path = unquote(urlsplit(self.path).path)
         if path == '/favicon.ico':
             self.send_response(204)
@@ -252,10 +256,15 @@ def sw_checks(context, server, evidence, report):
     report['cache_exclusions'] = forbidden + ['Authorization header', 'POST', 'Cache-Control: private,no-store']
     # Offline cached local-only screen; public seed is deliberately never a fallback ledger.
     context.set_offline(True)
+    server.http.offline = True
     # Current Chromium request emulation and navigator.onLine can be independent.
     # Override the target's network state as well to reproduce physical disconnection.
     cdp.send('Network.enable')
-    cdp.send('Network.overrideNetworkState', {'offline':True,'latency':0,'downloadThroughput':0,'uploadThroughput':0})
+    try:
+        cdp.send('Network.overrideNetworkState', {'offline':True,'latency':0,'downloadThroughput':0,'uploadThroughput':0})
+    except Exception as err:
+        if "wasn't found" not in str(err): raise
+        cdp.send('Network.emulateNetworkConditions', {'offline':True,'latency':0,'downloadThroughput':0,'uploadThroughput':0})
     page.reload(wait_until='load')
     page.locator('body[data-page=products] h1').wait_for()
     report['offline_probe'] = page.evaluate("""() => ({online:navigator.onLine,connection:document.querySelector('.pwa-connection')?.outerHTML,pwaScripts:[...document.scripts].filter(s=>s.src.includes('/pwa.js')).map(s=>s.src),h1:document.querySelector('h1')?.textContent})""")
@@ -270,8 +279,13 @@ def sw_checks(context, server, evidence, report):
         assert page.locator('#pwa-retry').is_visible()
     page.screenshot(path=str(evidence / 'offline-neutral-390.png'), full_page=True)
     report['offline_neutral'] = ['finance.html', 'quick.html', 'index.html', 'query navigation without cached shell']
+    server.http.offline = False
     context.set_offline(False)
-    cdp.send('Network.overrideNetworkState', {'offline':False,'latency':0,'downloadThroughput':-1,'uploadThroughput':-1})
+    try:
+        cdp.send('Network.overrideNetworkState', {'offline':False,'latency':0,'downloadThroughput':-1,'uploadThroughput':-1})
+    except Exception as err:
+        if "wasn't found" not in str(err): raise
+        cdp.send('Network.emulateNetworkConditions', {'offline':False,'latency':0,'downloadThroughput':-1,'uploadThroughput':-1})
     bypass = []
     for name in ['login.html', 'api/test.json', 'products.html?auth=synthetic']:
         response = page.goto(server.base + name, wait_until='load')
@@ -384,6 +398,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--evidence', type=Path, default=ROOT.parent / 'evidence')
     parser.add_argument('--browser-channel', default='chrome')
+    parser.add_argument('--browser-executable', default=None)
     parser.add_argument('--phase', choices=['all','mobile','sw','update'], default='all')
     args = parser.parse_args()
     evidence = args.evidence.resolve()
@@ -394,7 +409,7 @@ def main():
     report.pop('failure', None)
     try:
         with sync_playwright() as playwright:
-            browser = playwright.chromium.launch(headless=True, channel=args.browser_channel,
+            browser = playwright.chromium.launch(headless=True, channel=None if args.browser_executable or args.browser_channel == "default" else args.browser_channel, executable_path=args.browser_executable,
                 args=['--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1'])
             report['browser'] = browser.version
             with Server(ROOT) as server:
@@ -404,7 +419,7 @@ def main():
                 # for the browser's actual installability check; never install the app.
                 with tempfile.TemporaryDirectory(prefix='pwa-profile-') as profile:
                     persistent = playwright.chromium.launch_persistent_context(profile, headless=True,
-                        channel=args.browser_channel, viewport={'width':390,'height':844},
+                        channel=None if args.browser_executable or args.browser_channel == "default" else args.browser_channel, executable_path=args.browser_executable, viewport={'width':390,'height':844},
                         args=['--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1'])
                     try:
                         if args.phase in {'all','sw'}:

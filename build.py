@@ -26,7 +26,7 @@ seed=R/'data/seed.json'
 if seed.exists(): (R/'data/seed.json.gz').write_bytes(gzip.compress(seed.read_bytes(),mtime=0))
 pages={'index':('overview','운영 홈'),'finance':('finance','재무'),'bank':('bank','재무 · 계좌별'),'products':('products','상품'),'purchases':('purchases','구매·원가'),'sourcing':('sourcing','소싱'),'sales':('sales','판매·정산'),'stock':('stock','물류·재고'),'partners':('partners','거래처'),'audit':('audit','변경 이력'),'settings':('settings','설정·백업'),'branding':('branding','브랜딩'),'characters':('characters','캐릭터'),'agents':('agents','AI 조직도')}
 private_documents=['letter-hub.html']
-version_files=[R/'build.py',R/'manifest.webmanifest',R/'offline.html']
+version_files=[R/'build.py',R/'manifest.webmanifest',R/'offline.html',R/'firebase-messaging-sw.js']
 version_files += [R/name for name in private_documents]
 version_files += [p for folder in ['src','assets','_tools'] for p in (R/folder).rglob('*') if p.is_file() and '__pycache__' not in p.parts and p.suffix!='.pyc']
 # Include paths as well as bytes: renaming/removing a resource must change the worker.
@@ -38,13 +38,14 @@ EXTRA={'sourcing':(' https://*.alicdn.com',' https://mumutori-letter-default-rtd
        'characters':('',' https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.app')}
 # 2026-10-07 보안 정리: 소싱 보드는 사장님 구글 로그인(Firebase Auth) 후에만 읽고 쓴다. 로그인 도구는 assets/vendor/firebase에 고정 버전.
 # 로그인 창(구글)·토큰 발급 주소만 추가로 허용한다. 다른 부서 페이지는 그대로.
-AUTH={'sourcing','finance','overview','bank'}   # overview(홈): 공용 장부 이번 달 · 확인 필요를 읽기만(10/20 구글 로그인 방식으로 정해짐) · bank(재무 '계좌별', 10/23 총괄 #15): 같은 장부를 계좌마다 읽기만
+AUTH={'sourcing','finance','overview','bank','settings'}   # overview(홈): 공용 장부 이번 달 · 확인 필요를 읽기만(10/20 구글 로그인 방식으로 정해짐) · bank(재무 '계좌별', 10/23 총괄 #15): 같은 장부를 계좌마다 읽기만
 # 2026-10-19 재무: 맨 위 '수기 입력 · 확인 필요' 패널이 공용 장부(hub/financeV1, 사장님 로그인 전용)에 읽고 쓴다 — 장부 주소 · 로그인 주소만 더한다.
 EXTRA['finance']=('',' https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.app')
 EXTRA['overview']=EXTRA['finance']
 EXTRA['bank']=EXTRA['finance']
+EXTRA['settings']=('',' https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.app https://firebaseinstallations.googleapis.com https://fcmregistrations.googleapis.com')
 PAGE_HEAD={'finance':'<link rel="stylesheet" href="src/fin-form.css?v={v}">','bank':'<link rel="stylesheet" href="src/fin-form.css?v={v}">','overview':'<link rel="stylesheet" href="src/project-progress.css?v={v}">'}
-PAGE_TAGS={'finance':'<script src="src/fin-core.js?v={v}"></script><script type="module" src="src/fin-panel.js?v={v}"></script>',
+PAGE_TAGS={'settings':'<script src="assets/vendor/firebase/firebase-messaging-compat.js"></script><script type="module" src="src/app-push.js?v={v}"></script>', 'finance':'<script src="src/fin-core.js?v={v}"></script><script type="module" src="src/fin-panel.js?v={v}"></script>',
            'bank':'<script src="src/fin-core.js?v={v}"></script><script type="module" src="src/fin-accounts.js?v={v}"></script>',
            'overview':'<script src="src/fin-core.js?v={v}"></script><script type="module" src="src/home-fin.js?v={v}"></script>'}   # 홈: 공용 장부 이번 달 · 확인 필요(읽기만, 구글 로그인)
 AUTH_CONNECT=' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com'
@@ -73,7 +74,7 @@ for name,template in {**operations_pages,**redirect_pages}.items():
     shell=(R/'src'/template).read_text(encoding='utf-8').replace('{{PWA_HEAD}}',PWA_HEAD).replace('{{VERSION}}',version)
     (R/f'{name}.html').write_text(shell,encoding='utf-8',newline=chr(10))
 # A strict allowlist keeps all JSON/seed, login, finance code and APIs out of Cache Storage.
-excluded={'fbauth.js','home-fin.js','finance.js','bank.js','overview.js'}
+excluded={'fbauth.js','home-fin.js','finance.js','bank.js','overview.js','app-push.js'}
 assets={p.relative_to(R).as_posix():hashlib.sha256(content_bytes(p)).hexdigest()
         for folder in ['src','assets'] for p in sorted((R/folder).rglob('*'))
         if p.is_file() and p.suffix in {'.js','.css','.svg','.png','.jpg','.jpeg','.webp','.woff','.woff2'}
@@ -82,7 +83,7 @@ assets['offline.html']=hashlib.sha256(content_bytes(R/'offline.html')).hexdigest
 assets['manifest.webmanifest']=hashlib.sha256(content_bytes(R/'manifest.webmanifest')).hexdigest()
 # Network-backed/private screens fall back to the neutral offline screen, never cached HTML.
 cached_pages={f'{name}.html':hashlib.sha256(content_bytes(R/f'{name}.html')).hexdigest()
-              for name in pages if name not in {'index','finance','bank','sourcing','characters','branding'}}
+              for name in pages if name not in {'index','finance','bank','sourcing','characters','branding','settings'}}
 cached_pages.update({f'{name}.html':hashlib.sha256(content_bytes(R/f'{name}.html')).hexdigest() for name in operations_pages})
 worker=(R/'_tools/sw-template.js').read_text(encoding='utf-8').replace('__PWA_VERSION__',version).replace('__PWA_ASSETS__',json.dumps(assets,ensure_ascii=False,sort_keys=True)).replace('__PWA_PAGES__',json.dumps(cached_pages,sort_keys=True)).replace('__PWA_DOCUMENTS__',json.dumps([name+'.html' for name in pages]+[name+'.html' for name in operations_pages]+[name+'.html' for name in redirect_pages]+['quick.html','offline.html']+private_documents))
 (R/'sw.js').write_text(worker,encoding='utf-8',newline=chr(10))

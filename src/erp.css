@@ -202,3 +202,4 @@ a{color:inherit;text-decoration:none}button,a,input,select,textarea{-webkit-tap-
 @media(prefers-reduced-motion:reduce){.ops-shopping-card{transition:none}.ops-shopping-card:hover{transform:none}}
 
 .ops-shopping-progress[hidden]{display:none}
+#app-push-settings button { min-height:44px; min-width:44px; }
