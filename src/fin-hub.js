@@ -8,6 +8,8 @@ export const ROOT = 'hub/financeV1';
 export const PATHS = { entries: 'entries', receipts: 'receipts', meta: 'meta', sales: 'sales', inboxSeen: 'inboxSeen' };
 // 알림 입구(7절): hub/financeInbox/<비밀키>/<id> — 규칙 적용 · 휴대폰 설정은 q115 답과 승인 뒤. 여기서는 이름만 잡아 둔다.
 export const INBOX_ROOT = 'hub/financeInbox';
+// 원문은 기존 hub 관리자 권한을 물려받지 않는 사장님 전용 입구에 둔다.
+export const RAW_INBOX_ROOT = 'financeRawInbox';
 
 const clone = v => v == null ? v : JSON.parse(JSON.stringify(v));
 
@@ -71,7 +73,14 @@ export function openFinStore({ root = ROOT, onChange, onStatus } = {}) {
       if (inboxRun) return inboxRun;
       inboxRun = (async () => {
         const F = window.FinCore;
-        const inbox = test ? (test.__inbox || null) : await reqAbs('GET', INBOX_ROOT);
+        const legacy = test ? test.__inbox : await reqAbs('GET', INBOX_ROOT);
+        let rawInbox;
+        if (test) rawInbox = test.__rawInbox;
+        else {
+          try { rawInbox = await reqAbs('GET', RAW_INBOX_ROOT); }
+          catch (err) { if (state !== 'denied') throw err; status('ok'); }
+        }
+        const inbox = [...Object.values(legacy || {}), ...Object.values(rawInbox || {}).map(group => Object.fromEntries(Object.entries(group || {}).map(([id, item]) => [id, { ...item, rawInbox: true }])) )];
         if (!inbox) return 0;
         const seen = (await req('GET', PATHS.inboxSeen)) || {};
         let made = 0, tests = 0;

@@ -271,8 +271,12 @@
   function draftFromAlert(item, rules, now = new Date()) {
     // 펼친 글(big)에 금액이 있으면 그걸 읽는다(접힌 글엔 가맹점이 없을 수 있음). 이름('홍길동 님,' · '김*수님')은 지운다.
     const body = /원/.test(String(item?.big || '')) ? item.big : item?.text;
-    const raw = maskCard(String(body || '')).replace(/[가-힣]\*[가-힣]?님?/g, '').replace(/[가-힣○●*]{2,5}\s?님\s*,?/g, '').replace(/\s+/g, ' ').trim();
+    const cleaned = String(body || '').includes('현대')
+      ? String(body || '').replace(/^[\s\S]*?(?=현대(?:카드)?\s)/, '').split(/누적|잔액/)[0]
+      : String(body || '');
+    const raw = maskCard(cleaned).replace(/[가-힣]\*[가-힣]?님?/g, '').replace(/[가-힣○●*]{2,5}\s?님\s*,?/g, '').replace(/\s+/g, ' ').trim();
     const src = String(item?.src || '') + ' ' + String(item?.text || '').slice(0, 40);
+    if (item?.rawInbox && !/현대(?:카드)?\s+[가-힣A-Za-z0-9 _()-]{1,40}?\s+(?:승인|승인취소|취소)\s+\d/.test(raw)) return null;
     const am = raw.match(/(\d{1,3}(?:,\d{3})+|\d+)\s*원/);
     if (!am) return null;
     const ts = Number(item?.ts) || now.getTime();
@@ -287,7 +291,7 @@
     }
     const both = raw + ' ' + src;
     // 상품명은 카드사/명의자 이름과 별도 보존한다. 승인과 금액 사이 줄바꿈은 위에서 정리됨.
-    const cardMatch = raw.match(/현대\s+([가-힣A-Za-z0-9 _()-]{1,40}?)\s+승인\s+\d/);
+    const cardMatch = raw.match(/현대\s+([가-힣A-Za-z0-9 _()-]{1,40}?)\s+(?:승인|승인취소|취소)\s+\d/);
     const card = cardMatch ? cardMatch[1].trim() : '';
     const transfer = /(입금|출금|이체|송금)/.test(raw);
     const method = /현대/.test(both) ? '현대카드' : /카카오|카뱅/.test(both) ? (transfer ? '카뱅이체' : '카뱅체크')   // 카카오뱅크(견본 아직 없음 — 일반 판정만, 총괄 #14)
