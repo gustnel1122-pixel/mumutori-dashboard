@@ -6,7 +6,9 @@ import json
 import sys
 sys.dont_write_bytecode=True     # 저장소 폴더에 __pycache__ 를 만들지 않는다(캐시 파일에는 이 PC의 경로가 들어간다)
 import brand_public_check
+from check_project_progress import check as check_project_progress
 R=Path(__file__).resolve().parent
+check_project_progress(R/'src/project-progress.json')
 TEXT_SUFFIXES={'.py','.js','.css','.svg','.html','.json','.webmanifest'}
 def content_bytes(path):
     raw=path.read_bytes()
@@ -41,7 +43,7 @@ AUTH={'sourcing','finance','overview','bank'}   # overview(홈): 공용 장부 �
 EXTRA['finance']=('',' https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.app')
 EXTRA['overview']=EXTRA['finance']
 EXTRA['bank']=EXTRA['finance']
-PAGE_HEAD={'finance':'<link rel="stylesheet" href="src/fin-form.css?v={v}">','bank':'<link rel="stylesheet" href="src/fin-form.css?v={v}">'}
+PAGE_HEAD={'finance':'<link rel="stylesheet" href="src/fin-form.css?v={v}">','bank':'<link rel="stylesheet" href="src/fin-form.css?v={v}">','overview':'<link rel="stylesheet" href="src/project-progress.css?v={v}">'}
 PAGE_TAGS={'finance':'<script src="src/fin-core.js?v={v}"></script><script type="module" src="src/fin-panel.js?v={v}"></script>',
            'bank':'<script src="src/fin-core.js?v={v}"></script><script type="module" src="src/fin-accounts.js?v={v}"></script>',
            'overview':'<script src="src/fin-core.js?v={v}"></script><script type="module" src="src/home-fin.js?v={v}"></script>'}   # 홈: 공용 장부 이번 달 · 확인 필요(읽기만, 구글 로그인)

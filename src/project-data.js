@@ -1,10 +1,10 @@
 // 운영 홈과 프로젝트 페이지가 함께 쓰는 공개 요약. 금액·계정·개인정보를 넣지 않습니다.
-export const PROJECT_UPDATED_AT = '2026-10-26';
-export const PROJECT_CHECK_NOTE = '10/26 정본 확인';
+export const PROJECT_UPDATED_AT = '2026-10-27';
+export const PROJECT_CHECK_NOTE = '10/27 전체 점검';
 // 실제 체크·메모·기기 간 이어쓰기는 오프라인 프로젝트에서만 합니다.
 export const PALSIBO_SHOPPING = {
   href: 'https://gustnel1122-pixel.github.io/mumutori-offline-pages/#preparation',
-  counts: {total:51}
+  counts: {total:52}
 };
 export const PROJECTS = [
   {
@@ -14,9 +14,9 @@ export const PROJECTS = [
     "status": [
       "11월 1일(일) 오픈 준비",
       "구매·포장·준비표를 한 목록으로 통합",
-      "버터 말랑이 벽돌 부착안은 실측 전 검토 중"
+      "중앙 매대+맞춤 식탁보·MORE ARCH 2개로 확정"
     ],
-    "next": "매장 준비 목록에서 하자·보류·안 함을 함께 정하기",
+    "next": "식탁보·간판·현수막과 주문·설치 상태 확인",
     "href": "https://gustnel1122-pixel.github.io/mumutori-offline-pages/",
     "links": [
       {
@@ -58,7 +58,7 @@ export const PROJECTS = [
     "status": [
       "소품과 레터서비스 판매 중",
       "귀리 크림 중심 화면 반영",
-      "새 로고·캐릭터 교체할 자리 점검 중"
+      "새 로고 반영, 소개 배치 이미지 일부 잔여"
     ],
     "next": "아직 남은 옛 로고와 캐릭터를 최신 기준으로 정리",
     "href": "project-hub.html?project=mall",
@@ -98,9 +98,9 @@ export const PROJECTS = [
     "status": [
       "12개 상품 배송 기준 변경 완료",
       "상품명·태그 정리 반영",
-      "알림받기 쿠폰은 적용 전"
+      "기존 알림받기 5% 쿠폰 확인"
     ],
-    "next": "판매자센터 접속 가능한 때 쿠폰 설정 확인",
+    "next": "기존 쿠폰 유지·교체 결정과 주간 유입 확인",
     "href": "project-hub.html?project=smartstore",
     "links": [
       {
