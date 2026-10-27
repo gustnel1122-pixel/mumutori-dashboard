@@ -1,142 +1,81 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-27T18:47:00+09:00",
+  "updatedAt": "2026-10-27T20:18:00+09:00",
   "checkedAt": "2026-10-27",
   "staleAfterDays": 7,
   "openingDate": "2026-11-10",
-  "note": "단계는 완료한 관문 수입니다. 실제 공정률·매출 비율이 아닙니다. 상태는 정본·완료 회신 기준이며 실물·외부 실행은 별도 확인합니다.",
+  "note": "큰 프로젝트 11개만 표시합니다. 단계는 큰 프로젝트의 확인된 관문이며 하위 단계 평균이나 실제 공정률이 아닙니다.",
   "projects": [
     {
       "id": "offline",
       "name": "오프라인 매장 · 11/10(화)",
+      "includes": [
+        "offline",
+        "offline-board",
+        "pos"
+      ],
+      "includesLabel": "매장 준비 · 공동 작업판 · 결제·마감",
       "stage": 2,
       "stages": [
-        "방향",
+        "기획",
         "배치 확정",
-        "제작·주문",
-        "설치·시험",
+        "제작·발주",
+        "설치·결제",
         "오픈"
       ],
       "state": "active",
-      "status": "11/10(화)로 오픈 연기 · 중앙 매대+식탁보, MORE ARCH 2개",
-      "next": "식탁보·간판·현수막과 미주문 항목 확정",
+      "tone": "amber",
+      "status": "배치 확정·공동판 운영, 새 주문판 시안과 단말기 검증 남음",
+      "next": "제작·주문 확정 및 단말기 개통·결제 시험 확인",
       "owners": [
         "현수",
         "다희",
         "AI"
       ],
-      "blocked": "주문·도착·설치 여부는 현장 확인 필요",
+      "blocked": "새 주문판 구현 승인·납기·단말기 실시험 확인 필요",
       "lastActivity": "2026-10-27",
-      "automation": "구매 상태·도착 예정·미결정 항목 모으기",
-      "evidence": "10/27 18:45 사장님 일정 변경 · B22 배치 기준",
-      "href": "https://gustnel1122-pixel.github.io/mumutori-offline-pages/",
-      "tone": "amber"
-    },
-    {
-      "id": "offline-board",
-      "name": "공동 주문·목업 작업판",
-      "stage": 2,
-      "stages": [
-        "요청",
-        "방향 확정",
-        "시안",
-        "구현·시험",
-        "공동 사용"
-      ],
-      "state": "waiting",
-      "status": "현재 공동판 배포, 새 주문 중심 시안 3장 준비",
-      "next": "새 시안 검토 뒤 승인된 범위 구현",
-      "owners": [
-        "현수",
-        "다희",
-        "AI"
-      ],
-      "blocked": "새 방향 구현·로그인 없는 파일 첨부는 미구현",
-      "lastActivity": "2026-10-27",
-      "automation": "요청→시안→확인→반영 흐름과 누락 점검",
-      "evidence": "10/27 주문·목업 인계",
-      "href": "https://gustnel1122-pixel.github.io/mumutori-offline-pages/",
-      "tone": "amber"
-    },
-    {
-      "id": "pos",
-      "name": "매장 결제·판매 마감",
-      "stage": 1,
-      "stages": [
-        "서류",
-        "개통",
-        "결제·취소 시험",
-        "판매 기록",
-        "일일 마감"
-      ],
-      "state": "unknown",
-      "status": "단말기 서류 이후 개통·실결제 결과 미확인",
-      "next": "단말기 상태 확인, 결제·취소 시험 결과 기록",
-      "owners": [
-        "현수",
-        "AI"
-      ],
-      "blocked": "실제 단말기·가맹 상태 확인 필요",
-      "lastActivity": "2026-10-23",
-      "automation": "매장 마감표와 단말기 합계 비교",
-      "evidence": "일감판 G-25·G-37 · 오프라인 정본",
-      "href": "store-opening.html",
-      "tone": "red"
+      "automation": "구매 상태·도착 예정·미결정 항목 모으기 · 요청→시안→확인→반영 흐름과 누락 점검 · 매장 마감표와 단말기 합계 비교",
+      "evidence": "10/27 오픈일 변경·배치 확정·공동판 인계, 단말기 확인 기록",
+      "href": "https://gustnel1122-pixel.github.io/mumutori-offline-pages/"
     },
     {
       "id": "letter",
       "name": "레터 서비스",
-      "stage": 4,
+      "includes": [
+        "letter",
+        "season-letter"
+      ],
+      "includesLabel": "고객 작성·접수 · 제작·발송 · 수능 레터",
+      "stage": 3,
       "stages": [
-        "상품",
-        "고객 작성",
-        "접수 저장",
-        "관리·메일",
-        "운영 검증"
+        "상품·구성",
+        "작성·접수",
+        "관리·알림",
+        "제작·출고",
+        "정기 운영"
       ],
       "state": "active",
-      "status": "작성·접수·관리 분리와 Gmail 수신 확인",
-      "next": "실제 첫 주문 제작·발송 흐름 확인",
+      "tone": "amber",
+      "status": "작성·접수·메일 확인, 실주문 출고와 수능 샘플 확인 필요",
+      "next": "실주문 제작·출고 확인, 수능 샘플·마감 확정",
       "owners": [
         "현수",
         "다희",
         "AI"
       ],
-      "blocked": "실주문 제작·출고 결과는 별도 확인",
+      "blocked": "실제 출고 결과·시즌 제작량·마감 확정 필요",
       "lastActivity": "2026-10-27",
-      "automation": "새 접수 알림·접수 누락·처리 지연 점검",
-      "evidence": "레터 정본 · 10/27 주소 통일 인계",
-      "href": "letter-hub.html",
-      "tone": "amber"
-    },
-    {
-      "id": "letter-push",
-      "name": "레터·승인 앱 푸시",
-      "stage": 2,
-      "stages": [
-        "조사",
-        "로컬 준비",
-        "권한 연결",
-        "폰 시험",
-        "운영"
-      ],
-      "state": "waiting",
-      "status": "Gmail 알림 운영, 앱 푸시는 준비 단계",
-      "next": "현재 준비본 통합·인증 방식 정리 후 실기기 시험",
-      "owners": [
-        "현수",
-        "AI"
-      ],
-      "blocked": "앱 배포·알림 권한·실기기 수신 미확인",
-      "lastActivity": "2026-10-26",
-      "automation": "새 접수·긴급 승인만 폰에 알리기",
-      "evidence": "10/26 알림 인계 · ERP 정본",
-      "href": "letter-hub.html",
-      "tone": "amber"
+      "automation": "새 접수 알림·접수 누락·처리 지연 점검 · 주문 마감·출고 역산과 잔여량 점검",
+      "evidence": "레터 정본·접수/메일 검증·수능 레터 기획 인계",
+      "href": "letter-hub.html"
     },
     {
       "id": "mall",
       "name": "자사몰 · 식스샵",
+      "includes": [
+        "mall"
+      ],
+      "includesLabel": "자사몰 화면 · 상품 연결 · 운영 개선",
       "stage": 4,
       "stages": [
         "구성",
@@ -146,8 +85,9 @@
         "개선 측정"
       ],
       "state": "active",
-      "status": "새 로고·고객 링크 반영, 일부 옛 이미지 잔여",
-      "next": "소개 배치 이미지와 상세 v2 연결 점검",
+      "tone": "amber",
+      "status": "새 로고·고객 링크 반영, 일부 소개 이미지 정리 남음",
+      "next": "소개 이미지·상세 연결·구매 전환 확인",
       "owners": [
         "현수",
         "다희",
@@ -156,39 +96,16 @@
       "blocked": "관리자 편집과 실구매 전환 확인 필요",
       "lastActivity": "2026-10-27",
       "automation": "링크·옛 로고·배송 문구 검사",
-      "evidence": "10/27 레터 주소 통일 인계",
-      "href": "https://mumutori.com",
-      "tone": "amber"
-    },
-    {
-      "id": "detail-v2",
-      "name": "상세페이지 v2",
-      "stage": 2,
-      "stages": [
-        "참고 조사",
-        "방향 기획",
-        "대표 1종",
-        "검토·수정",
-        "확장·게시"
-      ],
-      "state": "waiting",
-      "status": "기존 24종 반려, 새 3방향·감자지갑 1종 시안 준비",
-      "next": "방향·대표 1종 검토 후 다음 상품 진행",
-      "owners": [
-        "현수",
-        "다희",
-        "AI"
-      ],
-      "blocked": "방향 확인·실물 포장/구성 미확인",
-      "lastActivity": "2026-10-27",
-      "automation": "확정 템플릿의 규격·문구·이미지 검사",
-      "evidence": "10/27 detail-v2 인계",
-      "href": "project-hub.html?project=mall",
-      "tone": "amber"
+      "evidence": "10/27 고객 링크·로고 반영 인계 및 자사몰 정본",
+      "href": "https://mumutori.com"
     },
     {
       "id": "smartstore",
       "name": "스마트스토어",
+      "includes": [
+        "smartstore"
+      ],
+      "includesLabel": "상품 운영 · 배송 · 쿠폰 · 주간 측정",
       "stage": 4,
       "stages": [
         "상품 정리",
@@ -198,351 +115,155 @@
         "주간 개선"
       ],
       "state": "active",
-      "status": "무료배송 기준 반영, 기존 알림받기 쿠폰 확인",
-      "next": "기존 쿠폰 유지·교체 결정과 주간 측정",
+      "tone": "amber",
+      "status": "배송 기준과 기존 쿠폰 확인, 주간 개선 대기",
+      "next": "쿠폰 유지·교체 결정 및 주간 유입 측정",
       "owners": [
         "현수",
         "AI"
       ],
-      "blocked": "새 쿠폰 중복 발급 금지, 변경 선택 대기",
+      "blocked": "기존 쿠폰 중복 발급 금지·변경 선택 확인",
       "lastActivity": "2026-10-26",
       "automation": "커머스API 조회·주간 유입 비교",
-      "evidence": "스마트 정본 · 10/26 02:39 인계",
-      "href": "https://smartstore.naver.com/mumutori_market",
-      "tone": "amber"
+      "evidence": "스마트스토어 정본·배송 반영·기존 쿠폰 확인 인계",
+      "href": "https://smartstore.naver.com/mumutori_market"
     },
     {
       "id": "coupang",
-      "name": "쿠팡 · 로켓그로스",
-      "stage": 4,
+      "name": "쿠팡",
+      "includes": [
+        "coupang",
+        "coupang-ads"
+      ],
+      "includesLabel": "로켓그로스 · 판매 · 광고",
+      "stage": 3,
       "stages": [
         "등록",
         "입고",
         "판매 개시",
-        "노출·판매 점검",
-        "개선"
+        "성과·광고 점검",
+        "개선 판정"
       ],
       "state": "active",
-      "status": "1차 상품 운영, 2차 입고는 취소 완료 회신",
-      "next": "1차 상품 방문·장바구니·판매를 같은 기간으로 비교",
+      "tone": "amber",
+      "status": "1차 상품 운영·2차 입고 취소, 광고 안전장치 확인 필요",
+      "next": "같은 기간 판매·광고 성과와 안전장치 확인",
       "owners": [
         "현수",
         "AI"
       ],
-      "blocked": "API 인증 복구·당일 데이터 확인 필요",
+      "blocked": "최신 데이터·인증·안전장치 실행 결과 확인 필요",
       "lastActivity": "2026-10-26",
-      "automation": "재고·판매·입고 상태 읽기와 경보",
-      "evidence": "지시 장부 C3 · 쿠팡 정본",
-      "href": "sales.html",
-      "tone": "amber"
+      "automation": "재고·판매·입고 상태 읽기와 경보 · 읽기 전용 비용·성과 보고와 한도 경보",
+      "evidence": "쿠팡 정본·2차 취소 회신·광고 점검 기록",
+      "href": "sales.html"
     },
     {
-      "id": "coupang-ads",
-      "name": "쿠팡 광고",
-      "stage": 3,
+      "id": "product",
+      "name": "상품 준비(소싱·재고·사진·상세)",
+      "includes": [
+        "sourcing",
+        "inventory",
+        "photo",
+        "detail-v2"
+      ],
+      "includesLabel": "소싱·배대지 · 검수·재고 · 사진 · 상세",
+      "stage": 2,
       "stages": [
-        "기준",
-        "전략",
-        "설정",
-        "안전장치",
-        "효과 판정"
-      ],
-      "state": "active",
-      "status": "기존 설정 운영, 안전장치 만료·실행 결과 확인 필요",
-      "next": "최신 지출·전환과 안전장치 만료 확인",
-      "owners": [
-        "현수",
-        "AI"
-      ],
-      "blocked": "로그인·최신 보고 미확인, 설정은 별도 승인",
-      "lastActivity": "2026-10-26",
-      "automation": "읽기 전용 비용·성과 보고와 한도 경보",
-      "evidence": "쿠팡 정본 · 일감판 광고 점검",
-      "href": "sales.html",
-      "tone": "amber"
-    },
-    {
-      "id": "finance",
-      "name": "공용 재무 장부",
-      "stage": 4,
-      "stages": [
-        "원장",
-        "수집",
-        "분류",
-        "대사",
-        "마감"
-      ],
-      "state": "active",
-      "status": "공용 장부·확인 필요·AI 분류 화면 운영",
-      "next": "남은 확인 항목과 계좌 대조 정리",
-      "owners": [
-        "현수",
-        "AI"
-      ],
-      "blocked": "원장 수치는 관리자 로그인 후 확인",
-      "lastActivity": "2026-10-27",
-      "automation": "미분류·중복 후보·잔액 차이 점검",
-      "evidence": "ERP 정본 · dashboard main",
-      "href": "finance.html",
-      "tone": "amber"
-    },
-    {
-      "id": "hyundai",
-      "name": "현대카드 자동 수집",
-      "stage": 4,
-      "stages": [
-        "알림",
-        "폰 전송",
-        "중계",
-        "장부 연결",
-        "실전 검증"
-      ],
-      "state": "active",
-      "status": "첫 실제 결제 유입은 사장님 보고로 확인",
-      "next": "다음 실결제의 중복·누락 여부 확인",
-      "owners": [
-        "현수",
-        "AI"
-      ],
-      "blocked": "지속 수집은 다음 실전 결과 확인 필요",
-      "lastActivity": "2026-10-27",
-      "automation": "결제 알림 정리·중복 차단·누락 점검",
-      "evidence": "10/27 현대카드 인계 · 분류 운영 인계",
-      "href": "quick.html",
-      "tone": "amber"
-    },
-    {
-      "id": "ledger-ai",
-      "name": "장부 AI 자동 분류",
-      "stage": 4,
-      "stages": [
-        "기준",
-        "화면",
-        "연결",
-        "적용·복구",
-        "일일 검증"
-      ],
-      "state": "active",
-      "status": "연결·실제 처리 완료 전달, 되돌리기 수정 배포 확인",
-      "next": "다음 예약 회차의 내보내기·반영 실행 확인",
-      "owners": [
-        "현수",
-        "AI"
-      ],
-      "blocked": "트리거 실제 실행·다음 일일 회차는 재검증 필요",
-      "lastActivity": "2026-10-27",
-      "automation": "대기 거래 분류→검증→반영·되돌리기",
-      "evidence": "10/27 총괄 전달 · main 0cb89b2/542afc1",
-      "href": "finance.html#fin-needs",
-      "tone": "amber"
-    },
-    {
-      "id": "hometax-clove",
-      "name": "홈택스·클로브 연계",
-      "stage": 0,
-      "stages": [
-        "현황 확인",
-        "범위",
-        "원자료",
-        "대조",
-        "운영"
-      ],
-      "state": "unknown",
-      "status": "홈택스는 자료 후보, 클로브 최신 실행 근거 없음",
-      "next": "연결 여부·목표·정본부터 확인",
-      "owners": [
-        "현수",
-        "AI"
-      ],
-      "blocked": "최신 상태·클로브 정본을 찾지 못함",
-      "lastActivity": null,
-      "automation": "증빙 파일 목록·기간 누락 검사부터",
-      "evidence": "ERP 정본 · 이번 전체 점검",
-      "href": "finance.html",
-      "tone": "red"
-    },
-    {
-      "id": "sourcing",
-      "name": "소싱 · 1688·배대지",
-      "stage": 3,
-      "stages": [
-        "후보",
-        "발주",
-        "통관·배송",
-        "실물 검수",
+        "소싱·발주",
+        "입고 자료",
+        "검수·표시",
+        "사진·상세",
         "판매 연결"
       ],
       "state": "active",
-      "status": "발주분 검수와 체인 없는 키링 처리 남음",
-      "next": "실물 수량·구성·고리 방식 확인",
-      "owners": [
-        "현수",
-        "AI"
-      ],
-      "blocked": "최신 배송·재고 결과와 구성 확인 필요",
-      "lastActivity": "2026-10-26",
-      "automation": "배송 상태·입고표·옵션 검수 모으기",
-      "evidence": "지시 장부 B18/C20 · 소싱 정본",
-      "href": "sourcing.html",
-      "tone": "amber"
-    },
-    {
-      "id": "inventory",
-      "name": "상품·표시·재고",
-      "stage": 2,
-      "stages": [
-        "상품 자료",
-        "표시 기준",
-        "실물 검수",
-        "재고 반영",
-        "채널 대조"
-      ],
-      "state": "waiting",
-      "status": "재질·구성·신규 상품 사진·판매정보 확인 필요",
-      "next": "입고 실물 기준 사진·표시·재고 매핑",
+      "tone": "amber",
+      "status": "발주·제작 자료 준비, 구성·표시와 사진·상세 검수 남음",
+      "next": "실물 구성·표시 확인 후 관찰일기 상세 기준 정리",
       "owners": [
         "현수",
         "다희",
         "AI"
       ],
-      "blocked": "원본 사진·실제 구성·고시 확인 필요",
+      "blocked": "실제 입고 수량·구성·표시·실물 사진 확인 필요",
       "lastActivity": "2026-10-27",
-      "automation": "SKU별 사진·구성·표시 누락 검사",
-      "evidence": "상세 재작업 QA · 지시 장부 B18",
-      "href": "stock.html",
-      "tone": "amber"
+      "automation": "배송 상태·입고표·옵션 검수 모으기 · SKU별 사진·구성·표시 누락 검사 · 처리목록으로 중복 방지·새 사진만 누끼 · 확정 템플릿의 규격·문구·이미지 검사",
+      "evidence": "소싱 정본·상품 QA·누끼 결정·상세 제작 인계",
+      "href": "products.html"
     },
     {
-      "id": "kakao",
-      "name": "카카오 채널",
+      "id": "marketing",
+      "name": "마케팅(카카오·인스타·광고·유입분석)",
+      "includes": [
+        "kakao",
+        "instagram",
+        "naver-ads",
+        "analytics"
+      ],
+      "includesLabel": "카카오 · 인스타 · 네이버 광고 · 유입분석",
       "stage": 2,
       "stages": [
-        "채널 확인",
-        "웰컴 선택",
-        "그림·응답",
-        "설정",
-        "운영"
+        "채널 현황",
+        "운영 기획",
+        "콘텐츠·전환",
+        "설정·승인",
+        "성과 검증"
       ],
-      "state": "paused",
-      "status": "채널 주소·웰컴 A 답 있음, 반복 운영은 꺼짐",
-      "next": "기존 답으로 웰컴 그림·응답안 준비",
+      "state": "waiting",
+      "tone": "amber",
+      "status": "유입 분석 설치·운영안 준비, 카카오 반복은 중단 유지",
+      "next": "콘텐츠·구매 전환 확인, 광고 시작 조건 결정",
       "owners": [
         "현수",
         "다희",
         "AI"
       ],
-      "blocked": "실제 설정·게시 결과 없음, 예약 재개는 별도",
+      "blocked": "게시·광고 승인·계정 조건·구매 이벤트 검증 필요",
       "lastActivity": "2026-10-26",
-      "automation": "승인 전 초안·문의 분류·링크 검사",
-      "evidence": "카카오채널 #03 · 지시 장부 E",
-      "href": "https://pf.kakao.com/_lqpZX",
-      "tone": "red"
+      "automation": "승인 전 초안·문의 분류·링크 검사 · 승인된 콘텐츠 예약·UTM 성과 정리 · 읽기 전용 검색어·전환 보고부터 · 주간 채널 유입·구매 비교",
+      "evidence": "채널/인스타/네이버 광고 조사·유입분석 확인 기록",
+      "href": "project-hub.html?project=marketing"
     },
     {
-      "id": "instagram",
-      "name": "인스타그램 운영",
-      "stage": 2,
-      "stages": [
-        "조사",
-        "운영안",
-        "완성 콘텐츠",
-        "예약 설정",
-        "성과"
+      "id": "finance",
+      "name": "재무 · 장부",
+      "includes": [
+        "finance",
+        "hyundai",
+        "ledger-ai",
+        "hometax-clove",
+        "private-settlement"
       ],
-      "state": "waiting",
-      "status": "4주 운영안 조사 완료, 계정·게시 실행 미확인",
-      "next": "오픈 콘텐츠 완성본과 계정 조건 확인",
-      "owners": [
-        "현수",
-        "다희",
-        "AI"
-      ],
-      "blocked": "영업시간·주소·계정 권한 확인 필요",
-      "lastActivity": "2026-10-26",
-      "automation": "승인된 콘텐츠 예약·UTM 성과 정리",
-      "evidence": "10/26 인스타 조사7 인계",
-      "href": "project-hub.html?project=mall",
-      "tone": "amber"
-    },
-    {
-      "id": "naver-ads",
-      "name": "네이버 광고",
-      "stage": 2,
-      "stages": [
-        "조사",
-        "준비안",
-        "상품·예산 결정",
-        "설정·시험",
-        "판정"
-      ],
-      "state": "waiting",
-      "status": "쇼핑검색·파워링크 준비안, 집행 전",
-      "next": "대표 상품·예산 배분·중단 기준 결정",
-      "owners": [
-        "현수",
-        "AI"
-      ],
-      "blocked": "광고 시작 승인·전환 추적 확인 필요",
-      "lastActivity": "2026-10-26",
-      "automation": "읽기 전용 검색어·전환 보고부터",
-      "evidence": "10/26 네이버 광고 조사6 인계",
-      "href": "project-hub.html?project=smartstore",
-      "tone": "amber"
-    },
-    {
-      "id": "analytics",
-      "name": "유입 분석 · GA4·네이버",
+      "includesLabel": "공용 장부 · 카드 수집 · AI 분류 · 연계 · 비공개 확인",
       "stage": 3,
       "stages": [
-        "등록",
-        "설치",
-        "실시간 확인",
-        "전환·UTM",
-        "정기 비교"
+        "공용 원장",
+        "자동 수집",
+        "분류·복구",
+        "연계·대조",
+        "월 마감"
       ],
       "state": "active",
-      "status": "분석 설치·휴대폰 방문 확인 완료 기록",
-      "next": "구매 이벤트·UTM으로 실제 유입 구분",
+      "tone": "amber",
+      "status": "공용 장부·카드·AI 분류 운영, 외부 연계·대조 확인 남음",
+      "next": "분류 다음 회차·미확인 연계·비공개 확인 항목 점검",
       "owners": [
         "현수",
         "AI"
       ],
-      "blocked": "구매 전환 데이터 연결 미검증",
-      "lastActivity": "2026-10-26",
-      "automation": "주간 채널 유입·구매 비교",
-      "evidence": "10/26 유입분석 연결안내",
-      "href": "project-hub.html?project=mall",
-      "tone": "amber"
-    },
-    {
-      "id": "season-letter",
-      "name": "수능 응원 레터",
-      "stage": 2,
-      "stages": [
-        "아이디어",
-        "기획",
-        "샘플",
-        "판매 준비",
-        "운영"
-      ],
-      "state": "waiting",
-      "status": "응원 레터 기획안·초안 준비",
-      "next": "샘플·접수 마감·실제 제작 가능량 확정",
-      "owners": [
-        "현수",
-        "다희",
-        "AI"
-      ],
-      "blocked": "일정·물량·게시는 아직 확정 전",
-      "lastActivity": "2026-10-26",
-      "automation": "주문 마감·출고 역산과 잔여량 점검",
-      "evidence": "레터 정본 · 일감판 G-46",
-      "href": "project-hub.html?project=letter",
-      "tone": "amber"
+      "blocked": "일일 실행·외부 연계·대조 결과 확인 필요",
+      "lastActivity": "2026-10-27",
+      "automation": "미분류·중복 후보·잔액 차이 점검 · 결제 알림 정리·중복 차단·누락 점검 · 대기 거래 분류→검증→반영·되돌리기 · 증빙 파일 목록·기간 누락 검사부터",
+      "evidence": "ERP 정본·카드/분류 실행 인계·미확인 연계 기록",
+      "href": "finance.html"
     },
     {
       "id": "brand",
       "name": "씨앗 컴퍼니 · 브랜드",
+      "includes": [
+        "brand"
+      ],
+      "includesLabel": "캐릭터 · 로고 · 브랜드 자산",
       "stage": 4,
       "stages": [
         "세계관",
@@ -552,7 +273,8 @@
         "검수"
       ],
       "state": "active",
-      "status": "7캐릭터·새 로고 기준, 채널 잔여 교체",
+      "tone": "amber",
+      "status": "7캐릭터·새 로고 기준 정리, 남은 자산 검수 필요",
       "next": "새 상세·채널 자산의 캐릭터 규칙 검사",
       "owners": [
         "현수",
@@ -562,13 +284,16 @@
       "blocked": "일부 옛 자산과 원본 대응 확인 필요",
       "lastActivity": "2026-10-27",
       "automation": "캐릭터 수·금지 요소·옛 로고 검사",
-      "evidence": "브랜드 정본 · 상세v2 인계",
-      "href": "characters.html",
-      "tone": "amber"
+      "evidence": "브랜드 정본·캐릭터 기준·자산 적용 인계",
+      "href": "characters.html"
     },
     {
       "id": "support",
-      "name": "지원사업 · 신청 준비",
+      "name": "지원사업",
+      "includes": [
+        "support"
+      ],
+      "includesLabel": "공고 확인 · 자격·서류 · 신청 준비",
       "stage": 2,
       "stages": [
         "공고",
@@ -578,7 +303,8 @@
         "결과"
       ],
       "state": "waiting",
-      "status": "공고 확인과 준비 진행, 접수 증빙 미확인",
+      "tone": "amber",
+      "status": "공고 확인·준비 진행, 신청 완료 증빙은 미확인",
       "next": "적격상품·기업정보·필수서류 확인",
       "owners": [
         "현수",
@@ -588,135 +314,40 @@
       "blocked": "본인 인증·상품 적격성·접수 증빙 필요",
       "lastActivity": "2026-10-27",
       "automation": "공고 갱신·서류 유효기간·마감 점검",
-      "evidence": "신청준비 체크리스트 · 예약 실행 기록",
-      "href": "project-hub.html",
-      "tone": "amber"
+      "evidence": "신청준비 체크리스트·기존 정기 점검 기록",
+      "href": "project-hub.html?project=support"
     },
     {
-      "id": "buttermilk",
-      "name": "버터밀크웨이 · 출판",
+      "id": "ops",
+      "name": "운영 자동화(점검·앱 푸시·연구)",
+      "includes": [
+        "patrol",
+        "letter-push",
+        "legacy-rd"
+      ],
+      "includesLabel": "홈·순찰 · 앱 푸시 · 연구",
       "stage": 2,
       "stages": [
-        "책 확인",
-        "연계 조사",
-        "원고 확인",
-        "시안",
-        "적용"
-      ],
-      "state": "waiting",
-      "status": "책 색·문체 조사 완료, 원고 PDF 대기",
-      "next": "원고 확인 후 색·레터 연계 시안",
-      "owners": [
-        "다희",
-        "AI"
-      ],
-      "blocked": "원고·인쇄 기준 미확인",
-      "lastActivity": "2026-10-26",
-      "automation": "출판 실적 증빙·연계 자산 목록 정리",
-      "evidence": "10/26 버터밀크웨이 조사5 · 지시 C9",
-      "href": "project-hub.html",
-      "tone": "amber"
-    },
-    {
-      "id": "photo",
-      "name": "상품 사진 · 누끼",
-      "stage": 2,
-      "stages": [
-        "도구 시험",
-        "사용 결정",
-        "원본 수집",
-        "일괄 처리",
-        "검수"
-      ],
-      "state": "waiting",
-      "status": "누끼 도구 시험·사용 결정, 새 원본 확인 필요",
-      "next": "작업필요 폴더의 미처리 사진만 처리",
-      "owners": [
-        "현수",
-        "다희",
-        "AI"
-      ],
-      "blocked": "흰색·투명 소재는 육안 검수 필요",
-      "lastActivity": "2026-10-26",
-      "automation": "처리목록으로 중복 방지·새 사진만 누끼",
-      "evidence": "일감판 G-17/G-45 · 순찰 지침",
-      "href": "products.html",
-      "tone": "amber"
-    },
-    {
-      "id": "patrol",
-      "name": "전체 점검 · 소식 브리핑",
-      "stage": 4,
-      "stages": [
-        "기준",
-        "연결",
-        "예약",
-        "기록 갱신",
-        "실행 검증"
+        "점검 기준",
+        "홈·예약",
+        "알림·실행 연결",
+        "회차 검증",
+        "안정 운영"
       ],
       "state": "active",
-      "status": "홈 그래프·순찰 갱신 예약 연결, 첫 회차 검증 전",
-      "next": "하루 2회 갱신 후 커밋·게시 결과 기록",
-      "owners": [
-        "AI"
-      ],
-      "blocked": "홈 갱신 첫 예약 회차는 실행 후 확인",
-      "lastActivity": "2026-10-27",
-      "automation": "전체 프로젝트 정본 대조·오래된 일 표시",
-      "evidence": "10/27 home-progress 작업 · 예약 조회",
-      "href": "index.html#progress",
-      "tone": "amber"
-    },
-    {
-      "id": "legacy-rd",
-      "name": "연구·영상 자동화",
-      "stage": 2,
-      "stages": [
-        "제안",
-        "조사·시험",
-        "채택",
-        "구현",
-        "운영"
-      ],
-      "state": "paused",
-      "status": "연구 예약 꺼짐, 실사 영상은 중단 기록",
-      "next": "확정된 필요가 생기면 기존 결과부터 재검토",
+      "tone": "amber",
+      "status": "홈·순찰 예약 연결, 앱 푸시 준비·연구 중단 유지",
+      "next": "하루 두 번 홈 갱신 검증·앱 푸시 연결 확인",
       "owners": [
         "현수",
         "다희",
         "AI"
       ],
-      "blocked": "중단 상태 유지, 임의 재개 안 함",
-      "lastActivity": "2026-10-23",
-      "automation": "채택된 결과의 자산 목록·중복 검사",
-      "evidence": "지시 장부 E · 일감판 G-08",
-      "href": "project-hub.html",
-      "tone": "red"
-    },
-    {
-      "id": "private-settlement",
-      "name": "비공개 정산 점검",
-      "stage": 0,
-      "stages": [
-        "내부 확인",
-        "증빙 정리",
-        "대조",
-        "확인",
-        "종결"
-      ],
-      "state": "unknown",
-      "status": "세부 상태는 내부 기록에서 확인",
-      "next": "기존 정산 정본·원본부터 대조",
-      "owners": [
-        "현수",
-        "AI"
-      ],
-      "blocked": "공개 홈에는 정산 내용 미표시",
-      "lastActivity": null,
-      "automation": "비공개 문서에서 증빙·확인 목록 점검",
-      "evidence": "내부 상세 비공개",
-      "href": "finance.html",
-      "tone": "red"
+      "blocked": "첫 홈 자동 갱신·폰 수신 검증 필요, 연구 임의 재개 금지",
+      "lastActivity": "2026-10-27",
+      "automation": "전체 프로젝트 정본 대조·오래된 일 표시 · 새 접수·긴급 승인만 폰에 알리기 · 채택된 결과의 자산 목록·중복 검사",
+      "evidence": "홈 배포·순찰 예약·앱 알림 준비·연구 중단 인계",
+      "href": "agents.html"
     }
   ],
   "milestones": [

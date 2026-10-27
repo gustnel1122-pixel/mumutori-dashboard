@@ -1,9 +1,9 @@
-const {PROJECTS, PROJECT_UPDATED_AT, PROJECT_CHECK_NOTE, PALSIBO_SHOPPING, OPENING_DATE, OPENING_LABEL} = await import(`./project-data.js?v=${document.body.dataset.build || 'operations-20261026-1'}`);
+const {PROJECTS, PROJECT_UPDATED_AT, PROJECT_CHECK_NOTE, PALSIBO_SHOPPING, OPENING_DATE, OPENING_LABEL, resolveProjectId} = await import(`./project-data.js?v=${document.body.dataset.build || 'operations-20261026-1'}`);
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const dateLabel = () => new Intl.DateTimeFormat('sv-SE', {timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 export function renderProjectCards(currentId = ''){
-  return `<div class="ops-project-grid">${PROJECTS.map((project, index) => `<article class="ops-project-card${currentId === project.id ? ' is-current' : ''}" data-project="${esc(project.id)}"><div class="ops-project-meta"><span>${esc(project.kicker)}</span><span class="ops-project-number"><time datetime="${esc(PROJECT_UPDATED_AT)}">확인 ${esc(PROJECT_UPDATED_AT.slice(5).replace('-', '.'))}</time></span></div><h3><a href="${esc(project.href)}">${esc(project.title)}<span aria-hidden="true">↗</span></a></h3><ul class="ops-status-list">${project.status.map(line => `<li>${esc(line)}</li>`).join('')}</ul><div class="ops-next"><span>다음 할 일</span><p>${esc(project.next)}</p></div><a class="ops-project-link" href="${esc(project.href)}">프로젝트 열기 <span aria-hidden="true">→</span></a></article>`).join('')}</div>`;
+  return `<div class="ops-project-grid">${PROJECTS.map((project, index) => `<article class="ops-project-card${currentId === project.id ? ' is-current' : ''}" data-project="${esc(project.id)}"><div class="ops-project-meta"><span>${esc(project.kicker)}</span><span class="ops-project-number"><time datetime="${esc(PROJECT_UPDATED_AT)}">확인 ${esc(PROJECT_UPDATED_AT.slice(5).replace('-', '.'))}</time></span></div><h3><a href="${esc(project.href)}">${esc(project.title)}<span aria-hidden="true">↗</span></a></h3><p class="ops-includes">포함: ${esc(project.includesLabel)}</p><ul class="ops-status-list">${project.status.map(line => `<li>${esc(line)}</li>`).join('')}</ul><div class="ops-next"><span>다음 할 일</span><p>${esc(project.next)}</p></div><a class="ops-project-link" href="${esc(project.href)}">프로젝트 열기 <span aria-hidden="true">→</span></a></article>`).join('')}</div>`;
 }
 
 export function renderOperationsEntrance(){
@@ -18,7 +18,9 @@ export function renderOperationsEntrance(){
 function renderProjectPage(){
   const root = document.getElementById('project-content');
   if (!root) return;
-  const id = new URLSearchParams(location.search).get('project');
+  const requested = new URLSearchParams(location.search).get('project');
+  const id = resolveProjectId(requested);
+  if(id && requested!==id){const url=new URL(location.href);url.searchParams.set('project',id);history.replaceState(null,'',url);}
   const project = PROJECTS.find(item => item.id === id);
   if (!project) {
     document.title = '프로젝트 모음 — 무무토리 스튜디오';
@@ -26,7 +28,7 @@ function renderProjectPage(){
     return;
   }
   document.title = `${project.title} — 무무토리 스튜디오`;
-  root.innerHTML = `<header class="ops-detail-heading"><div class="ops-eyebrow">${esc(project.kicker)}</div><h1>${esc(project.title)}</h1><p><time datetime="${esc(PROJECT_UPDATED_AT)}">${esc(PROJECT_CHECK_NOTE)}</time> · 운영 홈과 같은 내용이에요.</p></header><div class="ops-detail-grid"><section class="ops-detail-panel"><h2>지금 상태</h2><ol class="ops-detail-status">${project.status.map((line, index) => `<li><span>${String(index + 1).padStart(2, '0')}</span><p>${esc(line)}</p></li>`).join('')}</ol><div class="ops-detail-next"><span>다음 할 일</span><p>${esc(project.next)}</p></div></section><section class="ops-detail-panel ops-destinations"><h2>연결된 페이지</h2><p>필요한 화면으로 바로 이동하세요.</p><div class="ops-destination-list">${project.links.map(link => `<a href="${esc(link.href)}"${link.href.startsWith('https:') ? ' target="_blank" rel="noopener noreferrer"' : ''}><span>${esc(link.label)}</span><b aria-hidden="true">↗</b></a>`).join('')}</div><a class="ops-back-link" href="index.html#projects">← 운영 홈으로</a></section></div><section class="ops-other-projects"><div class="ops-section-head"><div><span class="ops-eyebrow">다른 프로젝트</span><h2>다른 프로젝트</h2></div></div>${renderProjectCards(project.id)}</section>`;
+  root.innerHTML = `<header class="ops-detail-heading"><div class="ops-eyebrow">${esc(project.kicker)}</div><h1>${esc(project.title)}</h1><p class="ops-includes">포함: ${esc(project.includesLabel)}</p><p><time datetime="${esc(PROJECT_UPDATED_AT)}">${esc(PROJECT_CHECK_NOTE)}</time> · 운영 홈과 같은 내용이에요.</p></header><div class="ops-detail-grid"><section class="ops-detail-panel"><h2>지금 상태</h2><ol class="ops-detail-status">${project.status.map((line, index) => `<li><span>${String(index + 1).padStart(2, '0')}</span><p>${esc(line)}</p></li>`).join('')}</ol><div class="ops-detail-next"><span>다음 할 일</span><p>${esc(project.next)}</p></div></section><section class="ops-detail-panel ops-destinations"><h2>연결된 페이지</h2><p>필요한 화면으로 바로 이동하세요.</p><div class="ops-destination-list">${project.links.map(link => `<a href="${esc(link.href)}"${link.href.startsWith('https:') ? ' target="_blank" rel="noopener noreferrer"' : ''}><span>${esc(link.label)}</span><b aria-hidden="true">↗</b></a>`).join('')}</div><a class="ops-back-link" href="index.html#projects">← 운영 홈으로</a></section></div><section class="ops-other-projects"><div class="ops-section-head"><div><span class="ops-eyebrow">다른 프로젝트</span><h2>다른 프로젝트</h2></div></div>${renderProjectCards(project.id)}</section>`;
 }
 
 renderProjectPage();

@@ -39,7 +39,7 @@ export default function overview(ctx){
   const audit=data.erp.audit.slice(0,3);
   return `<div class="home-heading"><div><div class="eyebrow">무무토리 운영실</div><h1>오늘도, 무무토리<span class="title-dot">.</span></h1></div><span class="today-date">${date}</span></div>`+
     renderProgress()+
-    `<details class="home-fold"><summary><b>프로젝트 바로가기</b><small>기존 프로젝트 카드·운영 링크</small></summary><div id="projects">${renderOperationsEntrance()}</div></details>`+
+    `<div id="projects">${renderOperationsEntrance()}</div>`+
     `<div class="home-top"><section class="panel task-panel"><div class="panelhead"><h2>다음으로 챙길 일 <span class="accent-orange">✳</span></h2>${badge('실제 할 일')}</div><div class="task-list">${needLine}</div>`+
       // 옛 장부(과거 기록 포함) 숫자는 사장님 할 일이 아니라 참고값이라 접어 둔다(검수 기준 2)
       `<details class="legacy-tasks"><summary>옛 장부 참고 숫자 <small>과거 기록 포함 · 지금 할 일 아님</small></summary><div class="task-list">${tasks.map(([v,a,dept,label,count,unit,tone])=>`<a class="task-link" href="${v}.html?attention=${a}"><span class="task-dept tone-${tone}">${dept}</span><b>${label}</b><strong>${won(count)}<em>${unit}</em></strong><span class="task-arrow">↗</span></a>`).join('')}</div><div class="task-foot">10/03 이전 옛 장부(이 PC 브라우저)에서 센 숫자예요. 실제 미수금 · 미입고 확정 건수는 아닙니다.</div></details></section>`+
