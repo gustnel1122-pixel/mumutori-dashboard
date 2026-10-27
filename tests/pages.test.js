@@ -50,6 +50,6 @@ const fixture=()=>C.migrate({products:[{id:'CHECK-01',name:'연결 검증 상품
    if(width===390&&['index','products','finance'].includes(name))await page.screenshot({path:'/tmp/mumutori-studio-mobile-'+name+'.png',fullPage:true,animations:'disabled'});
   }
  }
- await page.emulateMedia({reducedMotion:'reduce'});await go('index.html');assert.equal(await page.locator('.mascot').evaluate(el=>getComputedStyle(el).animationName),'none');
+ await page.emulateMedia({reducedMotion:'reduce'});await go('index.html');assert.equal(await page.locator('.pg-expand').first().evaluate(el=>getComputedStyle(el).transitionDuration),'0s');
  assert.deepEqual(errors,[]);console.log('PASS all pages at mobile/tablet sizes; reduced motion; no runtime errors');await browser.close();
 })().catch(e=>{console.error(e);process.exit(1)});
