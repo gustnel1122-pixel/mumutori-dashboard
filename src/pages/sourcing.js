@@ -21,7 +21,7 @@ try{S.showHidden=sessionStorage.getItem(HIDDEN_KEY)==='1';}catch(e){}
 const negative=r=>!!(r.mark?.design||r.mark?.price);
 let ctx=null,started=false,source=null,pollTimer=null,searchTimer=null,rendering=false;
 const committing=new Map();   // 저장 중인 수량(줄 → 수량) — 같은 값을 두 번 보내지 않는다
-if(['reorder','orders','cart'].includes(new URLSearchParams(location.search).get('tab')))S.tab=new URLSearchParams(location.search).get('tab');   // 구매·원가 화면의 '재발주 준비' 링크로 들어온 경우
+if(['items','reorder','orders','cart'].includes(new URLSearchParams(location.search).get('tab')))S.tab=new URLSearchParams(location.search).get('tab');   // 구매·원가 화면의 '재발주 준비' 링크로 들어온 경우
 const STATUS={connecting:['연결 중','',''],ok:['실시간 연결됨 · 다른 기기·Claude와 같이 봅니다','ok',''],retry:['연결이 끊겨 다시 잇는 중','bad',''],poll:['실시간 연결이 안 돼 20초마다 새로 읽는 중','bad',''],denied:['Firebase 규칙이 아직 열리지 않았습니다','bad','']};
 const FILTERS=['전체','안 본 것','💗 좋아요','👎 디자인 별로','💸 가격 별로'];
 
@@ -106,7 +106,7 @@ async function send(method,path,body,opts={}){
  try{const target=opts.auth?await fbauth.dbUrl('sourcing/'+path):`${DB}/${path}.json`;const r=await fetch(target,{method,headers:{'Content-Type':'application/json'},body:method==='DELETE'?undefined:JSON.stringify(body)});if(!r.ok)throw Error(r.status===401?(opts.auth?'이 계정은 검수 요청 권한이 없습니다 — 운영 계정(구글)으로 로그인해 주세요.':'Firebase 쓰기 권한이 없습니다.'):'저장하지 못했습니다 ('+r.status+').');}
  catch(err){S.tree=revertTouched(S.tree,touched,prior);refresh();await readAll().catch(()=>{});throw err;}   // 실패 시 이번에 바꾼 칸만 되돌림(그 사이 실시간 변경 보존)
  const action=path.startsWith('cart/')?(method==='PATCH'?'수량 변경':'장바구니 변경'):path.startsWith('taste/')?'규칙 저장':path.startsWith('reviewRequests/')?'검수 요청':path.startsWith('requests/')?'기록 저장':Object.keys(body||{}).includes('note')?'댓글 저장':'상태 변경';
- window.MumutoriActivity?.record({screen:'소싱',action});
+ window.MumutoriActivity?.record({screen:'소싱',action,workId:path.startsWith('cart/')?'nav1_cart_':'nav1_board_'});
 }
 
 // ---- 화면

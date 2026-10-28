@@ -203,3 +203,5 @@ a{color:inherit;text-decoration:none}button,a,input,select,textarea{-webkit-tap-
 
 .ops-shopping-progress[hidden]{display:none}
 #app-push-settings button { min-height:44px; min-width:44px; }
+/* Mobile project navigation: keep the home actions easy to tap beside the bell. */
+@media(max-width:720px){.ops-project-link,.pg-board [data-pg-filter]{min-width:44px;min-height:44px}}

@@ -7,8 +7,8 @@ import { chooseCategory } from './fin-picker.js';
 import { AI_LABEL, VAT_LABEL } from './fin-classify.js';
 
 const F = () => window.FinCore;
-const activity=action=>window.MumutoriActivity?.record({screen:'장부',action});
-async function humanWrite(store,method,...args){const result=await store[method](...args);activity(({setCategory:'분류 변경',requestAi:'분류 요청',undoAi:'분류 되돌리기',addRule:'규칙 저장',patch:'상태 변경'})[method]||'기록 저장');return result;}
+const activity=(action,id='')=>window.MumutoriActivity?.record({screen:'장부',action,workId:window.MumutoriRoutes?.work('finance',id)});
+async function humanWrite(store,method,...args){const result=await store[method](...args);activity(({setCategory:'분류 변경',requestAi:'분류 요청',undoAi:'분류 되돌리기',addRule:'규칙 저장',patch:'상태 변경'})[method]||'기록 저장',method==='addRule'?'':String(args[0]?.id||args[0]||''));return result;}
 export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 export const won = n => (Number(n) || 0).toLocaleString('ko-KR');
 const PREF = 'mumutori-fin-quick-pref';   // 이 브라우저에는 마지막 수단 · 최근 거래처 5곳만 기억(금액은 저장하지 않음)
@@ -86,8 +86,8 @@ export function mountEntryForm(root, ctx) {
       }));
       saving = true; $('.f-save').disabled = true; $('.f-save').textContent = '저장 중…';
       const photo = $('.f-photo').files?.[0];
-      if (photo) { entry.receiptId = entry.id; await ctx.store().saveReceipt(entry.id, await shrinkPhoto(photo)); activity('파일 첨부'); }
-      await ctx.store().add(entry); activity('기록 저장');   // 저장 → 다시 읽어 같은지 확인한 뒤에 '저장했어요'
+      if (photo) { entry.receiptId = entry.id; await ctx.store().saveReceipt(entry.id, await shrinkPhoto(photo)); activity('파일 첨부',entry.id); }
+      await ctx.store().add(entry); activity('기록 저장',entry.id);   // 저장 → 다시 읽어 같은지 확인한 뒤에 '저장했어요'
       pref.method = method; if (vendor) pref.vendors = [vendor, ...(pref.vendors || []).filter(v => v !== vendor)].slice(0, 5); savePref();
       root.reset(); $('.f-vat').checked = true; $('.f-date').value = F_.kstDate(); category = ''; draw();
       msg.textContent = `저장했어요 · ${entry.category || '분류 필요'} ${won(entry.amount)}원`; msg.className = 'q-msg f-msg ok';
@@ -166,6 +166,8 @@ export function renderLists({ book, needsRoot, recentRoot, recentCount = 10, fil
   const every = Object.values(book.entries || {}).sort((a, b) => ((b.date || '') + (b.time || '') + (b.createdAt || '')).localeCompare((a.date || '') + (a.time || '') + (a.createdAt || '')));
   const voids = every.filter(e => e.status === 'void').length;
   const all = showVoid ? every : every.filter(e => e.status !== 'void');
+  const targetId=new URLSearchParams(location.search).get('entry');
+  const target=every.find(e=>e.id===targetId);
   const shown = all.filter(e => (!filter.account || (F_.accountOf(e) || '계좌 모름') === filter.account || e.from === filter.account || e.to === filter.account) && (!filter.method || e.method === filter.method));
   // 확인 필요 = 분류 없음 또는 나간 돈의 수단 없음(fin-core checkReasons). 이유마다 고르는 버튼을 단다.
   const needs = all.filter(e => F_.checkReasons(e).length);
@@ -185,8 +187,9 @@ export function renderLists({ book, needsRoot, recentRoot, recentCount = 10, fil
     const toggle = voids ? `<button type="button" class="q-link q-void-toggle" data-togglevoid="1" aria-pressed="${showVoid}">${showVoid ? '취소된 줄 숨기기' : `취소 포함 보기 (${voids})`}</button>` : '';
     const more = shown.length > recentCount ? `<p class="q-more-line">${won(shown.length)}줄 중 ${won(recentCount)}줄 <button type="button" class="q-link" data-more="1">더 보기</button></p>` : '';
     const testNote = book.inboxTestCount ? `<p class="q-msg ok" role="status">알림 연결 시험 ${won(book.inboxTestCount)}건 수신 · 장부 합계에서 제외</p>` : '';
-    recentRoot.innerHTML = testNote + (shown.slice(0, recentCount).map(e => entryRow(e, e.status === 'void' ? '<span class="q-void">취소됨</span>' : `${e.kind==='move'?'':`<button type="button" class="q-link" data-pick="${esc(e.id)}" aria-haspopup="dialog">분류 고르기</button>`}<button type="button" class="q-link" data-void="${esc(e.id)}">취소</button>${aiControl(e)}`)).join('') || `<p class="q-empty">${filter.account || filter.method ? '고른 계좌 · 수단의 줄이 없어요.' : '아직 기록이 없어요. 위에서 첫 줄을 넣어 보세요.'}</p>`) + more + toggle;
+    recentRoot.innerHTML = (target ? '<p class="q-msg">알림에서 연 기록</p>'+entryRow(target,aiControl(target)) : targetId?'<p class="q-msg">알림의 기록을 찾지 못했어요. 삭제 여부와 접근 권한을 확인해 주세요.</p>':'') + testNote + (shown.filter(e=>e.id!==targetId).slice(0, recentCount).map(e => entryRow(e, e.status === 'void' ? '<span class="q-void">취소됨</span>' : `${e.kind==='move'?'':`<button type="button" class="q-link" data-pick="${esc(e.id)}" aria-haspopup="dialog">분류 고르기</button>`}<button type="button" class="q-link" data-void="${esc(e.id)}">취소</button>${aiControl(e)}`)).join('') || `<p class="q-empty">${filter.account || filter.method ? '고른 계좌 · 수단의 줄이 없어요.' : '아직 기록이 없어요. 위에서 첫 줄을 넣어 보세요.'}</p>`) + more + toggle;
   }
+  if(target&&recentRoot){const row=Array.from(recentRoot.querySelectorAll('[data-id]')).find(n=>n.dataset.id===targetId);if(row){row.classList.add('mmt-notice-target');if(!recentRoot.dataset.focusedNotice){recentRoot.dataset.focusedNotice=targetId;row.tabIndex=-1;requestAnimationFrame(()=>{row.focus({preventScroll:true});row.scrollIntoView({block:'center'});});}}}
   return needs.length;
 }
 

@@ -1,4 +1,5 @@
-// Owner-only RTDB paths. Device/FCM tokens never go into URLs, logs or Cache Storage.
+// Server-authorized shared operators; each device stays inside its own UID. Device/FCM tokens never go into URLs, logs or Cache Storage.
+import './notification-routes.js';
 import { current, onAuth, signIn, dbUrl } from './fbauth.js?v=access20261028';
 export const VAPID_KEY='BK3cjqd-fyFCjw3kLb3nSOLDMAx1e1IM8K-FDyo-xkUwCA7BUn4vqRVmKeon7wrxMo5sDBM5SfXahtHTtz4W4lM';
 const ROOT='appPush', DEVICE_KEY='mumutori-push-device-v1';
@@ -38,7 +39,7 @@ async function getMessaging(){
   if(!fb?.messaging||!await fb.messaging.isSupported())throw Error('이 브라우저에서 알림 도구를 사용할 수 없어요.');
   if(!messaging){messaging=fb.messaging();stopForeground=messaging.onMessage(async payload=>{
     const data=payload.data||{};if(data.kind!=='mumutori'||Notification.permission!=='granted')return;
-    try{const reg=await worker();await reg.showNotification(data.title||'무무토리 알림',{body:data.body||'',icon:new URL('../assets/icon-192.png',import.meta.url).href,tag:data.eventId,data:{mumutori:true,route:data.route}});}catch{/* Next message can retry; no token/payload logs. */}
+    try{const reg=await worker();await reg.showNotification(data.title||'무무토리 알림',{body:data.body||'',icon:new URL('../assets/icon-192.png',import.meta.url).href,tag:data.eventId,data:{mumutori:true,route:window.MumutoriRoutes.route(data),eventId:data.eventId||''}});}catch{/* Next message can retry; no token/payload logs. */}
   });}
   return messaging;
 }

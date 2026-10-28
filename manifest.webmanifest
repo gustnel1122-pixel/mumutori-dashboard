@@ -3,7 +3,7 @@
   "name": "무무토리 스튜디오",
   "short_name": "무무토리",
   "start_url": "./",
-  "scope": "./",
+  "scope": "/",
   "display": "standalone",
   "theme_color": "#174d3c",
   "background_color": "#f6f5ef",

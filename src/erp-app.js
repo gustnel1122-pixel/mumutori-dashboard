@@ -1,5 +1,5 @@
-import { onAuth as onActivityAuth } from './fbauth.js?v=access20261028';
-onActivityAuth(()=>{});
+// Auth is optional for cached local-only screens; never block their renderer offline.
+import('./fbauth.js?v=access20261028').then(a=>a.onAuth(()=>{})).catch(()=>{});
 const { DEPARTMENTS, icon, departmentCards, workflowStrip, menuGroups } = await import(`./departments.js?v=${document.body.dataset.build}`);
 const { createStore } = await import(`./store.js?v=${document.body.dataset.build}`);
 (async function () {

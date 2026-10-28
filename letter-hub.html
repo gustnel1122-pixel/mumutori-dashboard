@@ -324,7 +324,7 @@ td.n{font-family:var(--type);color:var(--brand);width:40px}
 .hub-gate-actions{display:flex;flex-wrap:wrap;gap:10px}
 .hub-gate-card a{font-size:14px;align-self:flex-start}
 </style>
-</head>
+<link rel="stylesheet" href="src/notification-center.css?v=notif20261028"><script src="src/notification-routes.js?v=notif20261028"></script><script type="module" src="src/notification-center.js?v=notif20261028"></script></head>
 <body class="hub-locked">
 <main class="hub-gate" id="hubGate" aria-labelledby="hubGateTitle">
   <section class="hub-gate-card">
@@ -628,7 +628,7 @@ function boot(){
 
   function persist(){
     store.set(KEY, hub);
-    if (boardRef) boardRef.set(hub).then(function(){window.MumutoriActivity?.record({screen:'운영홈',action:'레터 할 일 저장'});}).catch(function(e){ console.warn(e); });
+    if (boardRef) boardRef.set(hub).then(function(){window.MumutoriActivity?.record({screen:'운영홈',action:'레터 할 일 저장',workId:'nav1_tasks_'});}).catch(function(e){ console.warn(e); });
     renderSide(); renderMs(); renderWho();
   }
 
@@ -848,7 +848,7 @@ function boot(){
     if(M.live){
       if(!admin) return;
       var up={'config/spec':payload}; if(applied) up['config/specPrev']=applied;
-      db.ref().update(up).then(function(){window.MumutoriActivity?.record({screen:'운영홈',action:'레터 설정 적용'});}).catch(function(err){ alertBar('적용하지 못했어요: '+err.message); });
+      db.ref().update(up).then(function(){window.MumutoriActivity?.record({screen:'운영홈',action:'레터 설정 적용',workId:'nav1_spec_'});}).catch(function(err){ alertBar('적용하지 못했어요: '+err.message); });
     } else {
       payload.meta.appliedAt=Date.now(); applied=payload; store.set('mmt-spec-applied', applied); afterApplied();
     }
@@ -859,7 +859,7 @@ function boot(){
   function saveDraft(now){
     store.set('mmt-spec-draft', draft);
     renderApplyBar(); refreshPreview(false);
-    if(draftRef){ clearTimeout(saveTimer); var push=function(){ draftRef.set(clone(draft)).then(function(){window.MumutoriActivity?.record({screen:'운영홈',action:'레터 초안 저장'});}).catch(function(e){ console.warn(e); }); }; if(now) push(); else saveTimer=setTimeout(push, 600); }
+    if(draftRef){ clearTimeout(saveTimer); var push=function(){ draftRef.set(clone(draft)).then(function(){window.MumutoriActivity?.record({screen:'운영홈',action:'레터 초안 저장',workId:'nav1_spec_'});}).catch(function(e){ console.warn(e); }); }; if(now) push(); else saveTimer=setTimeout(push, 600); }
   }
   function refreshPreview(force){
     if(!$('#pvFrame')) return;
@@ -961,8 +961,15 @@ function boot(){
     $('#inbox').innerHTML = (note?'<p class="note">'+note+'</p>':'') + (list.length ? list.map(function(p){
       var env=(A.envelopes||[]).filter(function(e){return e.id===(p.envelope&&p.envelope.id)})[0];
       var when=new Date(p.createdAt||Date.now()).toLocaleString('ko-KR');
-      return '<details class="lt"><summary><span class="ty '+p.type+'">'+(p.type==='print'?'인쇄':'대필')+'</span><span><b>'+esc(p.order&&p.order.name)+'</b> <span class="faint small mono">휴대폰 뒤 4자리 '+esc(p.order&&p.order.phone4)+' · 접수 '+esc(p.id||'')+'</span></span><span class="small faint">'+when+'</span></summary><div class="body"><div class="kv"><div><span>상태</span><b>'+esc(p.status==='received'?'접수':(p.status||'접수'))+'</b></div><div><span>봉투</span><b>'+esc(env?env.name:(p.envelope&&p.envelope.id)||'')+(p.envelope&&p.envelope.writeName?' · 이름 찍기':'')+'</b></div><div><span>연락처 뒤 4자리</span><b>'+esc(p.order&&p.order.phone4)+'</b></div></div><pre>'+esc(letterText(p))+'</pre></div></details>';
+      return '<details class="lt" data-letter-id="'+esc(p._key||p.id||'')+'"><summary><span class="ty '+p.type+'">'+(p.type==='print'?'인쇄':'대필')+'</span><span><b>'+esc(p.order&&p.order.name)+'</b> <span class="faint small mono">휴대폰 뒤 4자리 '+esc(p.order&&p.order.phone4)+' · 접수 '+esc(p.id||'')+'</span></span><span class="small faint">'+when+'</span></summary><div class="body"><div class="kv"><div><span>상태</span><b>'+esc(p.status==='received'?'접수':(p.status||'접수'))+'</b></div><div><span>봉투</span><b>'+esc(env?env.name:(p.envelope&&p.envelope.id)||'')+(p.envelope&&p.envelope.writeName?' · 이름 찍기':'')+'</b></div><div><span>연락처 뒤 4자리</span><b>'+esc(p.order&&p.order.phone4)+'</b></div></div><pre>'+esc(letterText(p))+'</pre></div></details>';
     }).join('') : '<div class="empty">아직 접수된 편지가 없어요.</div>');
+    focusLetter();
+  }
+  function focusLetter(){
+    var target=new URLSearchParams(location.search).get('letter');
+    if(!target) return;
+    var row=Array.from(document.querySelectorAll('[data-letter-id]')).find(function(n){return n.dataset.letterId===target});
+    if(row){go('inbox');row.open=true;row.classList.add('mmt-notice-target');row.setAttribute('tabindex','-1');row.focus({preventScroll:true});row.scrollIntoView({block:'center'});}
   }
   function renderAuth(){
     renderGate();
@@ -1040,7 +1047,9 @@ function boot(){
         inboxRef=db.ref('letters').orderByChild('createdAt').limitToLast(100);
         inboxRef.on('value', function(s4){
           if(!current() || !admin) return;
-          var list=[]; s4.forEach(function(c){ var x=c.val(); x.id=c.key.slice(-8).toUpperCase(); list.unshift(x); }); renderInbox(list);
+          var list=[]; s4.forEach(function(c){ var x=c.val(); x._key=c.key; x.id=c.key.slice(-8).toUpperCase(); list.unshift(x); }); renderInbox(list);
+          var target=new URLSearchParams(location.search).get('letter');
+          if(target&&/^[A-Za-z0-9_-]{1,100}$/.test(target)&&!list.some(function(x){return x._key===target}))db.ref('letters/'+target).once('value').then(function(s){if(!current()||!admin)return;var x=s.val();if(x){x._key=target;x.id=target.slice(-8).toUpperCase();renderInbox([x].concat(list));}else renderInbox(list,'알림의 접수 건을 찾지 못했어요.');}).catch(function(){if(current()&&admin)renderInbox(list,'해당 접수 건의 접근 권한을 확인하지 못했어요.');});
         }, function(){
           if(current() && admin) renderInbox([], '접수 목록을 읽지 못했어요. 관리자 계정과 연결 상태를 확인해 주세요.');
         });

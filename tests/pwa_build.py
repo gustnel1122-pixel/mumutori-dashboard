@@ -49,8 +49,8 @@ class BuildContract(unittest.TestCase):
         manifest = json.loads((ROOT / 'manifest.webmanifest').read_text(encoding='utf-8'))
         self.assertEqual(manifest['name'], '무무토리 스튜디오')
         self.assertEqual(manifest['short_name'], '무무토리')
-        for key in ['scope', 'start_url']:
-            self.assertEqual(manifest[key], './')
+        self.assertEqual(manifest['scope'], '/')  # Shared-order sibling stays in the installed app.
+        self.assertEqual(manifest['start_url'], './')
         self.assertEqual(manifest['display'], 'standalone')
         for file, size in [('icon-192.png', 192), ('icon-512.png', 512), ('icon-maskable-512.png', 512), ('apple-touch-icon.png', 180)]:
             data = (ROOT / 'assets' / file).read_bytes()

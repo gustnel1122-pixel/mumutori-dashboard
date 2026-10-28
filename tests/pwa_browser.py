@@ -231,7 +231,7 @@ def sw_checks(context, server, evidence, report):
                           'data': json.loads(manifest.get('data', '{}')), 'installability': install}
     assert not manifest.get('errors'), manifest.get('errors')
     assert not install.get('installabilityErrors'), install
-    assert report['manifest']['data']['scope'] == './'
+    assert report['manifest']['data']['scope'] == '/'  # Includes the shared-order sibling, SW scope remains narrow.
     report['registration'] = registration
     # Positive static caching plus negative seed/API/finance/login/query/method checks.
     page.evaluate("""async () => {
@@ -344,6 +344,7 @@ def update_checks(browser, root, evidence, report):
                 page.locator('#pwa-update').wait_for(state='visible')
             assert first.locator('#unsaved-pwa-test').input_value() == '보존할 시험 초안'
             assert first.locator('body').get_attribute('data-build') == before
+            wait_js(first, """async (before) => {const r=await navigator.serviceWorker.getRegistration();const own=(await caches.keys()).filter(n=>n.startsWith('mumutori-pwa:'));return r?.active?.state==='activated' && own.length===1 && !own[0].endsWith(before);}""", arg=before)
             names = first.evaluate('caches.keys()')
             own = [name for name in names if name.startswith('mumutori-pwa:')]
             assert len(own) == 1 and not own[0].endswith(before), names

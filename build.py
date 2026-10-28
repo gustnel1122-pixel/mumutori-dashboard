@@ -9,7 +9,7 @@ import brand_public_check
 from check_project_progress import check as check_project_progress
 R=Path(__file__).resolve().parent
 check_project_progress(R/'src/project-progress.json')
-TEXT_SUFFIXES={'.py','.js','.css','.svg','.html','.json','.webmanifest'}
+TEXT_SUFFIXES={'.py','.js','.css','.svg','.html','.json','.webmanifest','.md'}
 def content_bytes(path):
     raw=path.read_bytes()
     return raw.replace(b'\r\n',b'\n') if path.suffix in TEXT_SUFFIXES else raw
@@ -52,6 +52,7 @@ AUTH_CONNECT=' https://identitytoolkit.googleapis.com https://securetoken.google
 AUTH_SCRIPT=' https://apis.google.com'
 AUTH_FRAME='https://mumutori-letter.firebaseapp.com https://accounts.google.com'
 AUTH_TAGS='<script src="assets/vendor/firebase/firebase-app-compat.js?sdk=12.19.0"></script><script src="assets/vendor/firebase/firebase-auth-compat.js?sdk=12.19.0"></script>'
+NOTICE_TAGS='<link rel="stylesheet" href="src/notification-center.css?v='+version+'"><script src="src/notification-routes.js?v='+version+'"></script><script type="module" src="src/notification-center.js?v='+version+'"></script>'
 for filename,(page,title) in pages.items():
     extra_img,extra_connect=EXTRA.get(page,('',''))
     auth=page in AUTH
@@ -59,13 +60,13 @@ for filename,(page,title) in pages.items():
     if auth and 'firebasedatabase.app' not in extra_connect: extra_connect+=' https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.app'
     extra_script=AUTH_SCRIPT if auth else ''
     frame=AUTH_FRAME if auth else "'none'"
-    auth_tags=(AUTH_TAGS if auth else '')+('<script src="src/activity-client.js?v='+version+'"></script>')+PAGE_TAGS.get(page,'').replace('{v}',version)
+    auth_tags=(AUTH_TAGS if auth else '')+('<script src="src/activity-client.js?v='+version+'"></script>')+NOTICE_TAGS+PAGE_TAGS.get(page,'').replace('{v}',version)
     page_head=PAGE_HEAD.get(page,'').replace('{v}',version)
     html=f'''<!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#174d3c"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'{extra_script}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:{extra_img}; font-src 'self'; connect-src 'self'{extra_connect}; worker-src 'self'; manifest-src 'self'; object-src 'none'; frame-src {frame}; form-action 'none'; base-uri 'self'"><title>{title} — 무무토리 스튜디오</title><link rel="icon" href="assets/mark.svg" type="image/svg+xml"><link rel="stylesheet" href="src/erp.css?v={version}">{page_head}{PWA_HEAD}</head>
 <body data-page="{page}" data-build="{version}"><a class="skip-link" href="#main-content">본문으로 이동</a><div id="root"><div class="loading-state" role="status"><span class="loading-flower">✳</span><b>mumutori studio.</b><p>오늘의 기록을 불러오는 중이에요.</p></div></div><div id="modal-root"></div><div id="toast" class="toast" role="status" hidden></div><noscript>이 ERP는 JavaScript가 필요합니다. 브라우저 설정에서 허용해 주세요.</noscript><script src="src/demo.js?v={version}"></script>{auth_tags}<script src="src/legacy-route.js?v={version}"></script><script src="src/erp-core.js?v={version}"></script><script type="module" src="src/erp-app.js?v={version}"></script></body></html>'''
     (R/f'{filename}.html').write_text(html,encoding='utf-8',newline=chr(10))
-quick=(R/'src/quick-shell.html').read_text(encoding='utf-8').replace('{{PWA_HEAD}}',PWA_HEAD).replace('{{VERSION}}',version)
+quick=(R/'src/quick-shell.html').read_text(encoding='utf-8').replace('{{PWA_HEAD}}',PWA_HEAD).replace('{{VERSION}}',version).replace('</head>',NOTICE_TAGS+'</head>')
 (R/'quick.html').write_text(quick,encoding='utf-8',newline=chr(10))
 # Public operations pages share versioned source templates; keep their source in src.
 operations_pages={'store-opening':'store-opening-shell.html','project-hub':'project-hub-shell.html'}
@@ -73,6 +74,9 @@ operations_pages={'store-opening':'store-opening-shell.html','project-hub':'proj
 redirect_pages={'palsibo-shopping':'shopping-redirect-shell.html'}
 for name,template in {**operations_pages,**redirect_pages}.items():
     shell=(R/'src'/template).read_text(encoding='utf-8').replace('{{PWA_HEAD}}',PWA_HEAD).replace('{{VERSION}}',version)
+    if name in operations_pages:
+        shell=shell.replace("script-src 'self'","script-src 'self' https://apis.google.com").replace("frame-src 'none'","frame-src "+AUTH_FRAME).replace("object-src 'none'","connect-src 'self'"+AUTH_CONNECT+" https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.app; object-src 'none'")
+        shell=shell.replace('</head>',AUTH_TAGS+NOTICE_TAGS+'</head>')
     (R/f'{name}.html').write_text(shell,encoding='utf-8',newline=chr(10))
 # A strict allowlist keeps all JSON/seed, login, finance code and APIs out of Cache Storage.
 excluded={'fbauth.js','home-fin.js','finance.js','bank.js','overview.js','app-push.js'}

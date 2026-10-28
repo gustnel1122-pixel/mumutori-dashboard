@@ -1,3 +1,4 @@
+importScripts('src/notification-routes.js');
 // Imported by sw.js: Firebase Messaging and the PWA share one registration/scope.
 // Always display our data-only push, even when a different PWA screen is open.
 // Firebase otherwise forwards to visible tabs that may not load the messaging SDK.
@@ -7,7 +8,7 @@ function showAppPush(data){
     icon:new URL('assets/icon-192.png',self.registration.scope).href,
     badge:new URL('assets/icon-192.png',self.registration.scope).href,
     tag:String(data.eventId || 'mumutori').slice(0,100),
-    data:{mumutori:true, route:data.route || 'index.html'}
+    data:{mumutori:true, route:self.MumutoriRoutes.route(data),eventId:data.eventId||''}
   });
 }
 self.addEventListener('push',event=>{
@@ -21,14 +22,13 @@ self.addEventListener('notificationclick', event => {
   if (!event.notification.data?.mumutori) return;
   event.stopImmediatePropagation();
   event.notification.close();
-  const root = self.registration.scope;
-  const route = event.notification.data.route;
-  const file = ['letter-hub.html','quick.html','settings.html','index.html'].includes(route) ? route : 'index.html';
-  const target = new URL(file, root).href;
+  const target = new URL(self.MumutoriRoutes.safe(event.notification.data.route),self.registration.scope).href;
   event.waitUntil((async () => {
     const windows = await self.clients.matchAll({type:'window', includeUncontrolled:true});
-    const same = windows.find(client => client.url.split('#')[0].split('?')[0] === target);
+    const same = windows.find(client => client.url === target);
     if (same) return same.focus();
+    const screen=windows.find(c=>new URL(c.url).origin===new URL(target).origin&&new URL(c.url).pathname===new URL(target).pathname);
+    if(screen?.navigate){const navigated=await screen.navigate(target);if(navigated)return navigated.focus();}
     return self.clients.openWindow(target);
   })());
 });
