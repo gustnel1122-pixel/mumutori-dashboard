@@ -1,3 +1,4 @@
+import {createFinSession} from './fin-session.js?v=access20261028';
 // 재무 빠른 장부(quick.html) — 휴대폰 화면. 위: 오늘 · 이번 달 요약, 가운데: 수기 입력(공용 부품 fin-form), 아래: 확인 필요 · 최근 기록.
 // 장부는 Firebase hub/financeV1(사장님 로그인 전용). PC 재무 화면(fin-panel.js)과 같은 부품 · 같은 줄 모양을 쓴다.
 import { onAuth, signIn } from './fbauth.js?v=access20261028';
@@ -39,17 +40,17 @@ function start() {
     if (t.dataset.period) { period = t.dataset.period; drawSummary(); }
     else if (t.id === 'q-signin') { $('#q-login-msg').textContent = ''; try { await signIn(); } catch (err) { $('#q-login-msg').textContent = err.message; } }
   });
-  onAuth(user => {
-    const test = !!window.__MMT_TEST_FIN__;
-    $('#q-login').hidden = !!user || test; $('#q-app').hidden = !(user || test);
-    if (!(user || test)) { $('#q-conn').textContent = '로그인 필요'; return; }
-    if (store) return;
-    store = openFinStore({ onChange: b => { book = b; loaded = true; draw(); }, onStatus: s => { $('#q-conn').textContent = CONN[s] || s; $('#q-conn').dataset.state = s; } });
-    form = mountEntryForm($('#q-form'), { store: () => store, book: () => book, source: 'phone' });
-    bindListActions($('#q-app'), { store: () => store, book: () => book, onError: m => { $('#q-list-msg').textContent = m; }, onRedraw: draw, onMore: () => { recentCount += 20; draw(); } });
-    store.load().then(() => store.processInbox?.()).catch(err => { $('#q-list-msg').textContent = err.message; });
-    store.watch();
-    form.focus();
-  });
+  const session=createFinSession({open:openFinStore,processInbox:true,onBook:b=>{
+    book=b||{entries:{},sales:{},meta:{}};loaded=!!b;
+    if(!b){const old=$('#q-form'),fresh=old.cloneNode(false);old.replaceWith(fresh);form=mountEntryForm(fresh,{store:()=>store,book:()=>book,source:'phone'});}
+    draw();
+  },onState:(state,allowed)=>{
+    $('#q-login').hidden=allowed;$('#q-app').hidden=!allowed;
+    $('#q-conn').textContent=state==='signed-out'?'로그인 필요':CONN[state]||state;$('#q-conn').dataset.state=state;
+    $('#q-login-msg').textContent=state==='loading'?'서버 권한을 확인하고 있어요.':state==='denied'?'이 계정의 공용 장부 접근을 확인하지 못했어요.':'';
+  }});
+  bindListActions($('#q-app'),{store:()=>store,book:()=>book,onError:m=>{$('#q-list-msg').textContent=m;},onRedraw:draw,onMore:()=>{recentCount+=20;draw();}});
+  onAuth(user=>{store=session.setUser(user,!!window.__MMT_TEST_FIN__);});
+
 }
 start();

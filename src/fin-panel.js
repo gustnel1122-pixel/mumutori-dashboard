@@ -1,3 +1,4 @@
+import {createFinSession} from './fin-session.js?v=access20261028';
 // PC 재무 화면(finance.html) 맨 위 '수기 입력 · 확인 필요' 패널 — 휴대폰 화면(quick.html)과 같은 부품(fin-form) · 같은 공용 장부(hub/financeV1).
 // ERP 화면은 이 PC 저장(localStorage)으로 그려지고 자주 다시 그려지므로, 패널 자리(#fin-hub-panel)가 새로 생길 때마다 다시 붙인다(장부 연결은 하나로 유지).
 import { onAuth, signIn } from './fbauth.js?v=access20261028';
@@ -63,18 +64,13 @@ function draw() {
 }
 function showState() {
   if (!host) return;
-  const ok = signedIn || !!window.__MMT_TEST_FIN__;
+  const ok = session.allowed;
   host.querySelector('.fin-login').hidden = ok;
   host.querySelector('.fin-cols').hidden = !ok;
   host.querySelector('.fin-sum').hidden = !ok;
   host.querySelector('.fin-settle').hidden = !ok;
 }
-function ensureStore() {
-  if (store) return;
-  store = openFinStore({ onChange: b => { book = b; loaded = true; draw(); } });
-  store.load().then(() => store.processInbox()).catch(err => { const m = host?.querySelector('.fin-list-msg'); if (m) m.textContent = err.message; });
-  store.watch();
-}
+const session=createFinSession({open:openFinStore,processInbox:true,onBook:b=>{book=b||{entries:{},sales:{},meta:{}};loaded=!!b;draw();if(!b&&host){const old=host.querySelector('.fin-form'),fresh=old.cloneNode(false);old.replaceWith(fresh);mountEntryForm(fresh,{store:()=>store,book:()=>book,source:'manual'});}showState();},onState:(state)=>{showState();const m=host?.querySelector('.fin-login-msg');if(m)m.textContent=state==='loading'?'서버 권한을 확인하고 있어요.':state==='denied'?'이 계정의 공용 장부 접근을 확인하지 못했어요.':'';}});
 function mount(el) {
   host = el; el.dataset.mounted = '1'; el.classList.add('fin-scope', 'fin-panel');
   el.innerHTML = SHELL;
@@ -86,7 +82,7 @@ function mount(el) {
 }
 function scan() { const el = document.getElementById('fin-hub-panel'); if (el && !el.dataset.mounted) mount(el); }
 
-onAuth(user => { signedIn = !!user; showState(); if (signedIn || window.__MMT_TEST_FIN__) ensureStore(); });
+onAuth(user=>{signedIn=!!user;store=session.setUser(user,!!window.__MMT_TEST_FIN__);showState();});
 // 옛 장부 접힘 칸: ERP가 화면을 다시 그려도 연 상태를 유지(이 탭 동안만)
 document.addEventListener('toggle', e => { if (e.target.classList?.contains('legacy-ledger')) { try { sessionStorage.setItem('mmt-fin-legacy-open', e.target.open ? '1' : '0'); } catch { /* 저장소 없음 */ } } }, true);
 // '옛 기록' 탭(finance.html#legacy)을 같은 화면에서 누르면 주소 뒤만 바뀌어 다시 그려지지 않는다 → 접힌 칸을 직접 열고 그 자리로

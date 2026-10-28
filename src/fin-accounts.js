@@ -1,3 +1,4 @@
+import {createFinSession} from './fin-session.js?v=access20261028';
 // 재무 '계좌별'(bank.html) — 같은 공용 장부(hub/financeV1)에서 계좌마다 들어온 · 나간 · 이동 · 잔액과 파일 잔액 대조, '사장님 돈' 표(총괄 #15 · #17).
 // 읽기만 한다(입력은 재무 '장부 · 요약'의 수기 입력). ERP가 화면을 자주 다시 그리므로 자리(#fin-accounts-panel)가 새로 생길 때마다 다시 붙인다.
 import { onAuth, signIn } from './fbauth.js?v=access20261028';
@@ -8,7 +9,7 @@ let store = null, book = { entries: {}, sales: {}, meta: {} }, signedIn = false,
 
 const SHELL = `<div class="panelhead"><h2>계좌별</h2><span class="section-en">공용 장부 하나에서 계좌마다 · 폰과 같은 장부</span></div>
 <div class="panelbody">
-  <div class="fin-login" hidden><p>공용 장부는 사장님 구글 계정으로만 열려요.</p><button type="button" class="q-btn q-primary fin-signin">구글로 로그인</button><p class="q-msg fin-login-msg" role="alert"></p></div>
+  <div class="fin-login" hidden><p>공용 장부는 공동 운영 Google 계정으로만 열려요.</p><button type="button" class="q-btn q-primary fin-signin">구글로 로그인</button><p class="q-msg fin-login-msg" role="alert"></p></div>
   <div class="fin-acct-body" hidden><p class="q-empty">장부를 불러오는 중이에요.</p></div>
   <p class="q-msg fin-list-msg" role="alert"></p>
 </div>`;
@@ -20,16 +21,11 @@ function draw() {
 }
 function showState() {
   if (!host) return;
-  const ok = signedIn || !!window.__MMT_TEST_FIN__;
+  const ok = session.allowed;
   host.querySelector('.fin-login').hidden = ok;
   host.querySelector('.fin-acct-body').hidden = !ok;
 }
-function ensureStore() {
-  if (store) return;
-  store = openFinStore({ onChange: b => { book = b; loaded = true; draw(); } });
-  store.load().catch(err => { const m = host?.querySelector('.fin-list-msg'); if (m) m.textContent = err.message; });
-  store.watch();
-}
+const session=createFinSession({open:openFinStore,onBook:b=>{book=b||{entries:{},sales:{},meta:{}};loaded=!!b;if(!b&&host)host.querySelector('.fin-acct-body').textContent='서버 권한을 확인하고 있어요.';draw();showState();},onState:(state)=>{showState();const m=host?.querySelector('.fin-login-msg');if(m)m.textContent=state==='loading'?'서버 권한을 확인하고 있어요.':state==='denied'?'이 계정의 공용 장부 접근을 확인하지 못했어요.':'';}});
 function mount(el) {
   host = el; el.dataset.mounted = '1'; el.classList.add('fin-scope', 'fin-accounts');
   el.innerHTML = SHELL;
@@ -38,6 +34,6 @@ function mount(el) {
 }
 function scan() { const el = document.getElementById('fin-accounts-panel'); if (el && !el.dataset.mounted) mount(el); }
 
-onAuth(user => { signedIn = !!user; showState(); if (signedIn || window.__MMT_TEST_FIN__) ensureStore(); });
+onAuth(user=>{signedIn=!!user;store=session.setUser(user,!!window.__MMT_TEST_FIN__);showState();});
 new MutationObserver(scan).observe(document.getElementById('root'), { childList: true, subtree: true });
 scan();

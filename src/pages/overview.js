@@ -9,13 +9,7 @@ const NEEDS_KEY='mmt-fin-needs-v1';
 function finHint(){
   const F=window.FinCore,demo=window.__MMT_DEMO__&&window.__MMT_TEST_FIN__;
   if(demo&&F){const s=F.summarize(demo,'month');return {needs:s.needs,month:s,basis:'시연 자료'};}
-  try{
-    const h=JSON.parse(localStorage.getItem(NEEDS_KEY)||'null');
-    if(h&&Number.isFinite(h.n)){
-      const at=new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(h.at));
-      return {needs:h.n,month:null,basis:at+' 재무 화면 기준'};
-    }
-  }catch{/* 저장소 없음 */}
+  // Cross-account counts must come from a successful server read, never the prior browser hint.
   return {needs:null,month:null,basis:''};
 }
 export default function overview(ctx){

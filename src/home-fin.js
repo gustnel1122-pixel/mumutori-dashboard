@@ -1,3 +1,4 @@
+import {createFinSession} from './fin-session.js?v=access20261028';
 // 운영 홈 '다음으로 챙길 일 · 이번 달'을 공용 장부 기준으로(총괄 검수 2번 — 장부 여는 방식은 구글 로그인으로 정해짐, 사장님 10/20 01:17 폰 로그인).
 // 로그인돼 있으면 재무 화면과 같은 공용 장부(hub/financeV1)를 읽기만 해서 이번 달 매출 · 지출 · 돈 흐름(매출 연결 뒤엔 남는 돈)과
 // 확인 필요 건수를 #home-need-line · #home-month-body에 넣는다. 로그인 전이면 overview.js의 기본 글 아래에 '구글로 로그인' 버튼.
@@ -34,8 +35,11 @@ function render() {
   if (view) {
     if (need.dataset.live !== view.key) need.outerHTML = view.need;
     if (month.dataset.live !== view.key) { month.innerHTML = view.month; month.dataset.live = view.key; }
-  } else if (!signedIn && !window.__MMT_TEST_FIN__ && !month.querySelector('#home-signin')) {
-    month.insertAdjacentHTML('beforeend', '<button type="button" class="btn primary" id="home-signin">구글로 로그인하면 여기 바로 보여요</button><p class="home-signin-msg" role="alert"></p>');
+  } else {
+    const key=signedIn?'permission-wait':'login-needed';
+    if(month.dataset.live!==key){month.dataset.live=key;month.innerHTML='<p>공용 장부는 서버 권한을 확인한 뒤 보여요.</p>'+(!signedIn?'<button type="button" class="btn primary" id="home-signin">Google 계정으로 로그인</button><p class="home-signin-msg" role="alert"></p>':'');}
+    if(need.dataset.live!==key){need.dataset.live=key;need.innerHTML='<span class="task-dept tone-blue">재무</span><b>공용 장부 권한 확인<small class="task-basis">계정별 서버 확인 뒤 건수가 보여요</small></b><strong>재무<em>에서 보기</em></strong>';}
+
   }
 }
 
@@ -44,14 +48,8 @@ document.addEventListener('click', async ev => {
   const msg = document.querySelector('.home-signin-msg');
   try { await signIn(); } catch (err) { if (msg) msg.textContent = err.message; }
 });
-onAuth(user => {
-  signedIn = !!user;
-  if ((signedIn || window.__MMT_TEST_FIN__) && !store) {
-    store = openFinStore({ onChange: compute });
-    store.load().catch(() => {});   // 못 읽으면 기본 글 그대로(틀린 숫자보다 빈칸)
-    store.watch();
-  }
-  render();
-});
+const session=createFinSession({open:openFinStore,onBook:b=>{if(b)compute(b);else{view=null;render();}},onState:()=>render()});
+onAuth(user=>{signedIn=!!user;store=session.setUser(user,!!window.__MMT_TEST_FIN__);render();});
+
 new MutationObserver(render).observe(document.getElementById('root'), { childList: true, subtree: true });
 render();
