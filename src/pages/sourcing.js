@@ -3,6 +3,7 @@
 // Claude는 mumutori-auto/sourcing_db.py로 같은 경로를 읽고 써서, 표시를 다음 소싱·발주에 반영한다.
 import {identity,originalUrl,exclusion,reviewProblems,recommendable,POLICY_VERSION,keyOfSpec,skuSnapshot,skuReviewProblems,orderProblems} from '../sourcing-policy.js';
 import {touchedPaths,remember,revertTouched} from '../sourcing-sync.js';
+import {sourcingUrl,sourcingLinks,sourcingText} from '../sourcing-links.js';
 const DB='https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.app/sourcing';
 // 구글 로그인(2026-10-10 사장님 승인): 보드 읽기·다른 쓰기는 지금처럼 그대로, '선택 옵션 검수 요청'만 운영 계정(구글 로그인) 토큰으로 저장한다.
 // 실제 제한은 Firebase 규칙(reviewRequests: 운영 계정만 새로 만들기, 익명·삭제·결과 변경 금지)이 맡는다. 로그인 도구는 src/fbauth.js.
@@ -30,6 +31,10 @@ const num=v=>Number(v)||0;
 const yuan=v=>v==null||v===''?'—':'¥'+(Math.round(num(v)*100)/100).toLocaleString('ko-KR');
 const krw=v=>Math.round(v).toLocaleString('ko-KR')+'원';
 const list=o=>o&&typeof o==='object'?Object.values(o):[];
+const linksOf=(l,it={})=>sourcingLinks(l.koBase,l.ko,l.spec,l.desc,it.desc);
+const linkButtons=(l,it={})=>{const a=linksOf(l,it);return `<span class="sx-source-links">${[['lowest','최저가 열기'],['original','원래 링크 열기']].filter(([k])=>a[k]).map(([k,label])=>`<a href="${esc(a[k])}" target="_blank" rel="noopener noreferrer">${label} ↗</a>`).join('')}</span>`;};
+const optionText=(text,l,it={})=>`${esc(sourcingText(text))}${linkButtons(l,it)}`;
+const photoLink=(url,inner,cap,cls='')=>url?`<a class="sx-source-photo ${cls}" href="${esc(url)}" target="_blank" rel="noopener noreferrer" aria-label="최저가 상품 열기: ${esc(sourcingText(cap))}">${inner}</a>`:inner;
 const keyOf=s=>{let h=5381;for(const c of String(s))h=((h*33)^c.charCodeAt(0))>>>0;return h.toString(36);};
 // 1688 사진은 다른 사이트 주소를 referrer로 보내면 403 → <img referrerpolicy="no-referrer">, 크기 접미사로 썸네일
 const thumb=(u,px=310)=>{if(!u)return '';u=u.startsWith('//')?'https:'+u:u.replace(/^http:/,'https:');return /\.(jpe?g|png|webp)_/i.test(u)?u:`${u}_${px}x${px}q90.jpg_.webp`;};
@@ -135,9 +140,11 @@ function chosenPhoto(l,it={}){
  const o=list(it.options).find(o=>o.spec===l.spec),selected=o?.img||(l.imageSource==='option'?l.img:'');
  return {url:selected||it.img||l.img||'',rep:!selected,label:selected?'선택 옵션 사진':(it.img?'옵션 사진 없음 · 대표 사진':l.img?'저장된 사진 · 옵션 확인 필요':'사진 없음')};
 }
-function chosenVisual(l,it={},cls='sx-cart-img'){
+function chosenVisual(l,it={},cls='sx-cart-img',linked=true){
  const f=chosenPhoto(l,it),cap=(it.name||l.offerId)+(l.ko?' · '+l.ko:'');
- return `<div class="sx-chosen-photo">${zoom(f.url,img(f.url,120,cls),{cap,spec:l.spec,rep:f.rep})}<small>${esc(f.label)}</small></div>`;
+ const url=linksOf(l,it).lowest||sourcingUrl(it.url);
+ if(!linked)return `<div class="sx-chosen-photo">${zoom(f.url,img(f.url,120,cls),{cap,spec:l.spec,rep:f.rep})}<small>${esc(f.label)}</small></div>`;
+ return `<div class="sx-chosen-photo">${photoLink(url,img(f.url,120,cls),cap)}${zoom(f.url,'확대',{cap,spec:l.spec,rep:f.rep,cls:'sx-photo-expand'})}<small>${esc(f.label)}</small></div>`;
 }
 const isAdmitted=r=>recommendable(r.id,r,S.tree?.marks||{});
 function excludedTab(){
@@ -152,7 +159,7 @@ function reviewDetail(r){
 }
 function reviewCard(r){
  const prices=list(r.options).map(o=>num(o.price)).filter(Boolean),lo=prices.length?Math.min(...prices):num(r.priceMin),hi=prices.length?Math.max(...prices):num(r.priceMax);
- return `<article class="sx-review-card"><div class="sx-rv-main">${zoom(r.img,img(r.img,120,'sx-cart-img'),{cap:r.name})}<div><h3>${esc(r.name)}</h3><div class="sx-price">${lo?`<b>${yuan(lo)}${hi>lo?'~'+yuan(hi).slice(1):''}</b> <span>≈ ${krw(toKrw(lo))}${hi>lo?'~':''}/개</span>`:'<span>가격 확인 전</span>'}</div></div></div><div class="sx-rv-actions"><a class="sx-rv-btn" href="${esc(r.url)}" target="_blank" rel="noopener">1688 원본 ↗</a><button type="button" class="sx-rv-btn" data-sx="exclude" data-id="${esc(r.id)}">추천에서 제외</button></div><details class="sx-rv-more"><summary>자세히</summary>${reviewDetail(r)}</details></article>`;
+ return `<article class="sx-review-card"><div class="sx-rv-main">${zoom(r.img,img(r.img,120,'sx-cart-img'),{cap:r.name})}<div><h3>${esc(r.name)}</h3><div class="sx-price">${lo?`<b>${yuan(lo)}${hi>lo?'~'+yuan(hi).slice(1):''}</b> <span>≈ ${krw(toKrw(lo))}${hi>lo?'~':''}/개</span>`:'<span>가격 확인 전</span>'}</div></div></div><div class="sx-rv-actions"><a class="sx-rv-btn" href="${esc(sourcingUrl(r.url)||'#')}" target="_blank" rel="noopener">1688 원본 ↗</a><button type="button" class="sx-rv-btn" data-sx="exclude" data-id="${esc(r.id)}">추천에서 제외</button></div><details class="sx-rv-more"><summary>자세히</summary>${reviewDetail(r)}</details></article>`;
 }
 function reviewTab(){
  const rows=itemRows().filter(r=>!exclusion(r.id,r,S.tree?.marks||{})&&!isAdmitted(r));
@@ -173,21 +180,21 @@ function card(r){
   // 같은 상품 안에서 옵션 사진이 같은 옵션 → '같은 사진 n개' 표시(사진으로는 구분 불가, 치수·모양으로 구분)
   const sameN={};opts.forEach(o=>{if(o.img)sameN[o.img]=(sameN[o.img]||0)+1;});
   const sameAny=opts.some(o=>o.img&&sameN[o.img]>1);
-  const optImg=o=>zoom(o.img||r.img,o.img?img(o.img,120):`<span class="sx-optfb" title="1688에 이 옵션 사진이 없어 상품 대표 사진을 보여 줍니다">${img(r.img,120)}<em>대표</em></span>`,{cap:o.ko||o.spec,spec:o.spec,rep:!o.img,cls:o.img&&sameN[o.img]>1?'sx-sameimg':''});
-  const optRows=m.like&&opts.length?`<div class="sx-opts"><b>옵션·수량 담기</b><a class="sx-optlink" href="${esc(r.url)}" target="_blank" rel="noopener">1688에서 옵션 대조 ↗</a><small class="sx-opthelp">회색 글자 = 1688 옵션명 · '복사' 후 1688 페이지에서 Ctrl+F(휴대폰은 페이지 내 찾기)</small>${sameAny?`<small class="sx-samehint">⚠ 사진이 같은 옵션이 있어요 — 초록 글씨 치수·모양${list(r.sizeImgs).length?'과 크기·모양 안내':''}로 구분하세요</small>`:''}${opts.map(o=>{const lid=r.id+'~'+keyOf(o.spec),line=S.tree?.cart?.[lid],sentAt=line?lineStage({...line,id:lid},S.tree?.orders):null;const dk=lid;const dims=dimsOf(o.spec);return `<div class="sx-opt">${optImg(o)}<span>${esc(o.ko||o.spec)}${dims.length?`<span class="sx-dims">${dims.map(d=>`<i>${esc(d)}</i>`).join('')}</span>`:''}${o.img&&sameN[o.img]>1?`<small class="sx-same">같은 사진 ${sameN[o.img]}개 · 모양·크기만 다름</small>`:''}${o.img?'':'<small class="sx-nofoto">옵션 사진 없음 · 대표 사진</small>'}<small class="sx-spec"><span lang="zh">${esc(o.spec)}</span> <button type="button" class="sx-copy" data-sx="copy" data-text="${esc(o.spec)}" aria-label="1688 옵션명 복사: ${esc(o.spec)}">복사</button></small><small>${yuan(o.price)}${o.weightG?' · '+esc(o.weightG)+'g':''}</small></span>${sentAt?`<span class="sx-sentopt" title="이미 발주한 옵션입니다 — 발주 진행 탭에서 단계를 봅니다">📦 ${esc(sentAt.label)} · ${esc(sentAt.stage)} · <b>${esc(line.qty)}개</b></span>`:`<input type="number" min="1" step="1" inputmode="numeric" aria-label="${esc((o.ko||o.spec)+' 수량')}" id="sx-q-${esc(dk)}" data-sx-draft="${esc(dk)}" value="${esc(S.draft[dk]??(line?.qty||r.qty||''))}"><button type="button" class="primary" data-sx="add" data-id="${esc(r.id)}" data-spec="${esc(o.spec)}">${line?'수정':'담기'}</button>`}</div>`;}).join('')}${inCart.length?`<span class="sx-in">장바구니에 ${inCart.map(l=>esc((l.koBase||l.ko||l.spec)+' '+l.qty+'개')).join(', ')}</span>`:''}${sent.length?`<span class="sx-in sx-in-sent">📦 발주 진행 ${sent.length}줄 · ${sent.reduce((a,l)=>a+num(l.qty),0).toLocaleString('ko-KR')}개</span>`:''}</div>`:'';
+  const optImg=o=>linksOf(o,r).lowest?photoLink(linksOf(o,r).lowest,img(o.img||r.img,120),o.ko||o.spec):zoom(o.img||r.img,o.img?img(o.img,120):`<span class="sx-optfb" title="1688에 이 옵션 사진이 없어 상품 대표 사진을 보여 줍니다">${img(r.img,120)}<em>대표</em></span>`,{cap:o.ko||o.spec,spec:o.spec,rep:!o.img,cls:o.img&&sameN[o.img]>1?'sx-sameimg':''});
+  const optRows=m.like&&opts.length?`<div class="sx-opts"><b>옵션·수량 담기</b><a class="sx-optlink" href="${esc(sourcingUrl(r.url)||'#')}" target="_blank" rel="noopener">1688에서 옵션 대조 ↗</a><small class="sx-opthelp">회색 글자 = 1688 옵션명 · '복사' 후 1688 페이지에서 Ctrl+F(휴대폰은 페이지 내 찾기)</small>${sameAny?`<small class="sx-samehint">⚠ 사진이 같은 옵션이 있어요 — 초록 글씨 치수·모양${list(r.sizeImgs).length?'과 크기·모양 안내':''}로 구분하세요</small>`:''}${opts.map(o=>{const lid=r.id+'~'+keyOf(o.spec),line=S.tree?.cart?.[lid],sentAt=line?lineStage({...line,id:lid},S.tree?.orders):null;const dk=lid;const dims=dimsOf(o.spec);return `<div class="sx-opt">${optImg(o)}<span>${optionText(o.ko||o.spec,o,r)}${dims.length?`<span class="sx-dims">${dims.map(d=>`<i>${esc(d)}</i>`).join('')}</span>`:''}${o.img&&sameN[o.img]>1?`<small class="sx-same">같은 사진 ${sameN[o.img]}개 · 모양·크기만 다름</small>`:''}${o.img?'':'<small class="sx-nofoto">옵션 사진 없음 · 대표 사진</small>'}<small class="sx-spec"><span lang="zh">${esc(o.spec)}</span> <button type="button" class="sx-copy" data-sx="copy" data-text="${esc(o.spec)}" aria-label="1688 옵션명 복사: ${esc(o.spec)}">복사</button></small><small>${yuan(o.price)}${o.weightG?' · '+esc(o.weightG)+'g':''}</small></span>${sentAt?`<span class="sx-sentopt" title="이미 발주한 옵션입니다 — 발주 진행 탭에서 단계를 봅니다">📦 ${esc(sentAt.label)} · ${esc(sentAt.stage)} · <b>${esc(line.qty)}개</b></span>`:`<input type="number" min="1" step="1" inputmode="numeric" aria-label="${esc((o.ko||o.spec)+' 수량')}" id="sx-q-${esc(dk)}" data-sx-draft="${esc(dk)}" value="${esc(S.draft[dk]??(line?.qty||r.qty||''))}"><button type="button" class="primary" data-sx="add" data-id="${esc(r.id)}" data-spec="${esc(o.spec)}">${line?'수정':'담기'}</button>`}</div>`;}).join('')}${inCart.length?`<span class="sx-in">장바구니에 ${inCart.map(l=>esc((l.koBase||l.ko||l.spec)+' '+l.qty+'개')).join(', ')}</span>`:''}${sent.length?`<span class="sx-in sx-in-sent">📦 발주 진행 ${sent.length}줄 · ${sent.reduce((a,l)=>a+num(l.qty),0).toLocaleString('ko-KR')}개</span>`:''}</div>`:'';
   return `<article class="sx-card ${st}">
-    ${r.img?zoom(r.img,img(r.img,310),{cap:r.name,cls:'sx-img'}):`<a class="sx-img" href="${esc(r.url)}" target="_blank" rel="noopener">${img('',310)}</a>`}
+    ${linksOf(r).lowest?photoLink(linksOf(r).lowest,img(r.img,310),r.name,'sx-img'):(r.img?zoom(r.img,img(r.img,310),{cap:r.name,cls:'sx-img'}):photoLink(sourcingUrl(r.url),img('',310),r.name,'sx-img'))}
     <div class="sx-body">
       <div class="sx-top"><span class="sx-pid">${esc(r.pid||'')}</span>${r.warn?`<span class="badge amber">⚠ ${esc(r.warn)}</span>`:''}${list(r.tags).map(x=>`<span class="badge">${esc(x)}</span>`).join('')}</div>
-      <h3><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.name)}</a></h3>
-      ${r.desc?`<p class="sx-desc">${esc(r.desc)}</p>`:''}
+      <h3><a href="${esc(sourcingUrl(r.url)||'#')}" target="_blank" rel="noopener">${esc(r.name)}</a></h3>
+      ${r.desc?`<div class="sx-desc">${optionText(r.desc,r)}</div>`:''}
       <div class="sx-price"><b>${yuan(lo)}${hi>lo?'~'+yuan(hi).slice(1):''}</b> <span>≈ ${krw(toKrw(lo))}${hi>lo?'~':''}/개</span></div>
       ${meta?`<div class="sx-meta">${meta}</div>`:''}
       ${list(r.sizeImgs).length?`<div class="sx-sizes">${list(r.sizeImgs).map((s,i,a)=>zoom(s.url,`📏 크기·모양 안내${a.length>1?' '+(i+1):' 보기'}`,{cap:s.cap||'크기·모양 안내 (1688 상세페이지)',cls:'sx-sizebtn'})).join('')}</div>`:''}
       <div class="sx-marks">${mark('like','💗 좋아요')}${mark('design','👎 디자인 별로')}${mark('price','💸 가격 별로')}</div>${cartWarn}<button type="button" class="sx-exclude" data-sx="exclude" data-id="${esc(r.id)}">추천에서 제외</button>
       <input class="sx-note" id="sx-n-${esc(r.id)}" data-sx-note="${esc(r.id)}" maxlength="300" placeholder="한마디 (예: 링크 사진이 더 좋아)" value="${esc(m.note||'')}">
       ${optRows}
-      <a class="sx-link" href="${esc(r.url)}" target="_blank" rel="noopener">1688에서 보기 ↗ <small>${esc(r.url)}</small></a>
+      <a class="sx-link" href="${esc(sourcingUrl(r.url)||'#')}" target="_blank" rel="noopener">1688에서 보기 ↗ <small>${esc(r.url)}</small></a>
     </div></article>`;
 }
 function setCard(id,s,items){
@@ -262,7 +269,7 @@ function stageBadge(s){
 function ordersTab(){
   const t=S.tree||{},items=t.items||{},orders=t.orders||{},cart=t.cart||{},groups=orderSummaries(orders),covered=new Set();
   const row=l=>{const it=items[l.offerId]||{},stage=lineStage(l,orders),opt=String(l.koBase||l.ko||list(it.options).find(o=>o.spec===l.spec)?.ko||'').replace(SENT_PREFIX,'');
-    return `<tr><td>${chosenVisual({...l,ko:opt},it)}</td><td class="maincell"><b><a href="${esc(it.url||'#')}" target="_blank" rel="noopener">${esc(it.name||l.offerId)}</a></b><span class="sub">${esc(opt)}</span><span class="sub sx-spec"><span lang="zh">${esc(l.spec||'')}</span></span></td><td class="num"><b>${num(l.qty).toLocaleString('ko-KR')}</b>개</td><td>${stageBadge(stage)||'<span class="sub">단계 미기록</span>'}</td></tr>`;};
+    return `<tr><td>${chosenVisual({...l,ko:opt},it)}</td><td class="maincell"><b><a href="${esc(sourcingUrl(it.url)||'#')}" target="_blank" rel="noopener">${esc(it.name||l.offerId)}</a></b><span class="sub">${optionText(opt,l,it)}</span><span class="sub sx-spec"><span lang="zh">${esc(sourcingText(l.spec))}</span></span></td><td class="num"><b>${num(l.qty).toLocaleString('ko-KR')}</b>개</td><td>${stageBadge(stage)||'<span class="sub">단계 미기록</span>'}</td></tr>`;};
   const table=rows=>`<div class="tablewrap sx-order-lines"><table class="table"><thead><tr><th>사진</th><th>상품 / 옵션</th><th class="num">수량</th><th>단계</th></tr></thead><tbody>${rows.map(row).join('')}</tbody></table></div>`;
   const now=o=>{const at=o.steps.filter(s=>s.count);return at.length===1?`${at[0].stage}${at[0].date?' '+at[0].date:''}`:at.map(s=>`${s.stage} ${s.count}줄`).join(' · ')||'단계 미기록';};
   const sections=groups.map((o,i)=>{
@@ -282,7 +289,7 @@ function cartTab(){
   const badInCart=itemRows().filter(r=>negative(r)&&lines.some(l=>l.offerId===r.id));
   let totalY=0,weight=0,weightKnown=true;
   const rows=lines.map(l=>{const it=items[l.offerId]||{},sub=num(l.price)*num(l.qty),optName=String(l.koBase||l.ko||'');totalY+=sub;if(l.weightG)weight+=num(l.weightG)*num(l.qty);else weightKnown=false;
-    return `<tr><td>${chosenVisual(l,it)}</td><td class="maincell"><b><a href="${esc(it.url||'#')}" target="_blank" rel="noopener">${esc(it.name||l.offerId)}</a></b><span class="sub">${esc(optName)}</span>${tierBox(l)}${skuStatus(l,it)}<span class="sub sx-spec"><span lang="zh">${esc(l.spec)}</span> <button type="button" class="sx-copy" data-sx="copy" data-text="${esc(l.spec)}" aria-label="1688 옵션명 복사: ${esc(l.spec)}">복사</button></span></td><td><input type="number" min="1" step="1" class="sx-qty" id="sx-cq-${esc(l.id)}" data-sx-qty="${esc(l.id)}" aria-label="수량" value="${esc(l.qty)}"></td><td class="num">${yuan(l.price)}</td><td class="num" data-sx-sub="${esc(l.id)}"><b>${yuan(sub)}</b></td><td class="num" data-sx-krw="${esc(l.id)}">${krw(toKrw(sub))}</td><td>${`<button type="button" class="text danger" data-sx="remove" data-id="${esc(l.id)}">빼기</button>`}</td></tr>`;}).join('');
+    return `<tr><td>${chosenVisual(l,it)}</td><td class="maincell"><b><a href="${esc(sourcingUrl(it.url)||'#')}" target="_blank" rel="noopener">${esc(it.name||l.offerId)}</a></b><span class="sub">${optionText(optName,l,it)}</span>${tierBox(l)}${skuStatus(l,it)}<span class="sub sx-spec"><span lang="zh">${esc(sourcingText(l.spec))}</span> <button type="button" class="sx-copy" data-sx="copy" data-text="${esc(l.spec)}" aria-label="1688 옵션명 복사: ${esc(l.spec)}">복사</button></span></td><td><input type="number" min="1" step="1" class="sx-qty" id="sx-cq-${esc(l.id)}" data-sx-qty="${esc(l.id)}" aria-label="수량" value="${esc(l.qty)}"></td><td class="num">${yuan(l.price)}</td><td class="num" data-sx-sub="${esc(l.id)}"><b>${yuan(sub)}</b></td><td class="num" data-sx-krw="${esc(l.id)}">${krw(toKrw(sub))}</td><td>${`<button type="button" class="text danger" data-sx="remove" data-id="${esc(l.id)}">빼기</button>`}</td></tr>`;}).join('');
   const reqs=Object.entries(t.requests||{}).sort((a,b)=>String(b[1].at||'').localeCompare(String(a[1].at||''))).slice(0,5);
   const r=rate();
   return `${sent.length?`<div class="note sx-sentnote"><span>📦 발주로 넘어간 <b>${sent.length}줄</b>은 <button type="button" class="text" data-sx="tab" data-id="orders">발주 진행에서 보기 →</button></span> <small>장바구니에는 아직 발주하지 않은 것만 남습니다.</small></div>`:''}${badInCart.length?`<div class="note amber sx-badcart">👎·💸 표시한 상품 ${badInCart.length}개가 장바구니에 담겨 있어요: ${badInCart.map(x=>`<b>${esc(x.name)}</b>`).join(', ')} — 그대로 두었으니 뺄지 확인해 주세요.</div>`:''}${likedNoCart.length?`<div class="note amber">💗만 누르고 수량을 안 담은 상품 ${likedNoCart.length}개: ${likedNoCart.map(x=>`<b>${esc(x.name)}</b>`).join(', ')} — 후보 탭에서 옵션·수량을 담아 주세요.</div>`:''}
@@ -294,7 +301,7 @@ function cartTab(){
 function tasteTab(){
   const t=S.tree||{},rules=Object.entries(t.taste||{}).sort((a,b)=>String(a[1].at||'').localeCompare(String(b[1].at||''))),all=itemRows();
   const KIND={avoid:['피하기','red'],prefer:['좋아함','green'],price:['가격','amber'],rule:['기준','']};
-  const gallery=(title,rows,why)=>`<div class="sx-section"><h2>${title}</h2><span>${why}</span></div><div class="sx-thumbs">${rows.length?rows.map(r=>`<a href="${esc(r.url)}" target="_blank" rel="noopener" title="${esc(r.mark.note||'')}">${img(r.img,120)}<span>${esc(r.name)}</span>${r.mark.note?`<em>${esc(r.mark.note)}</em>`:''}</a>`).join(''):'<p class="sub">아직 없습니다.</p>'}</div>`;
+  const gallery=(title,rows,why)=>`<div class="sx-section"><h2>${title}</h2><span>${why}</span></div><div class="sx-thumbs">${rows.length?rows.map(r=>`<a href="${esc(sourcingUrl(r.url)||'#')}" target="_blank" rel="noopener" title="${esc(r.mark.note||'')}">${img(r.img,120)}<span>${esc(r.name)}</span>${r.mark.note?`<em>${esc(r.mark.note)}</em>`:''}</a>`).join(''):'<p class="sub">아직 없습니다.</p>'}</div>`;
   return `<div class="note">수집기와 게시 도우미는 최신 활성 규칙과 제외 사유를 평가하고 결과를 기록합니다. 자유문장 규칙·미기록 속성은 담당 확인 대기로 남깁니다. 한 상품의 취향을 종류 전체로 확대하지 않습니다.</div>
     <div class="panel section-gap"><ul class="sx-rules">${rules.map(([id,r])=>`<li class="${r.active===false?'off':''}"><span class="badge ${KIND[r.kind]?.[1]||''}">${KIND[r.kind]?.[0]||'기준'}</span><p>${esc(r.text)}<small>${esc(r.source||'')}${r.by?' · '+esc(r.by):''}</small></p><label class="sx-switch"><input type="checkbox" data-sx-rule="${esc(id)}" ${r.active===false?'':'checked'}> 적용</label></li>`).join('')||'<li><p>아직 규칙이 없습니다.</p></li>'}</ul>
     <form class="sx-addrule" data-sx-form="rule"><select name="kind" aria-label="규칙 종류"><option value="avoid">피하기</option><option value="prefer">좋아함</option><option value="price">가격</option><option value="rule">기준</option></select><input name="text" maxlength="200" required placeholder="예: 반짝이 소재는 빼 줘" aria-label="새 규칙"><button type="submit" class="primary">규칙 추가</button></form></div>
@@ -329,7 +336,7 @@ function quoteBar(){
   const head=`<button type="button" class="sx-q-head" data-sx="quote" aria-expanded="${!!S.quoteOpen}" aria-controls="sx-q-detail"><span class="sx-q-title">🧾 예상 견적</span><span>${q.n}줄 ${q.qty.toLocaleString('ko-KR')}개</span><span>구매 ${yuan(q.purchaseCny)} ≈ ${krw(q.purchaseKrw)}</span><span>국제배송 ≈ ${krw(q.ship)} <small>(${q.billKg}kg)</small></span><b>합계 ≈ ${krw(q.total)}</b><em>${S.quoteOpen?'접기 ▴':'자세히 ▾'}</em></button>`;
   const row=(th,td,cls='')=>`<tr class="${cls}"><th>${th}</th><td>${td}</td></tr>`;
   const detail=S.quoteOpen?`<div class="sx-q-detail" id="sx-q-detail">
-    <div class="sx-q-sellers">${q.sellers.map(s=>`<div class="sx-q-seller"><b>${esc(s.shop)}</b>${s.lines.map(l=>`<div class="sx-q-line sx-q-item">${chosenVisual(l,l.it,'sx-cart-img')}<div class="sx-q-item-body"><b>${esc(l.name)} · ${esc(l.koBase||l.ko||l.spec)}</b><small lang="zh">${esc(l.spec)}</small><span>${num(l.qty).toLocaleString('ko-KR')}개 × ${yuan(l.price)}</span><label>수량 <input class="sx-q-qty" type="number" min="1" step="1" id="sx-qq-${esc(l.id)}" data-sx-qty="${esc(l.id)}" aria-label="${esc(l.name+' '+(l.koBase||l.ko||l.spec)+' 견적 수량')}" value="${esc(l.qty)}"></label><button type="button" class="text danger" data-sx="remove" data-id="${esc(l.id)}">장바구니에서 빼기</button></div><b>${yuan(l.sub)}</b></div>`).join('')}<div class="sx-q-line sub"><span>판매자 배송비</span><span></span><span>${yuan(s.freight)}</span></div></div>`).join('')}</div>
+    <div class="sx-q-sellers">${q.sellers.map(s=>`<div class="sx-q-seller"><b>${esc(s.shop)}</b>${s.lines.map(l=>`<div class="sx-q-line sx-q-item">${chosenVisual(l,l.it,'sx-cart-img',false)}<div class="sx-q-item-body"><b>${esc(l.name)} · ${esc(l.koBase||l.ko||l.spec)}</b><small lang="zh">${esc(l.spec)}</small><span>${num(l.qty).toLocaleString('ko-KR')}개 × ${yuan(l.price)}</span><label>수량 <input class="sx-q-qty" type="number" min="1" step="1" id="sx-qq-${esc(l.id)}" data-sx-qty="${esc(l.id)}" aria-label="${esc(l.name+' '+(l.koBase||l.ko||l.spec)+' 견적 수량')}" value="${esc(l.qty)}"></label><button type="button" class="text danger" data-sx="remove" data-id="${esc(l.id)}">장바구니에서 빼기</button></div><b>${yuan(l.sub)}</b></div>`).join('')}<div class="sx-q-line sub"><span>판매자 배송비</span><span></span><span>${yuan(s.freight)}</span></div></div>`).join('')}</div>
     <table class="sx-q-table"><tbody>
       ${row('상품 합계',yuan(q.goods))}${row(`1688 판매자 배송비 (${q.sellers.length}곳)`,yuan(q.freight))}${row(`구매대행 수수료 ${Math.round(q.r.fee*100)}%`,yuan(q.fee))}
       ${row('구매비 (예치금 결제)',`${yuan(q.purchaseCny)} ≈ ${krw(q.purchaseKrw)}<small>환율 ${q.r.rate}원</small>`,'sum')}

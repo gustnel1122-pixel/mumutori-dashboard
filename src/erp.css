@@ -205,3 +205,6 @@ a{color:inherit;text-decoration:none}button,a,input,select,textarea{-webkit-tap-
 #app-push-settings button { min-height:44px; min-width:44px; }
 /* Mobile project navigation: keep the home actions easy to tap beside the bell. */
 @media(max-width:720px){.ops-project-link,.pg-board [data-pg-filter]{min-width:44px;min-height:44px}}
+
+/* 1688 source actions stay easy to tap on narrow option rows. */
+.sx-source-links{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;max-width:100%}.sx-source-links:empty{display:none}.sx-source-links a{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-height:44px;min-width:44px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--green);font-size:12px;text-decoration:none;white-space:normal;overflow-wrap:anywhere}.sx-source-photo{display:inline-block;min-width:44px;min-height:44px;line-height:0}.sx-source-photo.sx-img{display:block;width:100%;aspect-ratio:1/1;background:#f0f1ea}.sx-source-photo.sx-img img{width:100%;height:100%;object-fit:cover}.sx-zoom.sx-photo-expand{font-size:11px;line-height:1.3;min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;text-decoration:underline;color:var(--green)}
