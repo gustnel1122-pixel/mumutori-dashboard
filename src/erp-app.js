@@ -1,3 +1,5 @@
+import { onAuth as onActivityAuth } from './fbauth.js';
+onActivityAuth(()=>{});
 const { DEPARTMENTS, icon, departmentCards, workflowStrip, menuGroups } = await import(`./departments.js?v=${document.body.dataset.build}`);
 const { createStore } = await import(`./store.js?v=${document.body.dataset.build}`);
 (async function () {
@@ -40,6 +42,7 @@ const { createStore } = await import(`./store.js?v=${document.body.dataset.build
   function backup(){download(JSON.stringify({...data,exportedAt:new Date().toISOString()},null,2),'mumutori-erp-'+C.today()+'.json');notify('전체 백업 파일을 내려받았습니다.');}
   function commit(next,message){
     const result=store.save(next);savedRaw=result.raw;data=result.data;
+    window.MumutoriActivity?.record({screen:'운영홈',action:'기록 저장'});
     render();notify(message||'저장했습니다.');
   }
   const link=(view,label,query='',extra='')=>`<a class="inline-link ${extra}" href="${view==='overview'?'index':view}.html${query?'?q='+encodeURIComponent(query):''}">${esc(label)} <span aria-hidden="true">↗</span></a>`;

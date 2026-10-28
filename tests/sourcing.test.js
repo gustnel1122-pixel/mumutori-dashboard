@@ -63,7 +63,7 @@ const fixture=()=>{if(scenarioTree)return structuredClone(scenarioTree);const t=
  /* 숨긴(👎·💸) 상품도 보이는 상태로 기존 시험 진행 — 기본 숨김 동작은 hide-negative.test.js가 검증 */
  await context.addInitScript(()=>{try{sessionStorage.setItem('mmt-sx-show-hidden','1');}catch(e){}});
  const errors=[],writes=[];
- const authUrls=[];await context.addInitScript(a=>{window.__MMT_TEST_AUTH__=a;},{email:'gustnel1122@gmail.com',token:'test-operator-token'});   // 시험용 가짜 로그인(실제 권한은 Firebase 규칙이 막는다)
+ const authUrls=[];await context.addInitScript(a=>{window.__MMT_TEST_AUTH__=a;},{email:'operator@example.invalid',token:'test-operator-token'});   // 시험용 가짜 로그인(실제 권한은 Firebase 규칙이 막는다)
  await context.route('https://mumutori.test/**',route=>{const name=new URL(route.request().url()).pathname.replace('/mumutori-dashboard/','')||'index.html';const file=path.join(ROOT,name);const ext=path.extname(file);return route.fulfill({status:fs.existsSync(file)?200:404,contentType:({'.html':'text/html','.js':'application/javascript','.json':'application/json','.css':'text/css','.svg':'image/svg+xml','.gz':'application/gzip'})[ext]||'text/plain',body:fs.existsSync(file)?fs.readFileSync(file):'Not found'});});
  await context.route('https://cbu01.alicdn.com/**',route=>route.fulfill({status:200,contentType:'image/png',body:PIXEL}));
  await context.route(DB+'**',route=>{const r=route.request(),u=new URL(r.url());
@@ -101,7 +101,7 @@ const fixture=()=>{if(scenarioTree)return structuredClone(scenarioTree);const t=
  assert.match(await page.locator('.sx-card.like .sx-link').textContent(),/1688에서 보기/);
  await context.grantPermissions(['clipboard-read','clipboard-write'],{origin:'https://mumutori.test'});
  await optRow.nth(1).locator('[data-sx="copy"]').click();
- await page.locator('#toast:not([hidden])').waitFor();
+ await page.waitForFunction(()=>document.getElementById('toast')?.textContent.includes('복사했습니다'));
  assert.match(await page.locator('#toast').textContent(),/복사했습니다/);
  assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),'白色>30cm');
  console.log('PASS option rows show 1688 option name with copy, mark missing option photos, link to 1688');
@@ -191,7 +191,7 @@ const fixture=()=>{if(scenarioTree)return structuredClone(scenarioTree);const t=
  console.log('PASS cart totals, order request and taste rules');
 
  const other=await context.newPage();await other.goto(ORIGIN+'purchases.html');await other.locator('.pagehead').waitFor();
- assert.doesNotMatch(await other.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute('content'),/firebase/);
+ assert.match(await other.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute('content'),/firebasedatabase\.app/); // activity records reuse the authenticated database host on every department
  assert.ok(await other.locator('.handoff-strip a[href="sourcing.html"]').count());
  await other.close();
  remoteCart={'111~a':{offerId:'111',spec:'黄色>20cm',ko:'노랑 20cm',price:3.5,qty:12,weightG:40,at:'2026-10-08T01:00:00Z'},'222~b':{offerId:'222',spec:'圆形',ko:'원형',price:5.8,qty:3,at:'2026-10-08T01:01:00Z'}};
@@ -202,7 +202,7 @@ const fixture=()=>{if(scenarioTree)return structuredClone(scenarioTree);const t=
   assert.match(await page.locator('.sx-q-warns').textContent(),/무게 모름 1개 — 배송비 더 나올 수 있음/);
   let qb=await page.locator('.sx-quote').boundingBox();
   assert.ok(qb.x>=0&&qb.x+qb.width<=width+1&&qb.y+qb.height<=901&&qb.height<=(width<500?190:120),'estimate bar compact and on screen at '+width+' '+JSON.stringify(qb));
-  await page.locator('.sx-q-head').click();await page.locator('.sx-q-detail').waitFor();
+  await page.locator('.sx-q-head').click();await page.locator('.sx-q-detail').waitFor();await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'no horizontal scroll with open estimate at '+width);
   qb=await page.locator('.sx-quote').boundingBox();assert.ok(qb.y>=0&&qb.y+qb.height<=901,'open estimate fits screen at '+width+' '+JSON.stringify(qb));
   await page.locator('.sx-q-head').click();

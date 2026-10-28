@@ -38,7 +38,7 @@ EXTRA={'sourcing':(' https://*.alicdn.com',' https://mumutori-letter-default-rtd
        'characters':('',' https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.app')}
 # 2026-10-07 보안 정리: 소싱 보드는 사장님 구글 로그인(Firebase Auth) 후에만 읽고 쓴다. 로그인 도구는 assets/vendor/firebase에 고정 버전.
 # 로그인 창(구글)·토큰 발급 주소만 추가로 허용한다. 다른 부서 페이지는 그대로.
-AUTH={'sourcing','finance','overview','bank','settings'}   # overview(홈): 공용 장부 이번 달 · 확인 필요를 읽기만(10/20 구글 로그인 방식으로 정해짐) · bank(재무 '계좌별', 10/23 총괄 #15): 같은 장부를 계좌마다 읽기만
+AUTH={page for page,title in pages.values()}   # overview(홈): 공용 장부 이번 달 · 확인 필요를 읽기만(10/20 구글 로그인 방식으로 정해짐) · bank(재무 '계좌별', 10/23 총괄 #15): 같은 장부를 계좌마다 읽기만
 # 2026-10-19 재무: 맨 위 '수기 입력 · 확인 필요' 패널이 공용 장부(hub/financeV1, 사장님 로그인 전용)에 읽고 쓴다 — 장부 주소 · 로그인 주소만 더한다.
 EXTRA['finance']=('',' https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.app')
 EXTRA['overview']=EXTRA['finance']
@@ -56,9 +56,10 @@ for filename,(page,title) in pages.items():
     extra_img,extra_connect=EXTRA.get(page,('',''))
     auth=page in AUTH
     extra_connect+=AUTH_CONNECT if auth else ''
+    if auth and 'firebasedatabase.app' not in extra_connect: extra_connect+=' https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.app'
     extra_script=AUTH_SCRIPT if auth else ''
     frame=AUTH_FRAME if auth else "'none'"
-    auth_tags=(AUTH_TAGS if auth else '')+PAGE_TAGS.get(page,'').replace('{v}',version)
+    auth_tags=(AUTH_TAGS if auth else '')+('<script src="src/activity-client.js?v='+version+'"></script>')+PAGE_TAGS.get(page,'').replace('{v}',version)
     page_head=PAGE_HEAD.get(page,'').replace('{v}',version)
     html=f'''<!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#174d3c"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'{extra_script}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:{extra_img}; font-src 'self'; connect-src 'self'{extra_connect}; worker-src 'self'; manifest-src 'self'; object-src 'none'; frame-src {frame}; form-action 'none'; base-uri 'self'"><title>{title} — 무무토리 스튜디오</title><link rel="icon" href="assets/mark.svg" type="image/svg+xml"><link rel="stylesheet" href="src/erp.css?v={version}">{page_head}{PWA_HEAD}</head>

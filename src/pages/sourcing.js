@@ -105,6 +105,8 @@ async function send(method,path,body,opts={}){
  if(touched.length){for(const [p,v] of touched)setAt(p,v);refresh();}
  try{const target=opts.auth?await fbauth.dbUrl('sourcing/'+path):`${DB}/${path}.json`;const r=await fetch(target,{method,headers:{'Content-Type':'application/json'},body:method==='DELETE'?undefined:JSON.stringify(body)});if(!r.ok)throw Error(r.status===401?(opts.auth?'이 계정은 검수 요청 권한이 없습니다 — 운영 계정(구글)으로 로그인해 주세요.':'Firebase 쓰기 권한이 없습니다.'):'저장하지 못했습니다 ('+r.status+').');}
  catch(err){S.tree=revertTouched(S.tree,touched,prior);refresh();await readAll().catch(()=>{});throw err;}   // 실패 시 이번에 바꾼 칸만 되돌림(그 사이 실시간 변경 보존)
+ const action=path.startsWith('cart/')?(method==='PATCH'?'수량 변경':'장바구니 변경'):path.startsWith('taste/')?'규칙 저장':path.startsWith('reviewRequests/')?'검수 요청':path.startsWith('requests/')?'기록 저장':Object.keys(body||{}).includes('note')?'댓글 저장':'상태 변경';
+ window.MumutoriActivity?.record({screen:'소싱',action});
 }
 
 // ---- 화면

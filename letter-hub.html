@@ -533,6 +533,7 @@ td.n{font-family:var(--type);color:var(--brand);width:40px}
 <script src="https://letter.mumutori.com/firebase-config.js"></script>
 <script src="https://letter.mumutori.com/fb.js"></script>
 <script src="https://letter.mumutori.com/spec.js"></script>
+<script src="src/activity-client.js?v=activity20261028"></script>
 <script>
 (function(){
 var LETTER_BASE = 'https://letter.mumutori.com/';
@@ -626,7 +627,7 @@ function boot(){
 
   function persist(){
     store.set(KEY, hub);
-    if (boardRef) boardRef.set(hub).catch(function(e){ console.warn(e); });
+    if (boardRef) boardRef.set(hub).then(function(){window.MumutoriActivity?.record({screen:'운영홈',action:'레터 할 일 저장'});}).catch(function(e){ console.warn(e); });
     renderSide(); renderMs(); renderWho();
   }
 
@@ -846,7 +847,7 @@ function boot(){
     if(M.live){
       if(!admin) return;
       var up={'config/spec':payload}; if(applied) up['config/specPrev']=applied;
-      db.ref().update(up).catch(function(err){ alertBar('적용하지 못했어요: '+err.message); });
+      db.ref().update(up).then(function(){window.MumutoriActivity?.record({screen:'운영홈',action:'레터 설정 적용'});}).catch(function(err){ alertBar('적용하지 못했어요: '+err.message); });
     } else {
       payload.meta.appliedAt=Date.now(); applied=payload; store.set('mmt-spec-applied', applied); afterApplied();
     }
@@ -857,7 +858,7 @@ function boot(){
   function saveDraft(now){
     store.set('mmt-spec-draft', draft);
     renderApplyBar(); refreshPreview(false);
-    if(draftRef){ clearTimeout(saveTimer); var push=function(){ draftRef.set(clone(draft)).catch(function(e){ console.warn(e); }); }; if(now) push(); else saveTimer=setTimeout(push, 600); }
+    if(draftRef){ clearTimeout(saveTimer); var push=function(){ draftRef.set(clone(draft)).then(function(){window.MumutoriActivity?.record({screen:'운영홈',action:'레터 초안 저장'});}).catch(function(e){ console.warn(e); }); }; if(now) push(); else saveTimer=setTimeout(push, 600); }
   }
   function refreshPreview(force){
     if(!$('#pvFrame')) return;

@@ -7,6 +7,8 @@ import { chooseCategory } from './fin-picker.js';
 import { AI_LABEL, VAT_LABEL } from './fin-classify.js';
 
 const F = () => window.FinCore;
+const activity=action=>window.MumutoriActivity?.record({screen:'장부',action});
+async function humanWrite(store,method,...args){const result=await store[method](...args);activity(({setCategory:'분류 변경',requestAi:'분류 요청',undoAi:'분류 되돌리기',addRule:'규칙 저장',patch:'상태 변경'})[method]||'기록 저장');return result;}
 export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 export const won = n => (Number(n) || 0).toLocaleString('ko-KR');
 const PREF = 'mumutori-fin-quick-pref';   // 이 브라우저에는 마지막 수단 · 최근 거래처 5곳만 기억(금액은 저장하지 않음)
@@ -84,8 +86,8 @@ export function mountEntryForm(root, ctx) {
       }));
       saving = true; $('.f-save').disabled = true; $('.f-save').textContent = '저장 중…';
       const photo = $('.f-photo').files?.[0];
-      if (photo) { entry.receiptId = entry.id; await ctx.store().saveReceipt(entry.id, await shrinkPhoto(photo)); }
-      await ctx.store().add(entry);   // 저장 → 다시 읽어 같은지 확인한 뒤에 '저장했어요'
+      if (photo) { entry.receiptId = entry.id; await ctx.store().saveReceipt(entry.id, await shrinkPhoto(photo)); activity('파일 첨부'); }
+      await ctx.store().add(entry); activity('기록 저장');   // 저장 → 다시 읽어 같은지 확인한 뒤에 '저장했어요'
       pref.method = method; if (vendor) pref.vendors = [vendor, ...(pref.vendors || []).filter(v => v !== vendor)].slice(0, 5); savePref();
       root.reset(); $('.f-vat').checked = true; $('.f-date').value = F_.kstDate(); category = ''; draw();
       msg.textContent = `저장했어요 · ${entry.category || '분류 필요'} ${won(entry.amount)}원`; msg.className = 'q-msg f-msg ok';
@@ -246,34 +248,34 @@ export function bindListActions(root, { store, book, onError, onRedraw, onMore }
       if (t.dataset.pick) {
         const e=book().entries[t.dataset.pick];
         chooseCategory({categories:e.kind==='in'?F().IN_CATEGORIES:F().OUT_CATEGORIES,value:e.category,vendor:e.vendor,onSelect:async(c,always)=>{
-          await store().setCategory(e.id,c);
-          if(always&&e.vendor) await store().addRule({match:e.vendor,category:c});
+          await humanWrite(store(),'setCategory',e.id,c);
+          if(always&&e.vendor) await humanWrite(store(),'addRule',{match:e.vendor,category:c});
         }}); return;
       }
       if (t.dataset.aiSave) {
         const id=t.dataset.aiSave, editor=t.closest('.q-ai-editor'), note=editor.querySelector('[data-ai-note]').value;
         t.disabled=true;
-        try{await store().requestAi(id,note); aiDrafts.delete(id); onRedraw?.();}
+        try{await humanWrite(store(),'requestAi',id,note); aiDrafts.delete(id); onRedraw?.();}
         finally{t.disabled=false;}
         return;
       }
-      if (t.dataset.aiUndo) { t.disabled=true;try{await store().undoAi(t.dataset.aiUndo);}finally{t.disabled=false;}return; }
+      if (t.dataset.aiUndo) { t.disabled=true;try{await humanWrite(store(),'undoAi',t.dataset.aiUndo);}finally{t.disabled=false;}return; }
       if (t.dataset.more) { onMore?.(); return; }   // 장부 '더 보기'
       if (t.dataset.togglevoid) { showVoid = !showVoid; onRedraw?.(); return; }
-      if (t.dataset.checkdone) { await store().patch(t.dataset.checkdone, { check: null }); return; }   // '확인할 것' 지우기(null = 그 칸 지움)
+      if (t.dataset.checkdone) { await humanWrite(store(),'patch',t.dataset.checkdone, { check: null }); return; }   // '확인할 것' 지우기(null = 그 칸 지움)
       if (t.dataset.fixmethod) {   // 수단 정하기 — 증빙이 '없음'이면 그 수단의 기본 증빙으로(카드 → 카드)
         const e = book().entries[t.dataset.fixmethod];
-        await store().patch(e.id, { method: t.dataset.method, evidence: e.evidence && e.evidence !== '없음' ? e.evidence : F().defaultEvidence(t.dataset.method) });
+        await humanWrite(store(),'patch',e.id, { method: t.dataset.method, evidence: e.evidence && e.evidence !== '없음' ? e.evidence : F().defaultEvidence(t.dataset.method) });
         return;
       }
       if (t.dataset.fix) {
         const e = book().entries[t.dataset.fix];
         // '앞으로 항상' 체크는 저장 전에 읽는다(저장하면 목록이 다시 그려져 체크가 사라짐)
         const always = root.querySelector(`[data-rule="${CSS.escape(e.id)}"]`)?.checked;
-        await store().setCategory(e.id, t.dataset.fixcat);
-        if (always && e.vendor) await store().addRule({ match: e.vendor, category: t.dataset.fixcat });
+        await humanWrite(store(),'setCategory',e.id, t.dataset.fixcat);
+        if (always && e.vendor) await humanWrite(store(),'addRule',{ match: e.vendor, category: t.dataset.fixcat });
       } else if (t.dataset.void) {
-        if (confirm('이 줄을 취소할까요? (지우지 않고 \'취소됨\'으로 남겨요)')) await store().patch(t.dataset.void, { status: 'void' });
+        if (confirm('이 줄을 취소할까요? (지우지 않고 \'취소됨\'으로 남겨요)')) await humanWrite(store(),'patch',t.dataset.void, { status: 'void' });
       }
     } catch (err) { onError?.(err.message); }
   });
