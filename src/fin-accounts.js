@@ -1,6 +1,6 @@
 // 재무 '계좌별'(bank.html) — 같은 공용 장부(hub/financeV1)에서 계좌마다 들어온 · 나간 · 이동 · 잔액과 파일 잔액 대조, '사장님 돈' 표(총괄 #15 · #17).
 // 읽기만 한다(입력은 재무 '장부 · 요약'의 수기 입력). ERP가 화면을 자주 다시 그리므로 자리(#fin-accounts-panel)가 새로 생길 때마다 다시 붙인다.
-import { onAuth, signIn } from './fbauth.js';
+import { onAuth, signIn } from './fbauth.js?v=access20261028';
 import { openFinStore } from './fin-hub.js?v=classify-undo-20261027';
 import { accountsView } from './fin-form.js';
 

@@ -1,7 +1,7 @@
 // 재무 공용 장부 저장 — Firebase hub/financeV1 (사장님 구글 로그인 전용 칸, 보안 규칙은 hub 규칙을 그대로 물려받음).
 // SDK 없이 REST + ID 토큰(fbauth.dbUrl). 쓰기는 '한 줄' 단위(PUT entries/<id>) — 칸 전체를 덮어쓰지 않는다.
 // 시험: window.__MMT_TEST_FIN__ = {entries:{}, sales:{}, meta:{}} 가 있으면 네트워크 없이 메모리에서만 읽고 쓴다.
-import { dbUrl } from './fbauth.js';
+import { dbUrl } from './fbauth.js?v=access20261028';
 import { requestAi, manualCategory, undoAi } from './fin-classify.js?v=undo-20261027';
 
 export const ROOT = 'hub/financeV1';
@@ -34,7 +34,7 @@ export function openFinStore({ root = ROOT, onChange, onStatus } = {}) {
   async function reqAbs(method, fullPath, body) {
     const url = await dbUrl(fullPath);
     const r = await fetch(url, { method, cache: 'no-store', headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
-    if (r.status === 401 || r.status === 403) { status('denied'); throw Error('공용 장부를 열 권한이 없습니다. 사장님 구글 계정으로 로그인해 주세요.'); }
+    if (r.status === 401 || r.status === 403) { status('denied'); throw Error('공용 장부를 열 권한이 없습니다. 공동 운영 Google 계정으로 로그인해 주세요.'); }
     if (!r.ok) throw Error('공용 장부 ' + (method === 'GET' ? '읽기' : '저장') + ' 실패 (' + r.status + ')');
     return r.status === 204 ? null : r.json();
   }

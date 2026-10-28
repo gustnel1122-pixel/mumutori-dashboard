@@ -527,12 +527,13 @@ td.n{font-family:var(--type);color:var(--brand);width:40px}
   </div>
 </div>
 
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-auth-compat.js"></script>
 <script src="https://letter.mumutori.com/firebase-config.js"></script>
 <script src="https://letter.mumutori.com/fb.js"></script>
 <script src="https://letter.mumutori.com/spec.js"></script>
+<script src="src/google-login.js?v=access20261028"></script>
 <script src="src/activity-client.js?v=activity20261028"></script>
 <script>
 (function(){
@@ -973,14 +974,14 @@ function boot(){
       return;
     }
     box.innerHTML='<span class="who" title="'+esc(user.email)+'">'+esc(user.email)+'</span>'+(admin?'':'<span class="pill warn">관리자 아님</span>')+'<button class="ib" data-logout>로그아웃</button>';
-    lb.innerHTML='<span class="mode live">'+esc(user.email)+'</span><span class="small faint mono">UID '+user.uid+'</span>'+(admin?'':'<span class="small muted">이 계정은 아직 관리자가 아니에요. UID를 현수에게 알려주세요.</span>');
+    lb.innerHTML='<span class="mode live">'+esc(user.email)+'</span><span class="small faint mono">UID '+user.uid+'</span>'+(admin?'':'<span class="small muted">이 계정은 아직 관리자가 아니에요. 운영 담당에게 접근 권한 확인을 요청해 주세요.</span>');
   }
   document.addEventListener('click', function(e){
     if(e.target.closest('[data-login]')){
       if(!authAvailable) return;
       authMessage = 'Google 로그인을 진행하고 있어요.'; renderGate();
-      M.fb.auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(function(){
-        if(!admin){ authMessage = '로그인을 완료하지 못했어요. 다시 시도해 주세요.'; renderGate(); }
+      window.MumutoriLogin.signIn(M.fb.auth,firebase).catch(function(error){
+        if(!admin){ authMessage = error.message || '로그인을 완료하지 못했어요. 다시 시도해 주세요.'; renderGate(); }
       });
     }
     if(e.target.closest('[data-logout]')){
@@ -995,6 +996,8 @@ function boot(){
   });
   var inboxRef=null;
   function startLive(){
+    M.fb.auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function(){});
+    M.fb.auth.getRedirectResult().catch(function(){});
     db.ref('config/spec').on('value', function(snap){ applied=snap.val(); S=appliedSpec(); if(!draftRef && !store.get('mmt-spec-draft',null)) draft=norm(appliedSpec()); renderApplyBar(); refreshChips(); showCp(cpCur); });
     M.fb.auth.onAuthStateChanged(function(u){
       var epoch = ++authEpoch;

@@ -1,6 +1,6 @@
 // PC 재무 화면(finance.html) 맨 위 '수기 입력 · 확인 필요' 패널 — 휴대폰 화면(quick.html)과 같은 부품(fin-form) · 같은 공용 장부(hub/financeV1).
 // ERP 화면은 이 PC 저장(localStorage)으로 그려지고 자주 다시 그려지므로, 패널 자리(#fin-hub-panel)가 새로 생길 때마다 다시 붙인다(장부 연결은 하나로 유지).
-import { onAuth, signIn } from './fbauth.js';
+import { onAuth, signIn } from './fbauth.js?v=access20261028';
 import { openFinStore } from './fin-hub.js?v=classify-undo-20261027';
 import { mountEntryForm, renderLists, bindListActions, rememberNeeds, coupangCalendar, ledgerFilter, esc, won } from './fin-form.js';
 
@@ -13,7 +13,7 @@ const SHELL = `<div class="panelhead"><h2>이번 달 장부 · 수기 입력</h2
 <div class="panelbody">
   <div class="metrics fin-sum" hidden></div>
   <div class="fin-settle" hidden></div>
-  <div class="fin-login" hidden><p>공용 장부는 사장님 구글 계정으로만 열려요. 휴대폰 입력 · 결제 알림이 같은 장부에 쌓입니다.</p><button type="button" class="q-btn q-primary fin-signin">구글로 로그인</button><p class="q-msg fin-login-msg" role="alert"></p></div>
+  <div class="fin-login" hidden><p>공용 장부는 공동 운영 Google 계정으로만 열려요. 휴대폰 입력 · 결제 알림이 같은 장부에 쌓입니다.</p><button type="button" class="q-btn q-primary fin-signin">구글로 로그인</button><p class="q-msg fin-login-msg" role="alert"></p></div>
   <div class="fin-cols" hidden>
     <div><form class="fin-form" autocomplete="off"></form></div>
     <div>

@@ -3,7 +3,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const url=s=>'data:text/javascript;base64,'+Buffer.from(s).toString('base64');
 const source=fs.readFileSync(require.resolve('../src/fin-hub.js'),'utf8')
- .replace("import { dbUrl } from './fbauth.js';","const dbUrl=async p=>'https://isolated.test/'+p;")
+ .replace("import { dbUrl } from './fbauth.js?v=access20261028';","const dbUrl=async p=>'https://isolated.test/'+p;")
  .replace("'./fin-classify.js?v=undo-20261027'",JSON.stringify(url(fs.readFileSync(require.resolve('../src/fin-classify.js'),'utf8'))));
 const mod=import(url(source));
 test('분류 저장은 최신 거래/ETag 사용 · 충돌/누락 ETag에는 쓰지 않음',async()=>{

@@ -2,7 +2,7 @@
 // 로그인돼 있으면 재무 화면과 같은 공용 장부(hub/financeV1)를 읽기만 해서 이번 달 매출 · 지출 · 돈 흐름(매출 연결 뒤엔 남는 돈)과
 // 확인 필요 건수를 #home-need-line · #home-month-body에 넣는다. 로그인 전이면 overview.js의 기본 글 아래에 '구글로 로그인' 버튼.
 // ERP가 홈을 자주 다시 그리므로, 계산한 글을 기억했다가 자리가 새로 생길 때마다 다시 넣는다(fin-panel.js와 같은 방식).
-import { onAuth, signIn } from './fbauth.js';
+import { onAuth, signIn } from './fbauth.js?v=access20261028';
 import { openFinStore } from './fin-hub.js?v=classify-undo-20261027';
 import { rememberNeeds, esc, won } from './fin-form.js';
 

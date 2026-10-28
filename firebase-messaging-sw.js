@@ -32,7 +32,7 @@ self.addEventListener('notificationclick', event => {
     return self.clients.openWindow(target);
   })());
 });
-importScripts('assets/vendor/firebase/firebase-app-compat.js','assets/vendor/firebase/firebase-messaging-compat.js');
+importScripts('assets/vendor/firebase/firebase-app-compat.js?sdk=12.19.0','assets/vendor/firebase/firebase-messaging-compat.js?sdk=12.19.0');
 firebase.initializeApp({
   apiKey:'AIzaSyABZ7o6hfb8K9IJu7df32cAFhEyCA2QyoI',
   authDomain:'mumutori-letter.firebaseapp.com', projectId:'mumutori-letter',

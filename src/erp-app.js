@@ -1,4 +1,4 @@
-import { onAuth as onActivityAuth } from './fbauth.js';
+import { onAuth as onActivityAuth } from './fbauth.js?v=access20261028';
 onActivityAuth(()=>{});
 const { DEPARTMENTS, icon, departmentCards, workflowStrip, menuGroups } = await import(`./departments.js?v=${document.body.dataset.build}`);
 const { createStore } = await import(`./store.js?v=${document.body.dataset.build}`);

@@ -11,9 +11,10 @@ mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod)
 evidence=ROOT.parent/'push-settings-evidence';evidence.mkdir(exist_ok=True)
 with sync_playwright() as pw, mod.Server(ROOT) as server:
     browser=pw.chromium.launch(headless=True,executable_path=__import__('os').environ.get('ERP_CHROME'))
-    for width in [390,1280]:
+    for width,member in [(390,False),(1280,False),(390,True),(1280,True)]:
         context=browser.new_context(viewport={'width':width,'height':844},permissions=['notifications'])
-        context.add_init_script("window.__MMT_TEST_AUTH__={email:'owner@example.invalid',uid:'owner1',token:'synthetic-id-token'};window.permissionAsks=0;Object.defineProperty(Notification,'permission',{get:()=>localStorage.getItem('synthetic-permission')||'default'});Notification.requestPermission=async()=>{window.permissionAsks++;localStorage.setItem('synthetic-permission','granted');return 'granted';};")
+        context.add_init_script("window.__MMT_TEST_AUTH__={email:'owner@example.invalid',uid:'owner1',token:'synthetic-id-token'};window.permissionAsks=0;Object.defineProperty(Notification,'permission',{get:()=>localStorage.getItem('synthetic-permission')||'default'});Notification.requestPermission=async()=>{window.permissionAsks++;window.permissionGesture=navigator.userActivation.isActive;localStorage.setItem('synthetic-permission','granted');return 'granted';};")
+        if member: context.add_init_script("window.__MMT_TEST_AUTH__={email:'member@example.invalid',uid:'member2',token:'synthetic-member-token'};Object.defineProperty(navigator,'standalone',{get:()=>true});Object.defineProperty(navigator,'userAgent',{get:()=> 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Version/18.0 Mobile Safari/604.1'});")
         page=context.new_page();errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
         records={};writes=[]
         def network(route):
@@ -28,7 +29,7 @@ with sync_playwright() as pw, mod.Server(ROOT) as server:
             else:raise AssertionError('unexpected method')
             route.fulfill(status=200,content_type='application/json',body=json.dumps(value),headers={'Access-Control-Allow-Origin':'*'})
         context.route('**/*',network)
-        page.route('**/assets/vendor/firebase/firebase-messaging-compat.js',lambda r:r.fulfill(content_type='application/javascript',body="firebase.messaging=Object.assign(()=>({getToken:async o=>{if(!o.serviceWorkerRegistration||!o.vapidKey)throw Error('options missing');return 'synthetic-fcm-token-for-ui-test';},onMessage:fn=>()=>{},deleteToken:async()=>true}),{isSupported:async()=>true});"))
+        page.route('**/assets/vendor/firebase/firebase-messaging-compat.js*',lambda r:r.fulfill(content_type='application/javascript',body="firebase.messaging=Object.assign(()=>({getToken:async o=>{if(!o.serviceWorkerRegistration||!o.vapidKey)throw Error('options missing');return 'synthetic-fcm-token-for-ui-test';},onMessage:fn=>()=>{},deleteToken:async()=>true}),{isSupported:async()=>true});"))
         page.goto(server.base+'settings.html')
         page.wait_for_function("() => navigator.serviceWorker.controller !== null")
         page.get_by_role('button',name='알림 받기',exact=True).wait_for()
@@ -37,13 +38,15 @@ with sync_playwright() as pw, mod.Server(ROOT) as server:
         page.get_by_role('button',name='알림 받기',exact=True).click()
         page.get_by_text('이 기기로 알림을 받아요.',exact=False).wait_for()
         assert len([p for p in writes if p.startswith('devices/')])==1
+        assert all(p.startswith('devices/'+('member2' if member else 'owner1')+'/') for p in writes)
+        assert page.evaluate('window.permissionGesture') is True
         page.get_by_role('button',name='시험 알림 보내기',exact=True).click()
         page.get_by_text('시험 알림을 요청했어요.',exact=False).wait_for()
         assert len([p for p in writes if p.startswith('requests/')])==1
         assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
         assert not page.evaluate("[...document.querySelectorAll('[data-push-action]')].some(e=>e.getBoundingClientRect().height<43.5)")
         page.locator('body').click(position={'x':2,'y':2})
-        page.screenshot(path=str(evidence/f'settings-{width}.png'),full_page=True)
+        page.screenshot(path=str(evidence/f'settings-{width}-{'member' if member else 'owner'}.png'),full_page=True)
         page.reload();page.get_by_text('이 기기로 알림을 받아요.',exact=False).wait_for()
         page.get_by_role('button',name='이 기기 알림 끄기',exact=True).click()
         page.get_by_text('이 기기의 알림을 껐어요.',exact=True).wait_for()
@@ -61,4 +64,4 @@ with sync_playwright() as pw, mod.Server(ROOT) as server:
         assert page.evaluate('window.permissionAsks')==0
         context.close()
     browser.close()
-print('PASS synthetic settings flow at 390/1280px, no prompt on load, persisted registration/test/disable, blocked backend, no live API access.')
+print('PASS synthetic owner/second-account Home Screen settings flow at 390/1280px, no prompt on load, persisted registration/test/disable, blocked backend, no live API access.')
