@@ -96,6 +96,36 @@ export function openFinStore({ root = ROOT, onChange, onStatus } = {}) {
       await req('PUT', `${PATHS.receipts}/${id}`, { data: dataUrl, at: new Date().toISOString() });
       return id;
     },
+    // Two rows must become one transfer atomically. ETag retries preserve every unrelated row.
+    async reconcileBankTransfers() {
+      const F = window.FinCore; if (!F.bankTransferPairs) return 0;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        let entries, tag, url;
+        if (test) entries = await req('GET', PATHS.entries) || {};
+        else {
+          url = await dbUrl(`${root}/${PATHS.entries}`);
+          const response = await fetch(url, {cache:'no-store',headers:{'X-Firebase-ETag':'true'}});
+          if (!response.ok) throw Error('이동 짝을 확인할 장부를 읽지 못했습니다.');
+          entries = await response.json() || {}; tag = response.headers.get('ETag');
+          if (!tag) throw Error('이동 짝의 동시 수정 확인이 필요합니다.');
+        }
+        const pairs = F.bankTransferPairs(entries); if (!pairs.length) return 0;
+        const next = clone(entries);
+        for (const pair of pairs) for (const row of pair.rows) { F.validateEntry(row); next[row.id] = row; }
+        if (test) await req('PUT', PATHS.entries, next);
+        else {
+          const response = await fetch(url, {method:'PUT',headers:{'Content-Type':'application/json','if-match':tag},body:JSON.stringify(next)});
+          if (response.status === 412) continue;
+          if (!response.ok) throw Error('내 계좌 이동 짝을 저장하지 못했습니다.');
+        }
+        const saved = await req('GET', PATHS.entries);
+        for (const pair of pairs) for (const row of pair.rows) {
+          if (saved?.[row.id]?.transferId !== pair.transferId || saved[row.id].kind !== 'move') throw Error('이동 짝 재조회가 달라 확인이 필요합니다.');
+        }
+        book.entries = saved; emit(); return pairs.length;
+      }
+      throw Error('다른 기기에서 장부를 수정 중입니다. 다음 수집 때 이동 짝을 다시 확인합니다.');
+    },
     // 알림 입구(hub/financeInbox/<키>/<id>)의 새 글 → 초안 줄(확인 필요, 규칙표에 있으면 바로 분류) → 처리 표시(inboxSeen).
     // 입구 규칙 · 휴대폰 설정 전에는 입구가 비어 있어 아무 일도 하지 않는다. PC AI도 같은 순서로 처리한다(fin_hub.py, 2단계).
     async processInbox() {
@@ -123,6 +153,7 @@ export function openFinStore({ root = ROOT, onChange, onStatus } = {}) {
           if (draft && !dup) { F.validateEntry(draft); await this.add(draft); made++; }
           await req('PUT', `${PATHS.inboxSeen}/${id}`, { entryId: dup ? dup.id : (draft?.id || ''), skipped: !draft || !!dup, dup: !!dup, at: new Date().toISOString() });
         }
+        await this.reconcileBankTransfers();
         book.inboxTestCount = tests; emit();
         return made;
       })();

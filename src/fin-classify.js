@@ -9,11 +9,11 @@ export const CATEGORY_HELP = {
   '식비(본인)':'사장님 본인의 식사 · 부가세 불공제', '접대(업무추진비)':'거래처 식사·선물 · 부가세 불공제',
   '차량(주유·주차)':'차량 이용 비용 · 차종과 용도 확인 필요', '세금·공과':'세금이나 공공요금 · 종류 확인 필요',
   '임차료':'가게·사무실을 빌린 돈', '기타':'어느 항목인지 아직 설명이 필요한 돈',
-  '사장님 인출':'개인적으로 쓴 돈 · 사업 비용에서 제외', '매출':'상품·서비스를 팔아 받은 돈',
+  '사장님 인출':'개인적으로 쓴 돈 · 사업 비용에서 제외', '통신비':'업무용 전화·인터넷·통신 요금', '매출':'상품·서비스를 팔아 받은 돈',
   '자금 충전':'사장님이 사업에 넣은 돈 · 매출 아님', '환불 받음':'취소한 결제의 돈을 돌려받음',
   '기타 수입':'매출·충전·환불 외에 들어온 돈'
 };
-export const OUT = Object.keys(CATEGORY_HELP).slice(0,15);
+export const OUT = Object.keys(CATEGORY_HELP).slice(0,16);
 export const IN = ['매출','자금 충전','환불 받음','기타 수입'];
 export const VAT_LABEL = { deductible:'공제', nondeductible:'불공제', review:'확인 필요' };
 export const AI_LABEL = { pending:'AI 분류 대기', applied:'AI 분류', review:'사장님 확인', undone:'AI 분류 되돌림', manual:'직접 분류' };

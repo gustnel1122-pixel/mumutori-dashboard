@@ -13,7 +13,7 @@
   const OWNER_MEAL = '식비(본인)';
   // '사장님 인출'은 비용이 아니다(사장님 개인 통장으로 간 돈) — 돈 흐름의 나간 돈에는 넣고 지출 · 손익에서는 뺀다. '사장님 돈' 표에 따로.
   const OWNER_OUT = '사장님 인출', OWNER_IN = '자금 충전';
-  const OUT_CATEGORIES = ['매입', '매입 부대비', '배송비', '광고비', '수수료', '구독료', '소모품', '식비', OWNER_MEAL, '접대(업무추진비)', '차량(주유·주차)', '세금·공과', '임차료', '기타', OWNER_OUT];
+  const OUT_CATEGORIES = ['매입', '매입 부대비', '배송비', '광고비', '수수료', '구독료', '소모품', '식비', OWNER_MEAL, '접대(업무추진비)', '차량(주유·주차)', '세금·공과', '임차료', '기타', OWNER_OUT, '통신비'];
   const IN_CATEGORIES = ['매출', OWNER_IN, '환불 받음', '기타 수입'];
   const MOVE_CATEGORY = '내 계좌 이동';   // kind 'move': 내 계좌 사이 이동 — 손익 · 돈 흐름 · 확인 필요에서 빼고 계좌별 잔액에만
   const NOT_EXPENSE = new Set([OWNER_OUT]);
@@ -272,7 +272,60 @@
     // 현대카드(10/20 견본 모양, 값은 가짜): '○○○ 님, 현대 MY BUSINESS 승인 / 12,300원 일시불, MM/DD HH:MM / 가맹점 / 누적…원' — 가맹점은 펼친 글 3번째 줄
     { name: '현대카드', when: /현대/, vendor: /원\s*(?:일시불|할부\s*\d*\s*개?월?|\d+개월)\s*,\s*\d{1,2}[\/.]\d{1,2}\s+\d{1,2}:\d{2}\s+(.+?)\s*(?:누적|잔액|$)/ }
   ];
+  function receivedParts(item, now) {
+    const ts = Number(item?.ts) || now.getTime(), d = new Date(ts), k = new Date(ts + 9 * 3600e3);
+    return { ts, date: kstDate(d), time: `${pad(k.getUTCHours())}:${pad(k.getUTCMinutes())}` };
+  }
+  function bankDraft(item, now) {
+    const src = String(item?.src || '').toLowerCase();
+    if (!['kakaobank', 'tossbank'].includes(src)) return null;
+    const raw = String(item?.big || item?.text || '');
+    if (!raw.includes('개인사업자')) return null;
+    const m = raw.split(/잔액|누적/)[0].match(/(입금|출금)\s*([\d,]+)\s*원|([\d,]+)\s*원\s*(입금|출금)/);
+    if (!m) return null;
+    const direction = m[1] || m[4], amount = m[2] || m[3], got = receivedParts(item, now);
+    return normEntry({id: 'al_' + String(item.id || (src + '_' + got.ts)).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 60),
+      kind: direction === '입금' ? 'in' : 'out', amount, date: got.date, time: got.time,
+      method: src === 'kakaobank' ? '카뱅이체' : '토스이체', bankSource: src, bankDirection: direction,
+      alertAt: got.ts, source: 'alert', inboxId: item.id || '', vendor: '', memo: '개인사업자 통장 알림', evidence: '없음'}, now);
+  }
+  function autopayDraft(item, rules, now) {
+    const raw = String(item?.big || item?.text || '').split(/잔액|누적/)[0];
+    if (!/자동납부\s*(?:승인|취소)/.test(raw)) return null;
+    const am = raw.match(/([\d,]+)\s*원/); if (!am) return null;
+    const got = receivedParts(item, now), cancel = /취소/.test(raw);
+    // Known merchant labels only: never persist the cardholder or masked account fragment.
+    const vendor = /LG\s*유플러스|LG\s*U\s*\+/i.test(raw) ? 'LG유플러스 통신요금' : '';
+    let category = cancel ? '' : classify(vendor, rules);
+    if (category === OWNER_OUT) category = '';
+    return normEntry({id: 'al_' + String(item.id || got.ts).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 60),
+      kind: cancel ? 'in' : 'out', amount: am[1], date: got.date, time: got.time, method: '현대카드',
+      source: 'alert', inboxId: item.id || '', vendor, category,
+      memo: vendor ? '자동납부 알림' : '자동납부 알림 · 가맹점 확인 필요',
+      ...(!cancel && vendor && !category ? {suggestedCategory: '통신비', check: '통신비 분류 후보 · 확인 후 적용'} : {})}, now);
+  }
+  function bankTransferPairs(entries, now = new Date()) {
+    const rows = Object.values(entries || {}).filter(e => e && e.status !== 'void' && !e.category && !e.transferId && !e.updatedAt &&
+      ['kakaobank', 'tossbank'].includes(e.bankSource) && ['in', 'out'].includes(e.kind) && Number.isFinite(e.alertAt) &&
+      accountOf(e) === METHOD_ACCOUNT[e.bankSource === 'kakaobank' ? '카뱅이체' : '토스이체']);
+    const partners = new Map(rows.map(a => [a.id, rows.filter(b => a.id !== b.id && a.bankSource !== b.bankSource &&
+      a.kind !== b.kind && a.amount === b.amount && Math.abs(a.alertAt - b.alertAt) <= 120000)]));
+    const used = new Set(), pairs = [];
+    for (const a of rows) {
+      const matches = partners.get(a.id); if (used.has(a.id) || matches.length !== 1) continue;
+      const b = matches[0]; if (used.has(b.id) || partners.get(b.id).length !== 1) continue;
+      const out = a.kind === 'out' ? a : b, incoming = a.kind === 'in' ? a : b;
+      const transferId = 'bt_' + [out.id, incoming.id].sort().join('_');
+      pairs.push({transferId, rows: [out, incoming].map(e => normEntry({...e, kind: 'move', from: accountOf(out),
+        to: accountOf(incoming), transferId, memo: '은행 알림 자동 짝맞춤 · 동일 금액·2분 이내 유일한 짝',
+        updatedAt: now.toISOString()}, now))});
+      used.add(a.id); used.add(b.id);
+    }
+    return pairs;
+  }
   function draftFromAlert(item, rules, now = new Date()) {
+    if (['kakaobank', 'tossbank'].includes(String(item?.src || '').toLowerCase())) return bankDraft(item, now);
+    const auto = autopayDraft(item, rules, now); if (auto) return auto;
     // 펼친 글(big)에 금액이 있으면 그걸 읽는다(접힌 글엔 가맹점이 없을 수 있음). 이름('홍길동 님,' · '김*수님')은 지운다.
     const body = /원/.test(String(item?.big || '')) ? item.big : item?.text;
     const cleaned = String(body || '').includes('현대')
@@ -316,6 +369,8 @@
   // 금액/분만으로 다른 가맹점이나 카드의 거래를 버리지 않는다. 가맹점이 없으면 자동 병합하지 않는다.
   function sameMoment(a, b) {
     if (!a || !b || a.status === 'void' || b.status === 'void') return false;
+    if (a.bankSource || b.bankSource) return !!a.bankSource && a.bankSource === b.bankSource &&
+      a.kind === b.kind && a.amount === b.amount && Number.isFinite(a.alertAt) && a.alertAt === b.alertAt;
     if (a.kind !== b.kind || a.amount !== b.amount || a.date !== b.date) return false;
     if (!a.method || a.method !== b.method || (a.card || '') !== (b.card || '')) return false;
     if (!a.vendor || !b.vendor || a.vendor.trim() !== b.vendor.trim()) return false;
@@ -323,6 +378,6 @@
   }
 
   const api = { VERSION, METHODS, OFFSET_METHOD, COUPANG_METHOD, ALL_METHODS, OUT_CATEGORIES, IN_CATEGORIES, MOVE_CATEGORY, OWNER_MEAL, OWNER_OUT, OWNER_IN, EVIDENCE, NEEDS,
-    ACCOUNTS, METHOD_ACCOUNT, accountOf, accountType, accountTotals, accountCheck, ownerMoney, kstDate, uid, toWon, maskCard, validDate, normEntry, validateEntry, summarize, flowNote, checkReasons, defaultEvidence, classify, parseCSV, fromLedgerCSV, inPeriod, draftFromAlert, sameMoment, PATTERNS };
+    ACCOUNTS, METHOD_ACCOUNT, accountOf, accountType, accountTotals, accountCheck, ownerMoney, kstDate, uid, toWon, maskCard, validDate, normEntry, validateEntry, summarize, flowNote, checkReasons, defaultEvidence, classify, parseCSV, fromLedgerCSV, inPeriod, draftFromAlert, sameMoment, bankTransferPairs, PATTERNS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.FinCore = api;
 })(typeof window !== 'undefined' ? window : globalThis);
