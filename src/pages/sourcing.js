@@ -5,6 +5,7 @@ import {identity,originalUrl,exclusion,reviewProblems,recommendable,POLICY_VERSI
 import {touchedPaths,remember,revertTouched} from '../sourcing-sync.js';
 import {sourcingUrl,sourcingLinks,sourcingText} from '../sourcing-links.js';
 import {sourcingBadges} from '../sourcing-badges.js';
+import {validQuoteSettings,quoteComparisons} from '../sourcing-quote-private.js';
 const DB='https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.app/sourcing';
 // 구글 로그인(2026-10-10 사장님 승인): 보드 읽기·다른 쓰기는 지금처럼 그대로, '선택 옵션 검수 요청'만 운영 계정(구글 로그인) 토큰으로 저장한다.
 // 실제 제한은 Firebase 규칙(reviewRequests: 운영 계정만 새로 만들기, 익명·삭제·결과 변경 금지)이 맡는다. 로그인 도구는 src/fbauth.js.
@@ -15,7 +16,7 @@ const {reorderTab,reorderCount}=await import(`../reorder-view.js?v=${document.bo
 const {tierPlan,tierLabel,promoOf,unitAt}=await import(`../sourcing-tiers.js?v=${document.body.dataset.build}`);
 // 장바구니의 발주 단계 표시(대시보드 담당 2026-10-12): 읽기는 src/sourcing-orders.js, 자료는 장부 orders/<발주일>·cart/<줄>/orderStage(소싱 담당이 적음).
 const {lineStage,orderSummaries,orderLines}=await import(`../sourcing-orders.js?v=${document.body.dataset.build}`);
-const S={tree:null,user:null,status:'connecting',tab:'items',round:'',filter:'전체',cat:'',q:'',draft:{},err:'',quoteOpen:false,showHidden:false,orderOpen:{},cartRisk:'all'};
+const S={tree:null,user:null,status:'connecting',tab:'items',round:'',filter:'전체',cat:'',q:'',draft:{},err:'',quoteOpen:false,showHidden:false,orderOpen:{},cartRisk:'all',quoteSettings:null,quoteSettingsStatus:'signedout'};
 // 숨긴 상품 보기(2026-10-12 사장님: "부정적인 체크를 하면 추천에서 사라졌으면"): 👎·💸 표시한 상품은 후보 목록에서 가린다. 지우는 것이 아니라 화면에서만 가리고,
 // 표시를 풀면 다시 나온다. 장바구니에 담긴 상품은 가리지 않고 경고만 한다. '보기' 상태는 이 브라우저 탭에서만 기억한다(장부에 쓰지 않음).
 const HIDDEN_KEY='mmt-sx-show-hidden';
@@ -31,6 +32,19 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const num=v=>Number(v)||0;
 const yuan=v=>v==null||v===''?'—':'¥'+(Math.round(num(v)*100)/100).toLocaleString('ko-KR');
 const krw=v=>Math.round(v).toLocaleString('ko-KR')+'원';
+let quoteSettingsEpoch=0;
+async function loadQuoteSettings(user){
+ const epoch=++quoteSettingsEpoch;S.quoteSettings=null;S.quoteSettingsStatus=user?'loading':'signedout';refresh();
+ if(!user)return;
+ try{
+  const url=await fbauth.dbUrl('hub/financeV1/meta/sourcingQuote');
+  if(epoch!==quoteSettingsEpoch||S.user?.uid!==user.uid)return;
+  const response=await fetch(url,{cache:'no-store'});if(!response.ok)throw Error('SETTINGS');
+  const settings=await response.json();if(epoch!==quoteSettingsEpoch||S.user?.uid!==user.uid)return;
+  if(!validQuoteSettings(settings))throw Error('SETTINGS');S.quoteSettings=settings;S.quoteSettingsStatus='ready';
+ }catch(_){if(epoch!==quoteSettingsEpoch)return;S.quoteSettings=null;S.quoteSettingsStatus='unavailable';}
+ refresh();
+}
 const list=o=>o&&typeof o==='object'?Object.values(o):[];
 const linksOf=(l,it={})=>sourcingLinks(l.koBase,l.ko,l.spec,l.desc,it.desc);
 const linkButtons=(l,it={})=>{const a=linksOf(l,it);return `<span class="sx-source-links">${[['lowest','최저가 열기'],['original','원래 링크 열기']].filter(([k])=>a[k]).map(([k,label])=>`<a href="${esc(a[k])}" target="_blank" rel="noopener noreferrer">${label} ↗</a>`).join('')}</span>`;};
@@ -336,12 +350,13 @@ function quote(){
   const estKg=weightG/1000*(1+c.packRate)+c.boxKg,billKg=Math.max(0.5,Math.ceil(estKg/0.5-1e-9)*0.5),boxes=Math.max(1,Math.ceil(billKg/c.boxMaxKg));
   const base=c.base05+c.per05*(billKg/0.5-1),boxCost=boxes*(c.boxPack+(billKg<=c.midMaxKg?c.cjMid:c.cjLarge)),multi=(boxes-1)*c.multiBox,origin=Math.min(c.originPer*qty,c.originCap);
   const ship=base+c.fixed+boxCost+multi+origin;
-  return {n:lines.length,qty,goods,freight,fee,purchaseCny,purchaseKrw,weightG,unknownW,estKg,billKg,boxes,base,boxCost,multi,origin,ship,total:purchaseKrw+ship,moq,sellers:Object.values(sellers),r,c};
+  return {n:lines.length,qty,goods,freight,fee,purchaseCny,purchaseKrw,weightG,unknownW,estKg,billKg,boxes,base,boxCost,multi,origin,ship,comparison:quoteComparisons(purchaseKrw,ship,qty,S.quoteSettings),moq,sellers:Object.values(sellers),r,c};
 }
 function quoteBar(){
   const q=quote();if(!q)return '';
   const warns=[q.moq.length?`<span class="sx-q-warn bad">⚠ 최소 주문 미달 — ${esc(q.moq[0].name)} ${q.moq[0].q}/${q.moq[0].m}개${q.moq.length>1?` 외 ${q.moq.length-1}곳`:''}</span>`:'',q.unknownW?`<span class="sx-q-warn">무게 모름 ${q.unknownW}개 — 배송비 더 나올 수 있음</span>`:''].filter(Boolean).join('');
-  const head=`<button type="button" class="sx-q-head" data-sx="quote" aria-expanded="${!!S.quoteOpen}" aria-controls="sx-q-detail"><span class="sx-q-title">🧾 예상 견적</span><span>${q.n}줄 ${q.qty.toLocaleString('ko-KR')}개</span><span>구매 ${yuan(q.purchaseCny)} ≈ ${krw(q.purchaseKrw)}</span><span>국제배송 ≈ ${krw(q.ship)} <small>(${q.billKg}kg)</small></span><b>합계 ≈ ${krw(q.total)}</b><em>${S.quoteOpen?'접기 ▴':'자세히 ▾'}</em></button>`;
+  const x=q.comparison,need=S.quoteSettingsStatus==='signedout'?'로그인하면 통관·합계를 확인할 수 있어요':S.quoteSettingsStatus==='loading'?'통관 설정 불러오는 중':'통관 설정 확인 필요';
+  const head=`<button type="button" class="sx-q-head" data-sx="quote" aria-expanded="${!!S.quoteOpen}" aria-controls="sx-q-detail"><span class="sx-q-title">🧾 예상 견적</span><span>${q.n}줄 ${q.qty.toLocaleString('ko-KR')}개</span><span>구매 ≈ ${krw(q.purchaseKrw)}</span><span>국제배송(무게) ≈ ${krw(q.ship)}</span>${x?`<span>국제배송(실적) ≈ ${krw(x.actualShipping)}</span><span>통관(예상) ≈ ${krw(x.customs)}</span><span class="sx-q-comparisons"><b>무게 배송 합계 ≈ ${krw(x.weightTotal)} <small>· 개당 ${krw(x.weightPer)}</small></b><b>실적 배송 합계 ≈ ${krw(x.actualTotal)} <small>· 개당 ${krw(x.actualPer)}</small></b></span>`:`<span class="sx-q-private-note">${need}</span>`}<em>${S.quoteOpen?'접기 ▴':'자세히 ▾'}</em></button>`;
   const row=(th,td,cls='')=>`<tr class="${cls}"><th>${th}</th><td>${td}</td></tr>`;
   const detail=S.quoteOpen?`<div class="sx-q-detail" id="sx-q-detail">
     <div class="sx-q-sellers">${q.sellers.map(s=>`<div class="sx-q-seller"><b>${esc(s.shop)}</b>${s.lines.map(l=>`<div class="sx-q-line sx-q-item">${chosenVisual(l,l.it,'sx-cart-img',false)}<div class="sx-q-item-body"><b>${esc(l.name)} · ${esc(l.koBase||l.ko||l.spec)}</b><small lang="zh">${esc(l.spec)}</small><span>${num(l.qty).toLocaleString('ko-KR')}개 × ${yuan(l.price)}</span><label>수량 <input class="sx-q-qty" type="number" min="1" step="1" id="sx-qq-${esc(l.id)}" data-sx-qty="${esc(l.id)}" aria-label="${esc(l.name+' '+(l.koBase||l.ko||l.spec)+' 견적 수량')}" value="${esc(l.qty)}"></label><button type="button" class="text danger" data-sx="remove" data-id="${esc(l.id)}">장바구니에서 빼기</button></div><b>${yuan(l.sub)}</b></div>`).join('')}<div class="sx-q-line sub"><span>판매자 배송비</span><span></span><span>${yuan(s.freight)}</span></div></div>`).join('')}</div>
@@ -350,12 +365,13 @@ function quoteBar(){
       ${row('구매비 (예치금 결제)',`${yuan(q.purchaseCny)} ≈ ${krw(q.purchaseKrw)}<small>환율 ${q.r.rate}원</small>`,'sum')}
       ${row(`국제 배송 기본 (${esc(q.c.mode)}·웨이하이, ${q.billKg}kg)`,krw(q.base))}${row('사업자통관 수수료 + 간이통관',krw(q.c.fixed))}
       ${row(`상자 ${q.boxes}개 포장·CJ 부피 추가`,krw(q.boxCost))}${q.multi?row('멀티박스',krw(q.multi)):''}${row(`원산지 표기·작업 (개당 약 ${q.c.originPer}원, 최대 ${krw(q.c.originCap)})`,krw(q.origin))}
-      ${row('국제 배송비 (입고·무게 측정 후 따로 결제)',`≈ ${krw(q.ship)}`,'sum')}${row('합계 (예상)',`≈ ${krw(q.total)}`,'total')}
+      ${row('국제 배송비 (무게 기준)',`≈ ${krw(q.ship)}`,'sum')}${x?`${row(`국제배송 (지난 발주 비율 ${(x.freightRatio*100).toFixed(2)}%)`,`≈ ${krw(x.actualShipping)}`)}${row(`통관(예상) ${(x.customsRatio*100).toFixed(2)}%`,`≈ ${krw(x.customs)}`)}${row('합계 (무게 배송)',`≈ ${krw(x.weightTotal)} · 개당 ${krw(x.weightPer)}`,'total')}${row('합계 (실적 배송)',`≈ ${krw(x.actualTotal)} · 개당 ${krw(x.actualPer)}`,'total')}`:row('통관·합계',need)}
     </tbody></table>
     <ul class="sx-q-notes">
       <li>무게: 상품 무게 합 ${(q.weightG/1000).toFixed(2)}kg + 포장 ${Math.round(q.c.packRate*100)}%·상자 ${q.c.boxKg}kg ≈ ${q.estKg.toFixed(2)}kg → 0.5kg 단위 올림 ${q.billKg}kg${q.unknownW?` · 무게 모르는 품목 ${q.unknownW}개는 빠져 있어 더 나올 수 있음`:''}.</li>
       ${q.moq.map(m=>`<li class="bad">⚠ 최소 주문 미달 — ${esc(m.name)}: 최소 주문 ${m.m}개인데 ${m.q}개</li>`).join('')}
-      <li>관부가세 별도 — 지난 배송 2건은 배대지 청구에 없었지만 품목·금액에 따라 세관이 따로 부과할 수 있습니다. 바구니·상자처럼 부피 큰 물건은 부피무게로 배송비가 더 나올 수 있습니다.</li>
+      ${x?`<li>${esc(x.basis)}. 무게 배송비에 배대지 통관 수수료가 포함되어 있어 실제 통관 청구와의 중복 여부를 확인해 주세요.</li>`:''}
+      <li>통관 비용은 예상이며 실제 세관 부과 항목에 따라 달라집니다. 바구니·상자처럼 부피 큰 물건은 부피무게로 배송비가 더 나올 수 있습니다.</li>
       <li>기준: 배대지 웨이하이 항공 요금표 ${esc(q.c.grade)} + 지난 배송 2건 실제 청구 항목. 모든 숫자는 예상이며 실제 금액은 배대지 견적·무게 측정 후 확정됩니다.</li>
     </ul>
     <button type="button" class="sx-q-cart" data-sx="tab" data-id="cart">장바구니에서 수량 바꾸기</button></div>`:'';
@@ -509,7 +525,7 @@ export default function renderPage(c){
     started=true;
     document.addEventListener('click',onClick);document.addEventListener('change',onChange);document.addEventListener('focusout',onFocusOut);document.addEventListener('input',onInput);document.addEventListener('submit',onSubmit,true);document.addEventListener('keydown',onKey);
     connect();
-    fbauth.onAuth(u=>{S.user=u;refresh();});   // 로그인 상태만 표시·검수 요청에 쓴다(읽기 연결은 그대로)
+    fbauth.onAuth(u=>{S.user=u;loadQuoteSettings(u);});
   }
   return ctx.head('소싱 보드','Claude가 1688에서 찾은 후보를 보고 💗·👎·💸와 한마디를 남기세요. 표시는 바로 저장되고, Claude가 다음 소싱과 발주에 반영합니다.',`<a class="inline-link" href="purchases.html">매입·원가로 ↗</a>`)+`<div id="sx-root">${view()}</div>`;
 }
