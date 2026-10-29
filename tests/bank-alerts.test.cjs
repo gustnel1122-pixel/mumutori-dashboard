@@ -52,7 +52,7 @@ test('atomic transfer reconciliation retries ETag conflict and preserves concurr
 
 test('REVIEW preserves privacy and never becomes income or expense, including man-won and ambiguous transfer',async()=>{
  const id='kb_1760000000000',base={id,src:'kakaobank',ts:NOW.getTime(),review:true};
- for(const [text,amount,direction] of [['개인사업자 100만원 받았어요\n잔액 8,888,888원',1000000,'in'],['개인사업자 100만 원 보냈어요',1000000,'out'],['개인사업자 이체 5,321원',5321,null],['개인사업자 잔액 8,888원',null,null],['개인사업자 입금 50원 출금 60원',null,null]]){
+ for(const [text,amount,direction] of [['개인사업자 100만원 받았어요\n잔액 8,888,888원',1000000,'in'],['개인사업자 100만 원 보냈어요',1000000,'out'],['개인사업자 이체 5,321원',5321,null],['개인사업자 0.5만원 받았어요',null,'in'],['개인사업자 잔액 8,888원',null,null],['개인사업자 입금 50원 출금 60원',null,null]]){
   const r=F.bankReview({...base,text:'가상상대 1111 '+text},NOW);assert.equal(r.amount,amount);assert.equal(r.direction,direction);const j=JSON.stringify(r);for(const secret of ['가상상대','1111','8,888','text','개인사업자'])assert(!j.includes(secret));
  }
  assert.equal(F.bankReview({...base,text:'개인 통장 입금 50원'},NOW),null);

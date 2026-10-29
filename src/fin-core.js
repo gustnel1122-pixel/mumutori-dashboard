@@ -281,7 +281,7 @@
     const src=String(item?.src||'').toLowerCase(),raw=String(item?.big||item?.text||'');
     if(!['kakaobank','tossbank'].includes(src)||!raw.includes('개인사업자')||item?.review!==true)return null;
     const safe=raw.split(/\r?\n/).map(line=>line.split(/잔액|누적/)[0]).join('\n');
-    const amounts=[...safe.matchAll(/(?:^|[^\d,])((?:\d{1,3}(?:,\d{3})+|\d+))\s*(만)?\s*원/g)].map(m=>Number(m[1].replace(/,/g,''))*(m[2]?10000:1));
+    const amounts=[...safe.matchAll(/(?:^|[^\d,.])((?:\d{1,3}(?:,\d{3})+|\d+))\s*(만)?\s*원/g)].map(m=>Number(m[1].replace(/,/g,''))*(m[2]?10000:1));
     const unique=[...new Set(amounts)],hasIn=/(입금|받았|들어왔)/.test(safe),hasOut=/(출금|보냈|나갔)/.test(safe),got=receivedParts(item,now);
     return {status:'REVIEW',src,ts:got.ts,amount:unique.length===1&&Number.isSafeInteger(unique[0])&&unique[0]>0&&unique[0]<=100000000?unique[0]:null,direction:hasIn!==hasOut?(hasIn?'in':'out'):null};
   }
