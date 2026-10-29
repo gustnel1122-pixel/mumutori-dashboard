@@ -285,6 +285,29 @@
     const unique=[...new Set(amounts)],hasIn=/(입금|받았|들어왔)/.test(safe),hasOut=/(출금|보냈|나갔)/.test(safe),got=receivedParts(item,now);
     return {status:'REVIEW',src,ts:got.ts,amount:unique.length===1&&Number.isSafeInteger(unique[0])&&unique[0]>0&&unique[0]<=100000000?unique[0]:null,direction:hasIn!==hasOut?(hasIn?'in':'out'):null};
   }
+  // Only an explicit human choice may create a financial row from an uncertain alert.
+  function confirmedBankReview(id, review, input, now = new Date()) {
+    if(!/^(?:kb|tb)_\d{13}$/.test(String(id||''))||!review||review.status!=='REVIEW'||
+      !['kakaobank','tossbank'].includes(review.src)||(review.src==='kakaobank'?!id.startsWith('kb_'):!id.startsWith('tb_'))||
+      !Number.isSafeInteger(review.ts)||review.ts<=0||Number(id.slice(3))!==review.ts||!Number.isFinite(new Date(review.ts).getTime()))throw Error('확인할 은행 알림의 시각이나 상태를 다시 확인해 주세요.');
+    if(!['in','out'].includes(input?.direction))throw Error('입금 또는 출금을 직접 선택해 주세요.');
+    if(!Number.isSafeInteger(input?.amount)||input.amount<=0||input.amount>100000000)throw Error('금액을 1원 이상 1억 원 이하의 정수로 입력해 주세요.');
+    const got=receivedParts(review,now),method=review.src==='kakaobank'?'카뱅이체':'토스이체';
+    return normEntry({id:'al_'+id,kind:input.direction,amount:input.amount,date:got.date,time:got.time,method,
+      bankSource:review.src,bankDirection:input.direction==='in'?'입금':'출금',alertAt:got.ts,source:'alert',inboxId:id,
+      vendor:'',memo:'개인사업자 통장 알림 · 직접 확인 (알림 수신 시각)',category:'',evidence:'없음',updatedAt:now.toISOString()},now);
+  }
+  function bankReviewCandidates(entries, draft) {
+    const expected=accountOf(draft);
+    return Object.values(entries||{}).filter(e=>{
+      if(!e||e.id===draft.id||Number(e.amount)!==draft.amount)return false;
+      const account=accountOf(e),known=name=>ACCOUNTS.some(a=>a.name===name),linked=name=>(ACCOUNTS.find(a=>a.name===name)?.link||name);
+      const uncertainAccount=(!account&&!e.from&&!e.to)||(account&&!known(account))||(e.from&&!known(e.from))||(e.to&&!known(e.to));
+      const sameAccount=[account,e.from,e.to].some(name=>name&&linked(name)===expected)||uncertainAccount;
+      const sameDirection=e.kind===draft.kind||(e.kind==='move'&&((draft.kind==='out'&&linked(e.from)===expected)||(draft.kind==='in'&&linked(e.to)===expected)||!e.from||!e.to||uncertainAccount))||!['in','out','move'].includes(e.kind);
+      return sameAccount&&sameDirection&&(e.date===draft.date||!validDate(e.date));
+    });
+  }
   function bankDraft(item, now) {
     const src = String(item?.src || '').toLowerCase();
     if (!['kakaobank', 'tossbank'].includes(src)) return null;
@@ -387,6 +410,6 @@
   }
 
   const api = { VERSION, METHODS, OFFSET_METHOD, COUPANG_METHOD, ALL_METHODS, OUT_CATEGORIES, IN_CATEGORIES, MOVE_CATEGORY, OWNER_MEAL, OWNER_OUT, OWNER_IN, EVIDENCE, NEEDS,
-    ACCOUNTS, METHOD_ACCOUNT, accountOf, accountType, accountTotals, accountCheck, ownerMoney, kstDate, uid, toWon, maskCard, validDate, normEntry, validateEntry, summarize, flowNote, checkReasons, defaultEvidence, classify, parseCSV, fromLedgerCSV, inPeriod, draftFromAlert, sameMoment, bankTransferPairs, bankReview, PATTERNS };
+    ACCOUNTS, METHOD_ACCOUNT, accountOf, accountType, accountTotals, accountCheck, ownerMoney, kstDate, uid, toWon, maskCard, validDate, normEntry, validateEntry, summarize, flowNote, checkReasons, defaultEvidence, classify, parseCSV, fromLedgerCSV, inPeriod, draftFromAlert, sameMoment, bankTransferPairs, bankReview, confirmedBankReview, bankReviewCandidates, PATTERNS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.FinCore = api;
 })(typeof window !== 'undefined' ? window : globalThis);

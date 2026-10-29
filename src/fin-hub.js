@@ -78,6 +78,44 @@ export function openFinStore({ root = ROOT, onChange, onStatus } = {}) {
     setCategory(id, category) { return changeEntry(id,(e,now) => manualCategory(e,category,now)); },
     undoAi(id) { return changeEntry(id,(e,now) => undoAi(e,now)); },
     book: () => clone(book),
+    // Compare the whole ledger and review state under one ETag. A retry never creates a second row.
+    async confirmBankReview(id,input) {
+      const F=window.FinCore;
+      if(!/^(?:kb|tb)_\d{13}$/.test(String(id||'')))throw Error('은행 알림 번호를 다시 확인해 주세요.');
+      if(!['in','out'].includes(input?.direction))throw Error('입금 또는 출금을 직접 선택해 주세요.');
+      if(!Number.isSafeInteger(input?.amount)||input.amount<=0||input.amount>100000000)throw Error('금액을 1원 이상 1억 원 이하의 정수로 입력해 주세요.');
+      const entryId='al_'+id, error=(code,message)=>Object.assign(new Error(message),{code});
+      async function readRoot(){
+        if(test)return {value:clone(test),tag:'test',url:''};
+        const url=await dbUrl(root),response=await fetch(url,{cache:'no-store',headers:{'X-Firebase-ETag':'true'}});
+        if(!response.ok)throw error('REVIEW_READ','장부를 다시 읽지 못했습니다.');
+        const tag=response.headers.get('ETag');if(!tag)throw error('REVIEW_READ','동시 수정 확인이 필요합니다.');
+        return {value:await response.json()||{},tag,url};
+      }
+      const matches=(data)=>{const review=data?.bankReviews?.[id],e=data?.entries?.[entryId];return review?.status==='CONFIRMED'&&review.entryId===entryId&&e?.inboxId===id&&e.bankSource===review.src&&e.alertAt===review.ts&&e.kind===input.direction&&e.amount===input.amount;};
+      const show=data=>{book={entries:data.entries||{},sales:data.sales||{},meta:data.meta||{},bankReviews:data.bankReviews||{}};emit();return {status:'confirmed',entryId};};
+      for(let attempt=0;attempt<3;attempt++){
+        const current=await readRoot(),data=current.value,review=data.bankReviews?.[id];
+        if(matches(data))return show(data);
+        if(!review||review.status!=='REVIEW')throw error('REVIEW_RESOLVED','이미 확인됐거나 확인할 알림이 없습니다.');
+        const draft=F.confirmedBankReview(id,review,input);F.validateEntry(draft);
+        if(data.entries?.[entryId]||F.bankReviewCandidates(data.entries,draft).length)throw error('REVIEW_CANDIDATE','같은 계좌·방향·금액의 기존 기록 후보가 있습니다. 기존 장부를 확인해 주세요.');
+        const next=clone(data);next.entries=next.entries||{};next.bankReviews=next.bankReviews||{};
+        next.entries[entryId]=draft;next.bankReviews[id]={...review,status:'CONFIRMED',entryId,confirmedAt:new Date().toISOString()};
+        if(test){if(JSON.stringify(test)!==JSON.stringify(data))continue;test.entries=clone(next.entries);test.bankReviews=clone(next.bankReviews);return show(test);}
+        let response;
+        try{response=await fetch(current.url,{method:'PUT',headers:{'Content-Type':'application/json','if-match':current.tag},body:JSON.stringify(next)});}
+        catch(_){try{const reread=await readRoot();if(matches(reread.value))return show(reread.value);}catch{}throw error('REVIEW_UNKNOWN','저장 결과를 확인하지 못했습니다. 다시 열어 확인해 주세요.');}
+        if(response.status===412)continue;
+        if(!response.ok){
+          if(response.status===408||response.status>=500){try{const reread=await readRoot();if(matches(reread.value))return show(reread.value);}catch{}throw error('REVIEW_UNKNOWN','저장 결과를 확인하지 못했습니다. 다시 열어 확인해 주세요.');}
+          throw error('REVIEW_WRITE','확인 내용을 저장하지 못했습니다.');
+        }
+        try{const reread=await readRoot();if(matches(reread.value))return show(reread.value);}catch{}
+        throw error('REVIEW_UNKNOWN','저장 결과를 확인하지 못했습니다. 다시 열어 확인해 주세요.');
+      }
+      throw error('REVIEW_CONFLICT','다른 기기에서 장부를 수정 중입니다. 다시 확인해 주세요.');
+    },
     // 한 줄 넣기(새 id) — 다시 읽어 서버 값으로 확인한 줄을 돌려준다(완료 = 바뀐 상태를 다시 읽어 판정)
     async add(entry) {
       await req('PUT', `${PATHS.entries}/${entry.id}`, entry);

@@ -1,4 +1,5 @@
 import {createFinSession} from './fin-session.js?v=access20261028';
+import {mountBankReviewUI} from './fin-review-ui.js';
 // 재무 빠른 장부(quick.html) — 휴대폰 화면. 위: 오늘 · 이번 달 요약, 가운데: 수기 입력(공용 부품 fin-form), 아래: 확인 필요 · 최근 기록.
 // 장부는 Firebase hub/financeV1(사장님 로그인 전용). PC 재무 화면(fin-panel.js)과 같은 부품 · 같은 줄 모양을 쓴다.
 import { onAuth, signIn } from './fbauth.js?v=access20261028';
@@ -8,6 +9,7 @@ import { mountEntryForm, renderLists, bindListActions, rememberNeeds, coupangCal
 const F = window.FinCore;
 const $ = s => document.querySelector(s);
 let store = null, book = { entries: {}, sales: {}, meta: {} }, period = 'month', form = null, loaded = false, recentCount = 10;
+let activeUid='',reviewUI=null;
 const CONN = { loading: '불러오는 중', ok: '연결됨', offline: '연결 끊김 · 다시 시도', denied: '권한 없음' };
 
 function card(label, value, note, cls = '') {
@@ -29,12 +31,14 @@ function draw() {
   drawSummary();
   $('#q-settle').innerHTML = coupangCalendar(book.meta, book.entries);   // 쿠팡 돈 달력(왜 0원인지 · 언제 들어오는지)
   const n = renderLists({ book, needsRoot: $('#q-needs-list'), recentRoot: $('#q-recent'), recentCount });
+  reviewUI?.decorate($('#q-needs-list'),$('#q-recent'));
   if ($('#q-accounts-body')) $('#q-accounts-body').innerHTML = accountsView(book);   // 계좌별(PC '계좌별'과 같은 말 — 총괄 #15)
   $('#q-needs').hidden = !n; $('#q-needs b').textContent = n;
   if (loaded) rememberNeeds(n);   // 홈 '챙길 일' 건수(건수 · 시각만)
 }
 
 function start() {
+  reviewUI=mountBankReviewUI({host:$('#q-app'),getBook:()=>book,getStore:()=>store,getUid:()=>activeUid,onSuccess:()=>{$('#q-list-msg').textContent='은행 알림을 장부에 확인했어요.';}});
   document.addEventListener('click', async ev => {
     const t = ev.target.closest('button'); if (!t) return;
     if (t.dataset.period) { period = t.dataset.period; drawSummary(); }
@@ -50,7 +54,7 @@ function start() {
     $('#q-login-msg').textContent=state==='loading'?'서버 권한을 확인하고 있어요.':state==='denied'?'이 계정의 공용 장부 접근을 확인하지 못했어요.':'';
   }});
   bindListActions($('#q-app'),{store:()=>store,book:()=>book,onError:m=>{$('#q-list-msg').textContent=m;},onRedraw:draw,onMore:()=>{recentCount+=20;draw();}});
-  onAuth(user=>{store=session.setUser(user,!!window.__MMT_TEST_FIN__);});
+  onAuth(user=>{const uid=user?.uid||'';if(uid!==activeUid)reviewUI?.accountChanged();activeUid=uid;store=session.setUser(user,!!window.__MMT_TEST_FIN__);});
 
 }
 start();

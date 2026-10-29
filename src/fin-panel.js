@@ -1,4 +1,5 @@
 import {createFinSession} from './fin-session.js?v=access20261028';
+import {mountBankReviewUI} from './fin-review-ui.js';
 // PC 재무 화면(finance.html) 맨 위 '수기 입력 · 확인 필요' 패널 — 휴대폰 화면(quick.html)과 같은 부품(fin-form) · 같은 공용 장부(hub/financeV1).
 // ERP 화면은 이 PC 저장(localStorage)으로 그려지고 자주 다시 그려지므로, 패널 자리(#fin-hub-panel)가 새로 생길 때마다 다시 붙인다(장부 연결은 하나로 유지).
 import { onAuth, signIn } from './fbauth.js?v=access20261028';
@@ -6,6 +7,7 @@ import { openFinStore } from './fin-hub.js?v=classify-undo-20261027';
 import { mountEntryForm, renderLists, bindListActions, rememberNeeds, coupangCalendar, ledgerFilter, esc, won } from './fin-form.js';
 
 let store = null, book = { entries: {}, sales: {}, meta: {} }, signedIn = false, host = null, loaded = false, jumped = false;
+let activeUid='',reviewUI=null;
 // 장부 거르기(계좌 · 수단) — 계좌별 화면의 '이 계좌 줄 보기'는 ?account= 로 온다
 const filter = (() => { try { const q = new URLSearchParams(location.search); return { account: q.get('account') || '', method: q.get('method') || '' }; } catch { return { account: '', method: '' }; } })();
 let ledgerCount = filter.account || filter.method ? 20 : 8;
@@ -53,6 +55,7 @@ function draw() {
   const fb = host.querySelector('.fin-filter-box');
   if (!fb.firstChild) fb.innerHTML = ledgerFilter(filter);
   const n = renderLists({ book, needsRoot: host.querySelector('.fin-needs-box'), recentRoot: host.querySelector('.fin-recent'), recentCount: ledgerCount, filter });
+  reviewUI?.decorate(host.querySelector('.fin-needs-box'),host.querySelector('.fin-recent'));
   host.querySelector('.fin-needs-box h3 b').textContent = n;
   drawSummary(n);
   host.querySelector('.fin-settle').innerHTML = coupangCalendar(book.meta, book.entries);   // 쿠팡 돈 달력(주차표가 없으면 한 줄 칸)
@@ -74,6 +77,7 @@ const session=createFinSession({open:openFinStore,processInbox:true,onBook:b=>{b
 function mount(el) {
   host = el; el.dataset.mounted = '1'; el.classList.add('fin-scope', 'fin-panel');
   el.innerHTML = SHELL;
+  reviewUI=mountBankReviewUI({host:el,getBook:()=>book,getStore:()=>store,getUid:()=>activeUid,onSuccess:()=>{const m=host?.querySelector('.fin-list-msg');if(m)m.textContent='은행 알림을 장부에 확인했어요.';}});
   mountEntryForm(el.querySelector('.fin-form'), { store: () => store, book: () => book, source: 'manual' });
   bindListActions(el, { store: () => store, book: () => book, onError: m => { el.querySelector('.fin-list-msg').textContent = m; }, onRedraw: draw, onMore: () => { ledgerCount += 20; draw(); } });
   el.addEventListener('change', ev => { const k = ev.target.dataset?.ledger; if (!k) return; filter[k] = ev.target.value; ledgerCount = filter.account || filter.method ? 20 : 8; draw(); });
@@ -82,7 +86,7 @@ function mount(el) {
 }
 function scan() { const el = document.getElementById('fin-hub-panel'); if (el && !el.dataset.mounted) mount(el); }
 
-onAuth(user=>{signedIn=!!user;store=session.setUser(user,!!window.__MMT_TEST_FIN__);showState();});
+onAuth(user=>{const uid=user?.uid||'';if(uid!==activeUid)reviewUI?.accountChanged();activeUid=uid;signedIn=!!user;store=session.setUser(user,!!window.__MMT_TEST_FIN__);showState();});
 // 옛 장부 접힘 칸: ERP가 화면을 다시 그려도 연 상태를 유지(이 탭 동안만)
 document.addEventListener('toggle', e => { if (e.target.classList?.contains('legacy-ledger')) { try { sessionStorage.setItem('mmt-fin-legacy-open', e.target.open ? '1' : '0'); } catch { /* 저장소 없음 */ } } }, true);
 // '옛 기록' 탭(finance.html#legacy)을 같은 화면에서 누르면 주소 뒤만 바뀌어 다시 그려지지 않는다 → 접힌 칸을 직접 열고 그 자리로
