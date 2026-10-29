@@ -56,8 +56,15 @@ test('REVIEW preserves privacy and never becomes income or expense, including ma
   const r=F.bankReview({...base,text:'가상상대 1111 '+text},NOW);assert.equal(r.amount,amount);assert.equal(r.direction,direction);const j=JSON.stringify(r);for(const secret of ['가상상대','1111','8,888','text','개인사업자'])assert(!j.includes(secret));
  }
  assert.equal(F.bankReview({...base,text:'개인 통장 입금 50원'},NOW),null);
- const raw={...base,text:'개인사업자 받았어요 100만원 잔액 9,999원'},data={entries:{},meta:{},sales:{},__inbox:{},__rawInbox:{private:{[id]:raw}}};
+ const raw={...base,text:'개인사업자 받았어요 100만원 잔액 9,999원'},data={entries:{},meta:{},sales:{},__inbox:{},__rawInbox:{private:{review:{[id]:raw}}}};
  global.window={FinCore:F,__MMT_TEST_FIN__:data};const {openFinStore}=await loadModule(moduleSource("const dbUrl=()=>{throw Error('Network forbidden')};"));const store=openFinStore();
  try{await store.load();assert.equal(await store.processInbox(),1);assert.equal(await store.processInbox(),0);assert.equal(Object.keys(data.entries).length,0);assert.equal(data.bankReviews[id].amount,1000000);assert.equal(data.bankReviews[id].status,'REVIEW');assert.equal(F.summarize(data,'month',NOW).sales,0);assert.equal(F.summarize(data,'month',NOW).spend,0);assert(!JSON.stringify(data.bankReviews).includes('9,999'));}
  finally{store.close();delete global.window;}
+});
+
+test('old open client cannot turn nested review into a transaction; new client still sees it',async()=>{
+ const id='kb_1760000000100',review={src:'kakaobank',ts:NOW.getTime(),review:true,text:'개인사업자 입금 10원 설명 100만원'},data={entries:{},meta:{},sales:{},__inbox:{},__rawInbox:{private:{review:{[id]:review}}}};
+ global.window={FinCore:F,__MMT_TEST_FIN__:data};const oldSource=require('node:child_process').execFileSync('git',['show','aaae17b:src/fin-hub.js'],{encoding:'utf8'}).replace(/import \{ dbUrl \} from '\.\/fbauth\.js(?:\?[^']*)?';/,"const dbUrl=()=>{throw Error('Network forbidden')};").replace("'./fin-classify.js?v=undo-20261027'",JSON.stringify(classify));const old=(await loadModule(oldSource)).openFinStore();
+ try{await old.load();await old.processInbox();assert.equal(Object.keys(data.entries).length,0);assert(data.inboxSeen.review.skipped);}finally{old.close();}
+ const next=(await loadModule(moduleSource("const dbUrl=()=>{throw Error('Network forbidden')};"))).openFinStore();try{await next.load();await next.processInbox();assert.equal(Object.keys(data.entries).length,0);assert.equal(data.bankReviews[id].status,'REVIEW');assert.equal(data.bankReviews[id].amount,null);}finally{next.close();delete global.window;}
 });

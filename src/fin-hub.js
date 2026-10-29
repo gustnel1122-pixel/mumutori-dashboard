@@ -139,7 +139,8 @@ export function openFinStore({ root = ROOT, onChange, onStatus } = {}) {
           try { rawInbox = await reqAbs('GET', RAW_INBOX_ROOT); }
           catch (err) { if (state !== 'denied') throw err; status('ok'); }
         }
-        const inbox = [...Object.values(legacy || {}), ...Object.values(rawInbox || {}).map(group => Object.fromEntries(Object.entries(group || {}).map(([id, item]) => [id, { ...item, rawInbox: true }])) )];
+        // REVIEW is nested so older clients cannot mistake an uncertain alert for a transaction.
+        const inbox = [...Object.values(legacy || {}), ...Object.values(rawInbox || {}).map(group => Object.fromEntries(Object.entries(group || {}).flatMap(([id,item]) => id==='review'&&item&&typeof item==='object' ? Object.entries(item).map(([rid,row])=>[rid,{...row,rawInbox:true}]) : [[id,{...item,rawInbox:true}]])))];
         if (!inbox) return 0;
         const seen = (await req('GET', PATHS.inboxSeen)) || {};
         let made = 0, tests = 0;
