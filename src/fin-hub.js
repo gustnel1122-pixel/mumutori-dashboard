@@ -16,7 +16,7 @@ const clone = v => v == null ? v : JSON.parse(JSON.stringify(v));
 
 export function openFinStore({ root = ROOT, onChange, onStatus } = {}) {
   const test = typeof window !== 'undefined' && window.__MMT_TEST_FIN__;
-  let book = { entries: {}, sales: {}, meta: {} }, timer = 0, state = '', inboxRun = null, visibilityHandler = null;
+  let book = { entries: {}, sales: {}, meta: {}, bankReviews: {} }, timer = 0, state = '', inboxRun = null, visibilityHandler = null;
   const status = s => { if (s !== state) { state = s; onStatus?.(s); } };
   const emit = () => onChange?.(clone(book));
 
@@ -42,8 +42,8 @@ export function openFinStore({ root = ROOT, onChange, onStatus } = {}) {
   async function load() {
     try {
       status('loading');
-      const [entries, sales, meta] = await Promise.all([req('GET', PATHS.entries), req('GET', PATHS.sales), req('GET', PATHS.meta)]);
-      book = { entries: entries || {}, sales: sales || {}, meta: meta || {} };
+      const [entries, sales, meta, bankReviews] = await Promise.all([req('GET', PATHS.entries), req('GET', PATHS.sales), req('GET', PATHS.meta), req('GET','bankReviews')]);
+      book = { entries: entries || {}, sales: sales || {}, meta: meta || {}, bankReviews:bankReviews || {} };
       status('ok'); emit(); return clone(book);
     } catch (err) { if (state !== 'denied') status('offline'); throw err; }
   }
@@ -147,6 +147,15 @@ export function openFinStore({ root = ROOT, onChange, onStatus } = {}) {
           // 휴대폰 수동 연결 시험은 입구에만 보존하고 실제 지출/중복 판정에는 넣지 않는다.
           if (/^md_trial_/.test(id)) { tests++; continue; }
           if (seen[id]) continue;
+          if(item.review===true){
+            if(!/^[A-Za-z0-9_-]{1,100}$/.test(id))continue;
+            const safe=F.bankReview({...item,id});if(!safe)continue;
+            const path='bankReviews/'+id;let saved;
+            if(test){saved=await req('GET',path);if(!saved){await req('PUT',path,safe);saved=await req('GET',path);}}
+            else{const url=await dbUrl(`${root}/${path}`),got=await fetch(url,{cache:'no-store',headers:{'X-Firebase-ETag':'true'}});if(!got.ok)throw Error('확인 필요 기록을 읽지 못했습니다.');saved=await got.json();const tag=got.headers.get('ETag');if(!tag)throw Error('확인 필요 기록의 동시 수정 확인이 필요합니다.');if(!saved){const put=await fetch(url,{method:'PUT',headers:{'Content-Type':'application/json','if-match':tag},body:JSON.stringify(safe)});if(!put.ok&&put.status!==412)throw Error('확인 필요 기록을 저장하지 못했습니다.');saved=await req('GET',path);}}
+            if(!saved||saved.status!=='REVIEW'||saved.src!==safe.src||saved.ts!==safe.ts)throw Error('확인 필요 기록 재조회 실패');
+            book.bankReviews[id]=saved;await req('PUT',`${PATHS.inboxSeen}/${id}`,{reviewId:id,skipped:false,at:new Date().toISOString()});made++;continue;
+          }
           const draft = F.draftFromAlert({ ...item, id }, book.meta.rules);
           // 같은 수단/카드/가맹점/금액/분까지 일치할 때만 중복으로 처리한다.
           const dup = draft && Object.values(book.entries || {}).find(e => F.sameMoment(e, draft));

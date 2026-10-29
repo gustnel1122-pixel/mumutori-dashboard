@@ -11,7 +11,7 @@ let view = null, store = null, signedIn = false;
 
 function compute(book) {
   const F = window.FinCore;
-  const s = F.summarize(book, 'month'), n = s.needs;
+  const s = F.summarize(book, 'month'), n = s.needs + Object.values(book.bankReviews || {}).filter(r=>r?.status==='REVIEW').length;
   rememberNeeds(n);
   const key = [s.sales, s.spend, s.cashFlow, s.net, n].join('|');
   const [label, value] = s.salesConnected ? ['남는 돈(추정)', s.net] : ['돈 흐름(들어온 돈 − 나간 돈)', s.cashFlow];

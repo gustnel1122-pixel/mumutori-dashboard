@@ -157,12 +157,23 @@ export function coupangCalendar(meta, entries) {
 // 취소됨 줄은 기본으로 숨긴다(검수 기준 4: 시험 흔적 없음). '취소 포함 보기'를 누른 화면에서만 보인다.
 let showVoid = false;
 
+// Review summaries are deliberately separate from financial entries and have no classification actions.
+function bankReviewRow(review) {
+  const bank = review.src === 'kakaobank' ? '카카오뱅크 사업자 통장' : review.src === 'tossbank' ? '토스뱅크 사업자 통장' : '은행';
+  const date = Number.isFinite(review.ts) && review.ts > 0 ? new Date(review.ts) : null;
+  const time = date && Number.isFinite(date.getTime()) ? date.toLocaleString('ko-KR', {timeZone:'Asia/Seoul',year:'numeric',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '시각 미상';
+  const direction = review.direction === 'in' ? '입금 후보' : review.direction === 'out' ? '출금 후보' : '방향 미상';
+  const amount = typeof review.amount === 'number' && Number.isFinite(review.amount) && review.amount >= 0 ? `${won(review.amount)}원` : '금액 미상';
+  return `<div class="q-line q-bank-review"><div><b>은행 알림 확인 필요</b><small>${esc(time)} · ${esc(bank)} · ${direction}<br>확인 전에는 장부 합계에 반영되지 않습니다.</small></div><strong class="amt">${amount}</strong></div>`;
+}
+
 // '확인 필요' 목록 + 장부(최근 기록). needsRoot · recentRoot 중 하나는 비워도 된다.
 // filter: {account, method} — 장부 목록만 거른다(계좌별 '이 계좌 줄 보기'). 반환: 확인 필요 건수.
 export function renderLists({ book, needsRoot, recentRoot, recentCount = 10, filter = {} }) {
   const F_ = F();
+  const bankReviews = Object.values(book.bankReviews || {}).filter(r => r && r.status === 'REVIEW').sort((a,b) => (Number(b.ts)||0)-(Number(a.ts)||0));
   // Keep an active note editor alive during timer/onChange redraws.
-  if ([needsRoot,recentRoot].some(r=>r?.contains(document.activeElement) && document.activeElement.matches('[data-ai-note]'))) return Object.values(book.entries||{}).filter(e=>F_.checkReasons(e).length).length;
+  if ([needsRoot,recentRoot].some(r=>r?.contains(document.activeElement) && document.activeElement.matches('[data-ai-note]'))) return Object.values(book.entries||{}).filter(e=>F_.checkReasons(e).length).length + bankReviews.length;
   const every = Object.values(book.entries || {}).sort((a, b) => ((b.date || '') + (b.time || '') + (b.createdAt || '')).localeCompare((a.date || '') + (a.time || '') + (a.createdAt || '')));
   const voids = every.filter(e => e.status === 'void').length;
   const all = showVoid ? every : every.filter(e => e.status !== 'void');
@@ -172,7 +183,7 @@ export function renderLists({ book, needsRoot, recentRoot, recentCount = 10, fil
   // 확인 필요 = 분류 없음 또는 나간 돈의 수단 없음(fin-core checkReasons). 이유마다 고르는 버튼을 단다.
   const needs = all.filter(e => F_.checkReasons(e).length);
   if (needsRoot) {
-    needsRoot.hidden = !needs.length;
+    needsRoot.hidden = !(needs.length + bankReviews.length);
     const rows = needsRoot.querySelector('.f-needs-rows') || needsRoot;
     rows.innerHTML = needs.map(e => {
       const why = F_.checkReasons(e);
@@ -181,7 +192,7 @@ export function renderLists({ book, needsRoot, recentRoot, recentCount = 10, fil
       // 가져올 때 적어 둔 '확인할 것'(받는 통장 등) — 확인했으면 '확인함'으로 지운다(줄 내용은 그대로)
       const chk = why.includes('확인') ? `<div class="q-row q-fix"><span class="q-why">확인</span><span class="q-checktext">${esc(e.check)}</span><button type="button" class="q-chip" data-checkdone="${esc(e.id)}">확인함</button></div>` : '';
       return entryRow(e, cat + met + chk + aiControl(e));
-    }).join('');
+    }).join('') + bankReviews.map(bankReviewRow).join('');
   }
   if (recentRoot) {
     const toggle = voids ? `<button type="button" class="q-link q-void-toggle" data-togglevoid="1" aria-pressed="${showVoid}">${showVoid ? '취소된 줄 숨기기' : `취소 포함 보기 (${voids})`}</button>` : '';
@@ -190,7 +201,7 @@ export function renderLists({ book, needsRoot, recentRoot, recentCount = 10, fil
     recentRoot.innerHTML = (target ? '<p class="q-msg">알림에서 연 기록</p>'+entryRow(target,aiControl(target)) : targetId?'<p class="q-msg">알림의 기록을 찾지 못했어요. 삭제 여부와 접근 권한을 확인해 주세요.</p>':'') + testNote + (shown.filter(e=>e.id!==targetId).slice(0, recentCount).map(e => entryRow(e, e.status === 'void' ? '<span class="q-void">취소됨</span>' : `${e.kind==='move'?'':`<button type="button" class="q-link" data-pick="${esc(e.id)}" aria-haspopup="dialog">분류 고르기</button>`}<button type="button" class="q-link" data-void="${esc(e.id)}">취소</button>${aiControl(e)}`)).join('') || `<p class="q-empty">${filter.account || filter.method ? '고른 계좌 · 수단의 줄이 없어요.' : '아직 기록이 없어요. 위에서 첫 줄을 넣어 보세요.'}</p>`) + more + toggle;
   }
   if(target&&recentRoot){const row=Array.from(recentRoot.querySelectorAll('[data-id]')).find(n=>n.dataset.id===targetId);if(row){row.classList.add('mmt-notice-target');if(!recentRoot.dataset.focusedNotice){recentRoot.dataset.focusedNotice=targetId;row.tabIndex=-1;requestAnimationFrame(()=>{row.focus({preventScroll:true});row.scrollIntoView({block:'center'});});}}}
-  return needs.length;
+  return needs.length + bankReviews.length;
 }
 
 // Drafts stay in memory through redraws and failed saves; no financial notes in localStorage.

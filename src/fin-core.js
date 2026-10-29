@@ -276,6 +276,15 @@
     const ts = Number(item?.ts) || now.getTime(), d = new Date(ts), k = new Date(ts + 9 * 3600e3);
     return { ts, date: kstDate(d), time: `${pad(k.getUTCHours())}:${pad(k.getUTCMinutes())}` };
   }
+  // REVIEW rows carry no counterparty, account fragment, balance or raw text.
+  function bankReview(item, now = new Date()) {
+    const src=String(item?.src||'').toLowerCase(),raw=String(item?.big||item?.text||'');
+    if(!['kakaobank','tossbank'].includes(src)||!raw.includes('개인사업자')||item?.review!==true)return null;
+    const safe=raw.split(/\r?\n/).map(line=>line.split(/잔액|누적/)[0]).join('\n');
+    const amounts=[...safe.matchAll(/(?:^|[^\d,])((?:\d{1,3}(?:,\d{3})+|\d+))\s*(만)?\s*원/g)].map(m=>Number(m[1].replace(/,/g,''))*(m[2]?10000:1));
+    const unique=[...new Set(amounts)],hasIn=/(입금|받았|들어왔)/.test(safe),hasOut=/(출금|보냈|나갔)/.test(safe),got=receivedParts(item,now);
+    return {status:'REVIEW',src,ts:got.ts,amount:unique.length===1&&Number.isSafeInteger(unique[0])&&unique[0]>0&&unique[0]<=100000000?unique[0]:null,direction:hasIn!==hasOut?(hasIn?'in':'out'):null};
+  }
   function bankDraft(item, now) {
     const src = String(item?.src || '').toLowerCase();
     if (!['kakaobank', 'tossbank'].includes(src)) return null;
@@ -378,6 +387,6 @@
   }
 
   const api = { VERSION, METHODS, OFFSET_METHOD, COUPANG_METHOD, ALL_METHODS, OUT_CATEGORIES, IN_CATEGORIES, MOVE_CATEGORY, OWNER_MEAL, OWNER_OUT, OWNER_IN, EVIDENCE, NEEDS,
-    ACCOUNTS, METHOD_ACCOUNT, accountOf, accountType, accountTotals, accountCheck, ownerMoney, kstDate, uid, toWon, maskCard, validDate, normEntry, validateEntry, summarize, flowNote, checkReasons, defaultEvidence, classify, parseCSV, fromLedgerCSV, inPeriod, draftFromAlert, sameMoment, bankTransferPairs, PATTERNS };
+    ACCOUNTS, METHOD_ACCOUNT, accountOf, accountType, accountTotals, accountCheck, ownerMoney, kstDate, uid, toWon, maskCard, validDate, normEntry, validateEntry, summarize, flowNote, checkReasons, defaultEvidence, classify, parseCSV, fromLedgerCSV, inPeriod, draftFromAlert, sameMoment, bankTransferPairs, bankReview, PATTERNS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.FinCore = api;
 })(typeof window !== 'undefined' ? window : globalThis);
