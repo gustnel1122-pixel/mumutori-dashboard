@@ -48,10 +48,10 @@ PAGE_HEAD={'finance':'<link rel="stylesheet" href="src/fin-form.css?v={v}">','ba
 PAGE_TAGS={'settings':'<script src="assets/vendor/firebase/firebase-messaging-compat.js?sdk=12.19.0"></script><script type="module" src="src/app-push.js?v={v}"></script>', 'finance':'<script src="src/fin-core.js?v={v}"></script><script type="module" src="src/fin-panel.js?v={v}"></script>',
            'bank':'<script src="src/fin-core.js?v={v}"></script><script type="module" src="src/fin-accounts.js?v={v}"></script>',
            'overview':'<script src="src/fin-core.js?v={v}"></script><script type="module" src="src/home-fin.js?v={v}"></script>'}   # 홈: 공용 장부 이번 달 · 확인 필요(읽기만, 구글 로그인)
-AUTH_CONNECT=' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com'
+AUTH_CONNECT=' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com wss://*.asia-southeast1.firebasedatabase.app'
 AUTH_SCRIPT=' https://apis.google.com'
 AUTH_FRAME='https://mumutori-letter.firebaseapp.com https://accounts.google.com'
-AUTH_TAGS='<script src="assets/vendor/firebase/firebase-app-compat.js?sdk=12.19.0"></script><script src="assets/vendor/firebase/firebase-auth-compat.js?sdk=12.19.0"></script>'
+AUTH_TAGS='<script src="assets/vendor/firebase/firebase-app-compat.js?sdk=12.19.0"></script><script src="assets/vendor/firebase/firebase-auth-compat.js?sdk=12.19.0"></script><script src="assets/vendor/firebase/firebase-database-compat.js?sdk=12.19.0"></script>'
 NOTICE_TAGS='<link rel="stylesheet" href="src/notification-center.css?v='+version+'"><script src="src/notification-routes.js?v='+version+'"></script><script type="module" src="src/notification-center.js?v='+version+'"></script>'
 for filename,(page,title) in pages.items():
     extra_img,extra_connect=EXTRA.get(page,('',''))
@@ -75,7 +75,9 @@ redirect_pages={'palsibo-shopping':'shopping-redirect-shell.html'}
 for name,template in {**operations_pages,**redirect_pages}.items():
     shell=(R/'src'/template).read_text(encoding='utf-8').replace('{{PWA_HEAD}}',PWA_HEAD).replace('{{VERSION}}',version)
     if name in operations_pages:
-        shell=shell.replace("script-src 'self'","script-src 'self' https://apis.google.com").replace("frame-src 'none'","frame-src "+AUTH_FRAME).replace("object-src 'none'","connect-src 'self'"+AUTH_CONNECT+" https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.app; object-src 'none'")
+        shell=shell.replace("script-src 'self'","script-src 'self' https://apis.google.com").replace("frame-src 'none'","frame-src "+AUTH_FRAME)
+        connect="connect-src 'self'"+AUTH_CONNECT+" https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.app"
+        shell=shell.replace("connect-src 'self'",connect) if "connect-src 'self'" in shell else shell.replace("object-src 'none'",connect+"; object-src 'none'")
         shell=shell.replace('</head>',AUTH_TAGS+NOTICE_TAGS+'</head>')
     (R/f'{name}.html').write_text(shell,encoding='utf-8',newline=chr(10))
 # A strict allowlist keeps all JSON/seed, login, finance code and APIs out of Cache Storage.

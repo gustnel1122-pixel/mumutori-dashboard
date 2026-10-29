@@ -1,8 +1,9 @@
 const fs=require('fs'),vm=require('vm'),assert=require('node:assert/strict'),test=require('node:test');
 function setup(){const handlers={},shown=[],opened=[],focused=[];
 const root='https://example.invalid/mumutori-dashboard/';
-const ctx={URL,importScripts(...names){for(const n of names)if(n==='src/notification-routes.js')vm.runInContext(fs.readFileSync(n,'utf8'),ctx);},firebase:{initializeApp(){},messaging(){return{onBackgroundMessage(fn){handlers.background=fn;}};}},self:{registration:{scope:root,showNotification:async(t,o)=>shown.push({title:t,...o})},addEventListener:(n,f)=>handlers[n]=f,clients:{matchAll:async()=>[{url:root+'quick.html',focus:async()=>focused.push(true)}],openWindow:async u=>opened.push(u)}}};
-vm.createContext(ctx);vm.runInContext(fs.readFileSync('firebase-messaging-sw.js','utf8'),ctx);return{handlers,shown,opened,focused,root};}
+const state={uid:'owner',writes:[],fail:false};
+const ctx={URL,setTimeout,clearTimeout,importScripts(...names){for(const n of names)if(n==='src/notification-routes.js')vm.runInContext(fs.readFileSync(n,'utf8'),ctx);},firebase:{initializeApp(){},auth(){return{onAuthStateChanged(fn){queueMicrotask(()=>fn(state.uid?{uid:state.uid}:null));return()=>{};}};},messaging(){return{onBackgroundMessage(fn){handlers.background=fn;}};}},self:{MumutoriNoticeState:{async write(...args){if(state.hold)return new Promise(()=>{});if(state.fail)throw Error('offline');state.writes.push(args);}},registration:{scope:root,showNotification:async(t,o)=>shown.push({title:t,...o})},addEventListener:(n,f)=>handlers[n]=f,clients:{matchAll:async()=>[{url:root+'quick.html',focus:async()=>focused.push(true)}],openWindow:async u=>opened.push(u)}}};
+vm.createContext(ctx);vm.runInContext(fs.readFileSync('firebase-messaging-sw.js','utf8'),ctx);return{handlers,shown,opened,focused,root,state};}
 test('data-only push displays exactly once while any screen is visible; unknown payload ignored',async()=>{const s=setup();let stopped=0,promise;
 s.handlers.push({data:{json:()=>({data:{kind:'mumutori',title:'시험',body:'본문',route:'quick.html',eventId:'same-id'}})},stopImmediatePropagation(){stopped++;},waitUntil(p){promise=p;}});await promise;
 assert.equal(stopped,1);assert.equal(s.shown.length,1);assert.equal(s.shown[0].tag,'same-id');
@@ -11,3 +12,9 @@ test('notification click focuses its existing screen and never opens an external
 const click=route=>s.handlers.notificationclick({notification:{data:{mumutori:true,route},close(){}},stopImmediatePropagation(){},waitUntil(p){promise=p;}});
 click('quick.html');await promise;assert.equal(s.focused.length,1);assert.equal(s.opened.length,0);
 click('finance.html?entry=row-17#inbox');await promise;assert.equal(s.opened.pop(),s.root+'finance.html?entry=row-17#inbox');click('https://evil.invalid/?token=private');await promise;assert.deepEqual(s.opened,[s.root+'index.html']);});
+test('action buttons write as target account without opening a window; failure is visible',async()=>{const s=setup();let promise,closed=0;
+const click=(action,uid='owner')=>s.handlers.notificationclick({action,notification:{data:{mumutori:true,uid,eventId:'e1',route:'quick.html'},tag:'e1',close(){closed++;}},stopImmediatePropagation(){},waitUntil(p){promise=p;}});
+click('explain');await promise;assert.deepEqual(s.state.writes,[['owner','e1','explain']]);assert.equal(closed,1);assert.equal(s.opened.length,0);assert.equal(s.focused.length,0);
+click('read','another');await promise;assert.equal(s.state.writes.length,1);assert.equal(closed,1);assert.match(s.shown.at(-1).title,/처리하지 못했어요/);
+s.state.fail=true;click('read');await promise;assert.equal(closed,1);assert.match(s.shown.at(-1).title,/처리하지 못했어요/);});
+test('offline pending action reports waiting without opening or claiming success',async()=>{const s=setup();s.state.hold=true;let promise,closed=false;s.handlers.notificationclick({action:'explain',notification:{data:{mumutori:true,uid:'owner',eventId:'e1'},tag:'e1',close(){closed=true;}},stopImmediatePropagation(){},waitUntil(p){promise=p;}});await promise;assert.equal(closed,false);assert.match(s.shown.at(-1).title,/기다리고 있어요/);assert.equal(s.opened.length,0);});

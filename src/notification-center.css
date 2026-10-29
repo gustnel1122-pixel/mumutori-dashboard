@@ -3,3 +3,4 @@
 body:has(.mmt-notice-bell) .topbar{padding-right:72px}body:has(.mmt-notice-bell) .ob-top{padding-right:68px}body:has(.mmt-notice-bell) #top{padding-right:68px}
 .mmt-notice-bell{min-width:44px;min-height:44px;padding:8px;flex-shrink:0}.mmt-notice-head button{min-width:44px;min-height:44px}.mmt-notice-row{min-height:44px}
 body:has(.mmt-notice-bell) .top{padding-right:70px;flex-wrap:wrap}body:has(.mmt-notice-bell) .top .sp{flex-wrap:wrap;min-width:0}body:has(.mmt-notice-bell) .top #authSlot{min-width:0;max-width:100%;overflow-wrap:anywhere}body:has(.mmt-notice-bell) .top .who{max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mmt-notice-actions{display:flex;gap:8px;padding:0 10px 10px}.mmt-notice-actions button{min-height:44px;padding:8px 12px;border:1px solid #9db9a5;border-radius:8px;background:#fff;color:#174d3c;font:inherit;cursor:pointer}.mmt-notice-actions button:disabled{opacity:.55;cursor:wait}

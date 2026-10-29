@@ -1,6 +1,7 @@
 // Server-authorized shared operators; each device stays inside its own UID. Device/FCM tokens never go into URLs, logs or Cache Storage.
 import './notification-routes.js';
-import { current, onAuth, signIn, dbUrl } from './fbauth.js?v=access20261028';
+import './notification-state.js';
+import { current, onAuth, signIn } from './fbauth.js?v=access20261028';
 export const VAPID_KEY='BK3cjqd-fyFCjw3kLb3nSOLDMAx1e1IM8K-FDyo-xkUwCA7BUn4vqRVmKeon7wrxMo5sDBM5SfXahtHTtz4W4lM';
 const ROOT='appPush', DEVICE_KEY='mumutori-push-device-v1';
 let host=null, busy=false, status='공동 운영 계정으로 로그인한 뒤 이 기기의 알림을 켜 주세요.', registered=false;
@@ -13,12 +14,8 @@ const standalone=()=>window.matchMedia('(display-mode: standalone)').matches || 
 function deviceId(create=false){let id=localStorage.getItem(DEVICE_KEY);if(!id&&create){id='d_'+crypto.randomUUID().replaceAll('-','');localStorage.setItem(DEVICE_KEY,id);}return /^d_[a-f0-9]{32}$/.test(id||'')?id:null;}
 async function request(method,path,value){
   const uid=current()?.uid;if(!uid)throw Error('먼저 공동 운영 Google 계정으로 로그인해 주세요.');
-  const url=await dbUrl(`${ROOT}/${path}`);if(current()?.uid!==uid)throw Error('로그인 계정이 바뀌었어요. 다시 눌러 주세요.');
-  const response=await fetch(url,{method,cache:'no-store',headers:value?{'Content-Type':'application/json'}:{},body:value?JSON.stringify(value):undefined});
-  if(current()?.uid!==uid)throw Error('로그인 계정이 바뀌었어요. 다시 눌러 주세요.');
-  if(response.status===401||response.status===403)throw Error('알림 서버 연결이 아직 준비되지 않았거나 이 계정에 권한이 없어요. 운영 담당이 Firebase 알림 규칙과 서버 연결을 확인해야 해요.');
-  if(!response.ok)throw Error('알림 서버와 연결하지 못했어요. 인터넷 연결을 확인해 주세요.');
-  return response.json();
+  try{const result=await globalThis.MumutoriNoticeState.pushRequest(uid,method,path,value);if(current()?.uid!==uid)throw Error('account-changed');return result;}
+  catch(e){if(current()?.uid!==uid||e.message==='account-changed')throw Error('로그인 계정이 바뀌었어요. 다시 눌러 주세요.');if(/permission_denied|permission denied/i.test(String(e.code||e.message)))throw Error('알림 서버 연결이 아직 준비되지 않았거나 이 계정에 권한이 없어요. 운영 담당이 Firebase 알림 규칙과 서버 연결을 확인해야 해요.');throw Error('알림 서버와 연결하지 못했어요. 인터넷 연결을 확인해 주세요.');}
 }
 function paint(){
   if(!host)return;
@@ -39,7 +36,7 @@ async function getMessaging(){
   if(!fb?.messaging||!await fb.messaging.isSupported())throw Error('이 브라우저에서 알림 도구를 사용할 수 없어요.');
   if(!messaging){messaging=fb.messaging();stopForeground=messaging.onMessage(async payload=>{
     const data=payload.data||{};if(data.kind!=='mumutori'||Notification.permission!=='granted')return;
-    try{const reg=await worker();await reg.showNotification(data.title||'무무토리 알림',{body:data.body||'',icon:new URL('../assets/icon-192.png',import.meta.url).href,tag:data.eventId,data:{mumutori:true,route:window.MumutoriRoutes.route(data),eventId:data.eventId||''}});}catch{/* Next message can retry; no token/payload logs. */}
+    try{const reg=await worker();await reg.showNotification(data.title||'무무토리 알림',{body:data.body||'',icon:new URL('../assets/icon-192.png',import.meta.url).href,tag:data.eventId,actions:[{action:'read',title:'읽음'},{action:'explain',title:'무슨 말이야?'}],data:{mumutori:true,route:window.MumutoriRoutes.route(data),eventId:data.eventId||'',uid:data.uid||''}});}catch{/* Next message can retry; no token/payload logs. */}
   });}
   return messaging;
 }
@@ -53,7 +50,7 @@ async function enable(){
   const token=await api.getToken({vapidKey:VAPID_KEY,serviceWorkerRegistration:reg});
   if(!token)throw Error('기기 연결을 만들지 못했어요. 잠시 후 다시 눌러 주세요.');
   if(current()?.uid!==uid)throw Error('로그인 계정이 바뀌었어요. 다시 눌러 주세요.');
-  const id=deviceId(true),path=`devices/${uid}/${id}`,old=await request('GET',path),now=Date.now();
+  const id=deviceId(true),path=`devices/${uid}/${id}`,old=await request('GET',path),now={'.sv':'timestamp'};
   const value={token,createdAt:old?.createdAt||now,updatedAt:now,platform:standalone()?'installed-app':'browser'};
   await request('PUT',path,value);
   const saved=await request('GET',path);
@@ -74,8 +71,8 @@ async function test(){
   const mine=generation;let attempts=0;clearInterval(requestTimer);
   requestTimer=setInterval(async()=>{if(mine!==generation||++attempts>20){clearInterval(requestTimer);return;}try{const result=await request('GET',path);if(result?.status==='pending')return;clearInterval(requestTimer);status=result?.status==='sent'?'푸시 서버가 시험 알림을 발송했어요. 휴대폰에서 실제 도착을 확인해 주세요.':result?.status==='throttled'?'시험 알림은 1분에 한 번만 보낼 수 있어요.':'시험 알림 발송에 실패했어요. 운영 담당이 서버 권한과 기기 연결을 확인해야 해요.';paint();}catch{clearInterval(requestTimer);}},5000);
 }
-async function refresh(){const mine=++generation;clearInterval(requestTimer);registered=false;serverReady=false;if(!current()){status='공동 운영 계정으로 로그인한 뒤 이 기기의 알림을 켜 주세요.';paint();return;}try{await ready();if(mine!==generation)return;serverReady=true;const id=deviceId();registered=!!(id&&(await request('GET',`devices/${current().uid}/${id}`))?.token);if(mine!==generation)return;status=registered?'이 기기에 알림이 연결되어 있어요.':'‘알림 받기’를 눌러 이 기기에 연결해 주세요.';if(registered&&supported()&&Notification.permission==='granted'){await enable();}}catch(e){if(mine===generation)status=e.message;}if(mine===generation)paint();}
-document.addEventListener('click',async event=>{const button=event.target.closest('[data-push-action]');if(!button||busy)return;busy=true;paint();try{await ({login:signIn,enable,disable,test}[button.dataset.pushAction])();}catch(e){status=e.message;}finally{busy=false;paint();}});
+async function refresh(){const mine=++generation;clearInterval(requestTimer);registered=false;serverReady=false;if(!current()){status='공동 운영 계정으로 로그인한 뒤 이 기기의 알림을 켜 주세요.';paint();return;}const timer=setTimeout(()=>{if(mine===generation){status='알림 서버 응답을 기다리고 있어요.';paint();}},8000);try{await ready();if(mine!==generation)return;serverReady=true;const id=deviceId();registered=!!(id&&(await request('GET',`devices/${current().uid}/${id}`))?.token);if(mine!==generation)return;status=registered?'이 기기에 알림이 연결되어 있어요.':'‘알림 받기’를 눌러 이 기기에 연결해 주세요.';if(registered&&supported()&&Notification.permission==='granted'){await enable();}}catch(e){if(mine===generation)status=e.message;}finally{clearTimeout(timer);}if(mine===generation)paint();}
+document.addEventListener('click',async event=>{const button=event.target.closest('[data-push-action]');if(!button||busy)return;busy=true;paint();const timer=setTimeout(()=>{status='서버 응답을 기다리고 있어요. 중복 요청을 막기 위해 잠시 기다려 주세요.';paint();},8000);try{await ({login:signIn,enable,disable,test}[button.dataset.pushAction])();}catch(e){status=e.message;}finally{clearTimeout(timer);busy=false;paint();}});
 const mount=()=>{const found=document.getElementById('app-push-settings');if(found&&found!==host){host=found;paint();}};
 new MutationObserver(mount).observe(document.getElementById('root'),{childList:true,subtree:true});
 onAuth(()=>refresh());mount();
