@@ -248,11 +248,12 @@
       || ['현대카드', '토스체크', '토스이체', '현금'].find(x => m.includes(x.replace('토스', ''))) || (m.includes('현대') ? '현대카드' : m.includes('체크') ? '토스체크' : m.includes('이체') ? '토스이체' : m.includes('현금') ? '현금' : '');
     const byLen = [...OUT_CATEGORIES].sort((a, b) => b.length - a.length);   // '매입 부대비(…)'가 '매입'보다 먼저 맞게
     const outCat = c => (/^(식비|식대|식사)/.test(c) && c.includes('본인') ? OWNER_MEAL : '') || byLen.find(x => c.startsWith(x)) || (/식대|식사/.test(c) ? '식비' : '') || (c.includes('구매') || c.includes('매입') ? '매입' : c.includes('배송') || c.includes('택배') ? '배송비' : c.includes('광고') ? '광고비' : c.includes('수수료') ? '수수료' : c.includes('소모') ? '소모품' : c.includes('임차') || c.includes('월세') ? '임차료' : c ? '기타' : '');
-    return body.map((r, i) => {
+    return body.map((r) => {
       const kind = /입금|수입|매출/.test(get(r, '구분')) ? 'in' : 'out';
       const evid = get(r, '증빙');
       const e = normEntry({
-        id: 'csv' + (i + 1) + '_' + get(r, '날짜').replace(/-/g, ''),
+        // A row number (or a hash of the row) cannot identify a real transaction.
+        id: 'csv_' + (globalThis.crypto?.randomUUID?.().replace(/-/g,'') || uid()),
         kind, date: get(r, '날짜'), amount: get(r, '금액'), method: methodOf(get(r, '결제수단')),
         category: kind === 'in' ? (IN_CATEGORIES.find(x => get(r, '분류').includes(x)) || '기타 수입') : outCat(get(r, '분류')),
         vendor: get(r, '거래처'), memo: get(r, '내용'),

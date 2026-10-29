@@ -14,13 +14,13 @@ test('연결 시험 합계 제외 · 동시 수집/재처리 멱등 · 다른 �
  const {openFinStore}=await modulePromise;const store=openFinStore();
  try{
   await store.load();await Promise.all([store.processInbox(),store.processInbox()]);
-  assert.equal(Object.keys(data.entries).length,3);assert.equal(store.book().inboxTestCount,1);assert(!data.inboxSeen.md_trial_20261026);assert(data.inboxSeen.copy.dup);
-  assert.equal(await store.processInbox(),0);assert.equal(Object.keys(data.entries).length,3);
+  assert.equal(Object.keys(data.entries).length,1);assert.equal(store.book().inboxTestCount,1);assert(!data.inboxSeen.md_trial_20261026);for(const id of ['copy','two','three']){assert(data.inboxSeen[id].pending);assert.equal(data.alertReviews[id].status,'REVIEW');}
+  assert.equal(await store.processInbox(),0);assert.equal(Object.keys(data.entries).length,1);
   const saved=data.entries.al_one; saved.memo='사용자가 고친 내용';
   await store.processInbox();assert.equal(data.entries.al_one.memo,'사용자가 고친 내용');
   store.watch(10);data.__inbox.fake.later=item('새상점');
-  for(let i=0;i<30&&!data.entries.al_later;i++)await new Promise(r=>setTimeout(r,10));
-  assert(data.entries.al_later);assert.equal(Object.keys(data.entries).length,4);assert.equal(store.book().inboxTestCount,1);
+  for(let i=0;i<30&&!data.alertReviews.later;i++)await new Promise(r=>setTimeout(r,10));
+  assert.equal(data.alertReviews.later.status,'REVIEW');assert.equal(Object.keys(data.entries).length,1);assert.equal(store.book().inboxTestCount,1);
  }finally{store.close();delete global.window;}
 });
 test('원문 입구와 기존 입구 함께 수집 · 이름/누적 미보존 · 취소 상품명',async()=>{
@@ -28,5 +28,5 @@ test('원문 입구와 기존 입구 함께 수집 · 이름/누적 미보존 ·
  const raw={text:'긴 가상 이름 님, 현대 사업구매전용 승인\n12,500원 일시불, 10/26 23:40\n시험"상점\\지점 & +\n누적999,999원',ts};
  const data={entries:{},meta:{},sales:{},__inbox:{same:{old:item('기존상점')}},__rawInbox:{same:{hd_1:raw,hd_2:{...raw,text:raw.text.replace('승인','취소')},md_trial_raw:raw,hd_bad:{text:'현대 안내 승인 없는 글',ts}}}};
  global.window={FinCore:F,__MMT_TEST_FIN__:data};const {openFinStore}=await modulePromise;const store=openFinStore();
- try {await store.load();await store.processInbox();assert.equal(Object.keys(data.entries).length,3);assert.equal(store.book().inboxTestCount,1);const e=data.entries.al_hd_1;assert.equal(e.amount,12500);assert.equal(e.card,'사업구매전용');assert.equal(e.vendor,'시험"상점\\지점 & +');assert.equal(data.entries.al_hd_2.kind,'in');assert.equal(data.entries.al_hd_2.card,'사업구매전용');assert(!JSON.stringify(data.entries).includes('가상 이름'));assert(!JSON.stringify(data.entries).includes('999,999'));assert(!('text' in e));assert(!data.entries.al_hd_bad);}finally{store.close();delete global.window;}
+ try {await store.load();await store.processInbox();assert.equal(Object.keys(data.entries).length,2);assert.equal(store.book().inboxTestCount,1);const e=F.draftFromAlert({...raw,id:'hd_1',rawInbox:true},[]);assert.equal(e.amount,12500);assert.equal(e.card,'사업구매전용');assert.equal(e.vendor,'시험"상점\\지점 & +');assert.equal(data.alertReviews.hd_1.status,'REVIEW');assert.equal(data.entries.al_hd_2.kind,'in');assert.equal(data.entries.al_hd_2.card,'사업구매전용');assert(!JSON.stringify(data.entries).includes('가상 이름'));assert(!JSON.stringify(data.entries).includes('999,999'));assert(!('text' in e));assert(!data.entries.al_hd_bad);}finally{store.close();delete global.window;}
 });

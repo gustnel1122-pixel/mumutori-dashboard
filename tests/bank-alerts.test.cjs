@@ -35,7 +35,7 @@ test('real inbox import deduplicates original notification and persists an inter
  const rawA=bank('kakaobank','출금'),rawB=bank('tossbank','입금',{ts:NOW.getTime()+1000});
  const data={entries:{},meta:{},sales:{},__inbox:{},__rawInbox:{private:{a:rawA,aCopy:rawA,b:rawB,personal:bank('kakaobank','출금',{text:'출금 5,321원 개인통장'})}}};
  global.window={FinCore:F,__MMT_TEST_FIN__:data};const {openFinStore}=await loadModule(moduleSource("const dbUrl=()=>{throw Error('Network forbidden')};"));const store=openFinStore();
- try{await store.load();assert.equal(await store.processInbox(),2);assert.equal(await store.processInbox(),0);assert.equal(Object.keys(data.entries).length,2);assert(data.inboxSeen.aCopy.dup);assert(data.inboxSeen.personal.skipped);
+ try{await store.load();assert.equal(await store.processInbox(),2);assert.equal(await store.processInbox(),0);assert.equal(Object.keys(data.entries).length,2);assert(data.inboxSeen.aCopy.pending);assert.equal(data.alertReviews.aCopy.status,'REVIEW');assert(data.inboxSeen.personal.skipped);
   for(const e of Object.values(data.entries))assert.equal(e.kind,'move');assert(!JSON.stringify(data.entries).includes('가상상대'));
  }finally{store.close();delete global.window;}
 });
