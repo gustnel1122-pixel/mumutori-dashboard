@@ -77,7 +77,57 @@ export function mountBankReviewUI({host,getBook,getStore,getUid,onSuccess}){
     catch(error){if(uid===getUid()&&version===sessionEpoch)choiceMessage.textContent=error?.code==='IMPORT_SOURCE_REQUIRED'?'가져오기 정보가 부족해 저장하지 않았어요. 원본 CSV를 보관하고 다시 확인해 주세요.':error?.code==='IMPORT_ACCOUNT_REVIEW'?'출발·도착 계좌를 확인할 수 없어 저장하지 않았어요. 원본 기록을 보관하고 계좌를 다시 확인해 주세요.':'기록이 바뀌었거나 저장 여부를 확인하지 못했어요. 새로고침한 뒤 다시 확인해 주세요.';}
     finally{clearTimeout(timer);busy=false;saving=false;choiceConfirm.disabled=false;choiceClose.disabled=false;}
   });
+  const transferDialog=document.createElement('dialog');transferDialog.className='fin-review-dialog fin-transfer-review-dialog';transferDialog.setAttribute('aria-labelledby','fin-transfer-review-title');
+  transferDialog.innerHTML='<form><h2 id="fin-transfer-review-title">계좌 이동 짝 다시 확인</h2><p>기존 짝에 늦은 후보가 겹쳐 확인이 필요해요. 확인 전에는 확정 이동 합계에서 제외돼요.</p><div class="fin-transfer-summary"></div><fieldset class="fin-match-options"><legend>확인한 내용</legend><label class="fin-review-option"><input type="radio" name="decision" value="keep"> 기존 짝 유지 · 늦은 후보는 확인 대기에 남음</label><div class="fin-transfer-options"></div></fieldset><p class="fin-transfer-message" role="status" aria-live="polite"></p><div class="fin-review-actions"><button type="button" data-transfer-close>취소</button><button type="submit" data-transfer-confirm disabled>선택한 내용 확정</button></div></form>';host.append(transferDialog);
+  const transferForm=transferDialog.querySelector('form'),transferMessage=transferDialog.querySelector('.fin-transfer-message'),transferConfirm=transferDialog.querySelector('[data-transfer-confirm]'),transferClose=transferDialog.querySelector('[data-transfer-close]');let transferChoices=[];
+  transferClose.onclick=()=>{if(!saving)transferDialog.close();};transferDialog.addEventListener('cancel',e=>{if(saving)e.preventDefault();});
+  const transferAccount=value=>window.FinCore?.ACCOUNTS?.some(a=>a.name===value&&a.type==='bank')?value:'';
+  function transferSummary(row){
+    const direction=row?.direction==='in'?'입금':row?.direction==='out'?'출금':'방향 확인 필요';
+    const date=/^\d{4}-\d{2}-\d{2}$/.test(row?.date||'')?row.date:'날짜 확인 필요',time=/^\d{2}:\d{2}$/.test(row?.time||'')?row.time:'시각 확인 필요';
+    const account=transferAccount(row?.account)||'계좌 확인 필요',amount=Number.isSafeInteger(row?.amount)&&row.amount>0&&row.amount<=100000000?row.amount.toLocaleString('ko-KR')+'원':'금액 확인 필요';
+    return [date,time,account,direction,amount].filter(Boolean).join(' · ');
+  }
+  async function openTransfer(id){
+    const version=sessionEpoch,uid=getUid(),store=getStore(),review=getBook().transferReviews?.[id];if(!uid||!store||!review||review.status!=='REVIEW'||busy)return;
+    transferForm.reset();transferForm.dataset.reviewId=id;transferForm.dataset.uid=uid;transferChoices=[];transferConfirm.disabled=true;
+    const summary=transferDialog.querySelector('.fin-transfer-summary'),options=transferDialog.querySelector('.fin-transfer-options');summary.replaceChildren();options.replaceChildren();transferMessage.textContent='기존 짝과 후보를 다시 확인하고 있어요.';
+    if(!transferDialog.open)transferDialog.showModal();busy=true;
+    const timer=setTimeout(()=>{if(uid===getUid()&&version===sessionEpoch&&transferDialog.open)transferMessage.textContent='서버 응답을 기다리고 있어요.';},8000);
+    try{
+      const result=await store.listBankTransferReview(id);if(uid!==getUid()||version!==sessionEpoch||!transferDialog.open)return;
+      if(!Array.isArray(result?.existing)||result.existing.length!==2||!Array.isArray(result.candidates))throw Error('invalid-review');
+      function addLine(title,row){const p=document.createElement('p');p.textContent=title+': '+transferSummary(row);summary.append(p);}
+      for(const row of result.existing)addLine('기존 짝',row);
+      const history=Array.isArray(result.originalHistory)?result.originalHistory:[];
+      const historyValid=history.length===2&&history.every(row=>['in','out'].includes(row?.direction)&&transferAccount(row?.account)&&Number.isSafeInteger(row?.amount)&&row.amount>0&&row.amount<=100000000&&/^\d{4}-\d{2}-\d{2}$/.test(row?.date||'')&&/^\d{2}:\d{2}$/.test(row?.time||''))&&history[0].direction!==history[1].direction&&history[0].account!==history[1].account&&history[0].amount===history[1].amount;
+      const h=document.createElement('strong');h.textContent=historyValid?'원래 알림 이력':'원래 이력 확인 불가';summary.append(h);
+      if(historyValid)for(const row of history)addLine('원래 기록',row);
+      for(const row of result.candidates)addLine('늦은 후보',row);
+      const combinations=[];
+      for(const anchor of result.existing)for(const candidate of result.candidates){
+        if(!/^[A-Za-z0-9_-]{1,100}$/.test(anchor?.id||'')||!/^entry$/.test(anchor?.type||'')||!['entry','alert'].includes(candidate?.type)||!/^[A-Za-z0-9_-]{1,100}$/.test(candidate?.id||''))continue;
+        if(!['in','out'].includes(anchor.direction)||!['in','out'].includes(candidate.direction)||anchor.direction===candidate.direction||!transferAccount(anchor.account)||!transferAccount(candidate.account)||anchor.account===candidate.account||!Number.isSafeInteger(anchor.amount)||anchor.amount<=0||anchor.amount!==candidate.amount)continue;
+        combinations.push({anchor,candidate,label:'새 짝: '+transferSummary(anchor)+' ↔ '+transferSummary(candidate)});
+      }
+      const counts=new Map();for(const pair of combinations)counts.set(pair.label,(counts.get(pair.label)||0)+1);
+      for(const pair of combinations){const label=document.createElement('label');label.className='fin-review-option';const input=document.createElement('input');input.type='radio';input.name='decision';input.value='pair_'+transferChoices.length;const ineligible=pair.candidate.eligible!==true||pair.candidate.status!=='active';input.disabled=result.reassignAllowed!==true||!historyValid||ineligible||counts.get(pair.label)>1;const text=document.createElement('span');text.textContent=pair.label+(counts.get(pair.label)>1?' · 구별할 수 없어 선택 불가':ineligible?' · 연결 조건 확인 필요(선택 불가)':'');label.append(input,text);options.append(label);transferChoices.push({action:'reassign',anchorId:pair.anchor.id,candidateType:pair.candidate.type,candidateId:pair.candidate.id});}
+      transferMessage.textContent=result.reassignAllowed!==true||!historyValid?'기존 짝의 원본을 확인할 수 없어 짝을 바꿀 수 없어요. 기존 장부를 먼저 확인해 주세요.':!combinations.length?'새 짝으로 연결할 수 있는 후보가 없어요. 기존 장부를 확인해 주세요.':'선택한 새 짝만 연결되고 기존의 다른 행은 짝에서 빠져요. 내용을 확인한 뒤 선택해 주세요.';transferConfirm.disabled=false;
+    }catch(_){if(uid===getUid()&&version===sessionEpoch)transferMessage.textContent='기존 짝과 후보를 확인하지 못했어요. 다시 열어 확인해 주세요.';}
+    finally{clearTimeout(timer);busy=false;}
+  }
+  transferForm.addEventListener('submit',async e=>{
+    e.preventDefault();if(busy)return;const version=sessionEpoch,uid=transferForm.dataset.uid,id=transferForm.dataset.reviewId,value=transferForm.querySelector('input[name="decision"]:checked')?.value||'',store=getStore();
+    const match=/^pair_(\d+)$/.exec(value),choice=value==='keep'?{action:'keep'}:match?transferChoices[Number(match[1])]:null;
+    if(!uid||uid!==getUid()||!store||!choice){transferMessage.textContent='기존 짝 유지 또는 새 짝을 직접 선택해 주세요.';return;}
+    busy=true;saving=true;transferConfirm.disabled=true;transferClose.disabled=true;transferMessage.textContent='기존 짝과 후보를 다시 확인하고 있어요.';
+    const timer=setTimeout(()=>{if(uid===getUid()&&version===sessionEpoch&&transferDialog.open)transferMessage.textContent='서버 응답을 기다리고 있어요. 확인이 끝날 때까지 기다려 주세요.';},8000);
+    try{const result=await store.resolveBankTransferReview(id,choice);if(uid!==getUid()||version!==sessionEpoch)return;if(result?.status!=='RESOLVED'||result.action!==choice.action)throw Error('unconfirmed');transferDialog.close();onSuccess?.('transfer',choice.action);}
+    catch(_){if(uid===getUid()&&version===sessionEpoch)transferMessage.textContent='기록이 바뀌었거나 저장 여부를 확인하지 못했어요. 다시 열어 확인해 주세요.';}
+    finally{clearTimeout(timer);busy=false;saving=false;transferConfirm.disabled=false;transferClose.disabled=false;}
+  });
   function extraReviews(){return [['alert',getBook().alertReviews||{}],['import',getBook().importReviews||{}]].flatMap(([type,items])=>Object.entries(items).filter(([id,r])=>/^[A-Za-z0-9_-]+$/.test(id)&&id.length<=(type==='import'?100:80)&&r?.status==='REVIEW').map(([id,r])=>({type,id,review:r})));}
+  function transferReviews(){return Object.entries(getBook().transferReviews||{}).filter(([,r])=>r?.status==='REVIEW');}
   const pcKey=id=>/^(?:sale_(?:smartstore|coupang|sixshop)_\d{8}|meta_coupangSettle|meta_coupangCal)$/.test(id);
   function collectorReviews(){return Object.entries(getBook().meta?.pcCollectorReviews||{}).filter(([,r])=>r?.status==='REVIEW');}
   const pcDialog=document.createElement('dialog');pcDialog.className='fin-review-dialog fin-pc-review-dialog';pcDialog.setAttribute('aria-labelledby','fin-pc-review-title');
@@ -138,22 +188,24 @@ export function mountBankReviewUI({host,getBook,getStore,getUid,onSuccess}){
   return {
     accountChanged(){
       sessionEpoch++;
-      if(dialog.open)dialog.close();if(choiceDialog.open)choiceDialog.close();if(pcDialog.open)pcDialog.close();
-      form.reset();choiceForm.reset();pcForm.reset();
+      if(dialog.open)dialog.close();if(choiceDialog.open)choiceDialog.close();if(pcDialog.open)pcDialog.close();if(transferDialog.open)transferDialog.close();
+      form.reset();choiceForm.reset();pcForm.reset();transferForm.reset();transferChoices=[];
       dialog.querySelector('.fin-review-bank').textContent='';message.textContent='';
       choiceDialog.querySelector('.fin-match-summary').textContent='';choiceDialog.querySelector('.fin-match-candidates').replaceChildren();choiceMessage.textContent='';
       pcDialog.querySelector('.fin-pc-target').textContent='';pcDialog.querySelector('.fin-pc-values').replaceChildren();pcMessage.textContent='';
+      transferDialog.querySelector('.fin-transfer-summary').replaceChildren();transferDialog.querySelector('.fin-transfer-options').replaceChildren();transferMessage.textContent='';
     },
     decorate(needsRoot,recentRoot){
-      const extra=extraReviews(),collector=collectorReviews(),collectorCount=collector.length;
-      if([needsRoot,recentRoot].some(r=>r?.contains(document.activeElement)&&document.activeElement.matches('[data-ai-note]')))return extra.length+collectorCount;
+      const extra=extraReviews(),collector=collectorReviews(),transfers=transferReviews(),collectorCount=collector.length;
+      if([needsRoot,recentRoot].some(r=>r?.contains(document.activeElement)&&document.activeElement.matches('[data-ai-note]')))return extra.length+collectorCount+transfers.length;
       const reviews=Object.entries(getBook().bankReviews||{}).filter(([,r])=>r&&r.status==='REVIEW').sort((a,b)=>(Number(b[1].ts)||0)-(Number(a[1].ts)||0));
       const rows=needsRoot.querySelectorAll('.q-bank-review');
       if(rows.length===reviews.length)rows.forEach((row,index)=>{const [id]=reviews[index];if(!/^[A-Za-z0-9_-]{1,100}$/.test(id)||row.querySelector('.q-review-open'))return;const b=document.createElement('button');b.type='button';b.className='q-btn q-review-open';b.textContent='확인하기';b.dataset.reviewId=id;b.addEventListener('click',()=>open(id));row.append(b);});
-      const target=needsRoot.querySelector('.f-needs-rows')||needsRoot;target.querySelectorAll('.q-match-review,.q-collector-review').forEach(n=>n.remove());
+      const target=needsRoot.querySelector('.f-needs-rows')||needsRoot;target.querySelectorAll('.q-match-review,.q-collector-review,.q-transfer-review').forEach(n=>n.remove());
       for(const {type,id,review} of extra){const row=document.createElement('div');row.className='q-line q-match-review';const details=document.createElement('div'),title=document.createElement('b'),desc=document.createElement('small');title.textContent=type==='alert'?'알림 기록 확인 필요':'가져온 기록 확인 필요';desc.textContent=safeSummary(review)+' · 직접 확인 전에는 장부 합계에 반영되지 않습니다.';details.append(title,desc);const button=document.createElement('button');button.type='button';button.className='q-btn q-review-open';button.dataset.matchType=type;button.dataset.matchId=id;button.textContent='확인하기';button.addEventListener('click',()=>openChoice(type,id));row.append(details,button);target.append(row);}
       for(const [id] of collector){const row=document.createElement('div');row.className='q-line q-collector-review';const text=document.createElement('b');text.textContent='매출·정산 자동 갱신 보류 · 기존 자료 보존';row.append(text);if(pcKey(id)){const button=document.createElement('button');button.type='button';button.className='q-btn q-review-open';button.dataset.pcReviewId=id;button.textContent='확인하기';button.addEventListener('click',()=>openPc(id));row.append(button);}target.append(row);}
-      if(extra.length||collectorCount)needsRoot.hidden=false;return extra.length+collectorCount;
+      for(const [id] of transfers){const row=document.createElement('div');row.className='q-line q-transfer-review';const text=document.createElement('b');text.textContent='계좌 이동 짝 다시 확인 필요 · 확정 이동 합계에서 제외';row.append(text);if(/^[A-Za-z0-9_-]{1,100}$/.test(id)){const button=document.createElement('button');button.type='button';button.className='q-btn q-review-open';button.dataset.transferReviewId=id;button.textContent='확인하기';button.addEventListener('click',()=>openTransfer(id));row.append(button);}target.append(row);}
+      if(extra.length||collectorCount||transfers.length)needsRoot.hidden=false;return extra.length+collectorCount+transfers.length;
     }
   };
 }

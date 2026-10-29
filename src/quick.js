@@ -1,10 +1,10 @@
 import {createFinSession} from './fin-session.js?v=access20261028';
-import {mountBankReviewUI} from './fin-review-ui.js?v=invariants20261029';
+import {mountBankReviewUI} from './fin-review-ui.js?v=bankpairs20261029';
 // 재무 빠른 장부(quick.html) — 휴대폰 화면. 위: 오늘 · 이번 달 요약, 가운데: 수기 입력(공용 부품 fin-form), 아래: 확인 필요 · 최근 기록.
 // 장부는 Firebase hub/financeV1(사장님 로그인 전용). PC 재무 화면(fin-panel.js)과 같은 부품 · 같은 줄 모양을 쓴다.
 import { onAuth, signIn } from './fbauth.js?v=access20261028';
-import { openFinStore } from './fin-hub.js?v=invariants20261029';
-import { mountEntryForm, renderLists, bindListActions, rememberNeeds, coupangCalendar, accountsView, esc, won } from './fin-form.js?v=invariants20261029';
+import { openFinStore } from './fin-hub.js?v=bankpairs20261029';
+import { mountEntryForm, renderLists, bindListActions, rememberNeeds, coupangCalendar, accountsView, esc, won } from './fin-form.js?v=bankpairs20261029';
 
 const F = window.FinCore;
 const $ = s => document.querySelector(s);
@@ -38,7 +38,7 @@ function draw() {
 }
 
 function start() {
-  reviewUI=mountBankReviewUI({host:$('#q-app'),getBook:()=>book,getStore:()=>store,getUid:()=>activeUid,onSuccess:(type,action)=>{$('#q-list-msg').textContent=type==='bank'?'은행 알림을 장부에 확인했어요.':type==='collector'?(action==='keep'?'기존 자료를 유지했어요.':'새 제안을 적용했어요.'):'확인한 내용을 장부에 반영했어요.';}});
+  reviewUI=mountBankReviewUI({host:$('#q-app'),getBook:()=>book,getStore:()=>store,getUid:()=>activeUid,onSuccess:(type,action)=>{$('#q-list-msg').textContent=type==='bank'?'은행 알림을 장부에 확인했어요.':type==='collector'?(action==='keep'?'기존 자료를 유지했어요.':'새 제안을 적용했어요.'):type==='transfer'?(action==='keep'?'기존 짝을 유지했어요. 늦은 후보는 확인 대기에 남아요.':'선택한 계좌 이동 짝을 반영했어요.'):'확인한 내용을 장부에 반영했어요.';}});
   document.addEventListener('click', async ev => {
     const t = ev.target.closest('button'); if (!t) return;
     if (t.dataset.period) { period = t.dataset.period; drawSummary(); }

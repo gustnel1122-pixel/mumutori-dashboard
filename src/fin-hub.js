@@ -52,7 +52,7 @@ export async function pcCollectorFingerprint(value){return safeDigest(JSON.strin
 
 export function openFinStore({ root = ROOT, onChange, onStatus } = {}) {
   const test = typeof window !== 'undefined' && window.__MMT_TEST_FIN__;
-  let book = { entries: {}, sales: {}, meta: {}, bankReviews: {}, alertReviews: {}, importReviews: {} }, timer = 0, state = '', inboxRun = null, visibilityHandler = null;
+  let book = { entries: {}, sales: {}, meta: {}, bankReviews: {}, alertReviews: {}, importReviews: {}, transferReviews: {} }, timer = 0, state = '', inboxRun = null, visibilityHandler = null;
   const reviewSelections=new Map();
   let closed=false;const closeController=new AbortController();
   const ensureActive=()=>{if(closed)throw Error('계정이 바뀌어 확인을 중단했습니다.');};
@@ -81,8 +81,8 @@ export function openFinStore({ root = ROOT, onChange, onStatus } = {}) {
   async function load() {
     try {
       status('loading');
-      const [entries, sales, meta, bankReviews, alertReviews, importReviews] = await Promise.all([req('GET', PATHS.entries), req('GET', PATHS.sales), req('GET', PATHS.meta), req('GET','bankReviews'), req('GET','alertReviews'), req('GET','importReviews')]);
-      book = { entries: entries || {}, sales: sales || {}, meta: meta || {}, bankReviews:bankReviews || {}, alertReviews:alertReviews || {}, importReviews:importReviews || {}, inboxTestCount:book.inboxTestCount };
+      const {data}=await readFinance();
+      book = { entries:data.entries||{},sales:data.sales||{},meta:data.meta||{},bankReviews:data.bankReviews||{},alertReviews:data.alertReviews||{},importReviews:data.importReviews||{},transferReviews:data.transferReviews||{},inboxTestCount:book.inboxTestCount };
       status('ok'); emit(); return clone(book);
     } catch (err) { if (state !== 'denied') status('offline'); throw err; }
   }
@@ -91,12 +91,13 @@ export function openFinStore({ root = ROOT, onChange, onStatus } = {}) {
     ensureActive();
     if(test)return {data:clone(test),tag:'test'};
     const url=await dbUrl(root);ensureActive();const r=await fetch(url,{cache:'no-store',headers:{'X-Firebase-ETag':'true'},signal:closeController.signal});ensureActive();
+    if(r.status===401||r.status===403){status('denied');throw Error('공용 장부를 열 권한이 없습니다.');}
     if(!r.ok)throw Error('장부를 다시 읽지 못했습니다.');
     const tag=r.headers.get('ETag');if(!tag)throw Error('동시 수정 확인이 필요합니다.');
     const data=await r.json()||{};ensureActive();return {data,tag,url};
   }
   function refreshBook(data){
-    book={...book,entries:data.entries||{},sales:data.sales||{},meta:data.meta||{},bankReviews:data.bankReviews||{},alertReviews:data.alertReviews||{},importReviews:data.importReviews||{}};emit();
+    book={...book,entries:data.entries||{},sales:data.sales||{},meta:data.meta||{},bankReviews:data.bankReviews||{},alertReviews:data.alertReviews||{},importReviews:data.importReviews||{},transferReviews:data.transferReviews||{}};emit();
   }
   async function changeFinance(transform,verify){
     for(let attempt=0;attempt<4;attempt++){
@@ -151,6 +152,94 @@ export function openFinStore({ root = ROOT, onChange, onStatus } = {}) {
     if(selected.kind==='move'&&(!accounts.includes(selected.from)||!accounts.includes(selected.to)||selected.from===selected.to))return false;
     const display=e=>{const {id,...safe}=publicCandidate(e);return safe;};
     return rows.filter(e=>sameStored(display(e),display(selected))).length===1;
+  }
+  function bankPendingEvent(id,r){
+    const F=window.FinCore;
+    if(r?.status!=='REVIEW'||!['kakaobank','tossbank'].includes(r.bankSource)||!['in','out'].includes(r.kind)||!Number.isSafeInteger(r.amount)||r.amount<=0||!Number.isSafeInteger(r.alertAt))return null;
+    const e=F.normEntry({id:'al_'+id,inboxId:id,source:'alert',bankSource:r.bankSource,bankDirection:r.kind==='in'?'입금':'출금',alertAt:r.alertAt,kind:r.kind,amount:r.amount,date:r.date,time:r.time,method:r.method,vendor:'',memo:'개인사업자 통장 알림',evidence:'없음'},new Date(r.alertAt));
+    return F.bankOriginal(e)?e:null;
+  }
+  function pairedBankRow(e){
+    const F=window.FinCore,prefix=e?.bankSource==='kakaobank'?'kb_':e?.bankSource==='tossbank'?'tb_':'';
+    const allowed=new Set(['id','kind','amount','date','time','method','bankSource','bankDirection','alertAt','source','inboxId','vendor','memo','evidence','category','vatIncluded','status','createdAt','from','to','transferId','updatedAt']);
+    if(!e||Object.keys(e).some(k=>!allowed.has(k)))return false;
+    return !!prefix&&e?.source==='alert'&&e.kind==='move'&&e.status==='ok'&&e.category===F.MOVE_CATEGORY&&
+      e.memo==='은행 알림 자동 짝맞춤 · 동일 금액·2분 이내 유일한 짝'&&e.vendor===''&&
+      typeof e.inboxId==='string'&&new RegExp('^'+prefix+'\\d{13}$').test(e.inboxId)&&e.id==='al_'+e.inboxId&&
+      Number.isSafeInteger(e.alertAt)&&Number(e.inboxId.slice(3))===e.alertAt&&['입금','출금'].includes(e.bankDirection)&&
+      (e.bankDirection==='출금'?e.from===F.accountOf(e):e.to===F.accountOf(e));
+  }
+  const bankDirection=e=>e.kind==='move'?(e.bankDirection==='입금'?'in':'out'):e.kind;
+  // Never include edited free text in a persisted ambiguity fingerprint.
+  const safeTransferStamp=e=>JSON.stringify(['id','kind','amount','date','time','status','source','category','method','account','from','to','transferId','inboxId','bankSource','bankDirection','alertAt','updatedAt'].map(k=>e?.[k]??null));
+  function bankPeer(a,b){return !!a&&!!b&&a.id!==b.id&&a.bankSource!==b.bankSource&&bankDirection(a)!==bankDirection(b)&&a.amount===b.amount&&Math.abs(a.alertAt-b.alertAt)<=120000;}
+  function transferConflictRows(data){
+    const F=window.FinCore,groups=new Map(),late=[];
+    for(const e of Object.values(data.entries||{})){
+      if(pairedBankRow(e)&&e.transferId){
+        const m=/^bt_(al_(?:kb|tb)_\d{13})_(al_(?:kb|tb)_\d{13})$/.exec(e.transferId);
+        if(m)groups.set(e.transferId,{ids:[m[1],m[2]],bases:null});
+      }
+      else if(F.bankOriginal(e))late.push({type:'entry',id:e.id,row:e});
+    }
+    for(const [id,proof] of Object.entries(data.transferPairProofs||{})){
+      if(data.transferReviews?.[id]?.status==='RESOLVED'&&data.transferReviews[id].action==='reassign')continue;
+      const ids=Object.keys(proof?.originals||{}).sort();
+      if(proof?.version===1&&ids.length===2&&ids.every(k=>F.bankOriginal(proof.originals[k]))&&bankPeer(proof.originals[ids[0]],proof.originals[ids[1]]))groups.set(id,{ids,bases:ids.map(k=>proof.originals[k])});
+    }
+    for(const [id,r] of Object.entries(data.alertReviews||{})){const e=bankPendingEvent(id,r);if(e)late.push({type:'alert',id,row:e});}
+    const result=[];
+    for(const [id,group] of groups){
+      const rows=group.ids.map(k=>data.entries?.[k]||null),bases=group.bases||rows.filter(pairedBankRow);
+      if(!group.bases&&bases.length===1){
+        const otherId=group.ids.find(k=>k!==bases[0].id),source=otherId?.startsWith('al_kb_')?'kakaobank':otherId?.startsWith('al_tb_')?'tossbank':'';
+        if(source&&source!==bases[0].bankSource)bases.push({id:otherId,bankSource:source,kind:bankDirection(bases[0])==='in'?'out':'in',amount:bases[0].amount,alertAt:Number(otherId.slice(6))});
+      }
+      if(!bases.length)continue;
+      const matches=late.filter(c=>!group.ids.includes(c.row.id)&&bases.some(r=>bankPeer(r,c.row))).sort((a,b)=>(a.type+':'+a.id).localeCompare(b.type+':'+b.id));
+      if(matches.length)result.push({id,ids:group.ids,rows,matches});
+    }
+    return result;
+  }
+  async function updateTransferReviews(data,onlyId){
+    const F=window.FinCore;let changed=false;
+    for(const issue of transferConflictRows(data)){
+      if(onlyId&&issue.id!==onlyId)continue;
+      const refs=issue.matches.map(c=>({type:c.type,id:c.id}));
+      const snapshots=await Promise.all([...issue.ids.map((id,i)=>({id,row:issue.rows[i]})),...issue.matches.filter(c=>c.type==='entry').map(c=>({id:c.row.id,row:c.row}))].map(async x=>({id:x.id,stamp:await safeDigest(safeTransferStamp(x.row))})));
+      const candidateHashes=await Promise.all(issue.matches.map(async c=>({type:c.type,id:c.id,stamp:await safeDigest(safeTransferStamp(c.row))})));
+      const signature=await safeDigest(JSON.stringify(normalizedFirebase({rows:snapshots,candidates:candidateHashes})));
+      data.transferReviews=data.transferReviews||{};const prior=data.transferReviews[issue.id];
+      if(prior?.signature===signature&&['REVIEW','RESOLVED'].includes(prior.status))continue;
+      data.transferReviews[issue.id]={status:'REVIEW',reason:'LATE_CANDIDATE',entryIds:issue.ids,candidates:refs,rows:snapshots,signature,createdAt:new Date().toISOString()};changed=true;
+    }
+    return changed;
+  }
+  async function transferReviewContext(data,id){
+    const F=window.FinCore,r=data.transferReviews?.[id];
+    if(!r||r.status!=='REVIEW'||!Array.isArray(r.entryIds)||r.entryIds.length!==2||!Array.isArray(r.candidates)||!Array.isArray(r.rows))throw Error('이동 확인 대기를 다시 확인해 주세요.');
+    const existing=r.entryIds.map(k=>data.entries?.[k]);
+    const choices=r.candidates.map(ref=>{
+      if(ref.type==='entry'){const e=data.entries?.[ref.id];return {type:'entry',id:ref.id,row:e||null};}
+      if(ref.type==='alert'){const e=bankPendingEvent(ref.id,data.alertReviews?.[ref.id]);return {type:'alert',id:ref.id,row:e};}
+      return {type:'unknown',id:'',row:null};
+    });
+    const proof=data.transferPairProofs?.[id];let proofValid=false,reconstructed=false;
+    const originals=Object.fromEntries(r.entryIds.map(key=>[key,proof?.originals?.[key]])),timestamp=new Date(proof?.pairedAt||'');
+    if(proof?.version===1&&Number.isFinite(timestamp.getTime())&&r.entryIds.every(key=>F.bankOriginal(originals[key]))){
+      const pairs=F.bankTransferPairs(originals,timestamp);
+      if(pairs.length===1&&pairs[0].transferId===id){const matches=await Promise.all(pairs[0].rows.map(async row=>proof.stamps?.[row.id]===await safeDigest(F.transferRowStamp(row))));proofValid=matches.every(Boolean);}
+    }
+    if(proofValid){const validRows=await Promise.all(existing.map(async e=>!!e&&pairedBankRow(e)&&e.transferId===id&&proof.stamps?.[e.id]===await safeDigest(F.transferRowStamp(e))));reconstructed=validRows.every(Boolean);}
+    const reassignAllowed=reconstructed&&choices.some(c=>c.row&&F.bankOriginal(c.row)&&existing.some(e=>bankPeer(e,c.row)));
+    return {review:r,existing,choices,proof,proofValid,reassignAllowed};
+  }
+  function publicBankRow(e,type,id){
+    const F=window.FinCore,name=e?F.accountOf(e):'',direction=e?bankDirection(e):'';
+    return {id,type,direction:['in','out'].includes(direction)?direction:'',amount:Number.isSafeInteger(e?.amount)?e.amount:null,date:F.validDate(e?.date)?e.date:'',time:/^\d{2}:\d{2}$/.test(e?.time||'')?e.time:'',account:F.ACCOUNTS.some(a=>a.name===name)?name:'',status:e?.status==='void'?'void':e?'active':'missing'};
+  }
+  function transferContextSnapshot(ctx){
+    return JSON.stringify(normalizedFirebase({review:ctx.review,existing:ctx.existing,choices:ctx.choices.map(c=>({type:c.type,id:c.id,row:c.row})),proof:ctx.proof,proofValid:ctx.proofValid,reassignAllowed:ctx.reassignAllowed}));
   }
   const candidateSnapshot=(entries,review)=>JSON.stringify(normalizedFirebase({review,candidates:candidates(entries,review).map(e=>[e.id,e]).sort((a,b)=>String(a[0]).localeCompare(String(b[0])))}));
   function pcTarget(key){
@@ -318,6 +407,48 @@ export function openFinStore({ root = ROOT, onChange, onStatus } = {}) {
       reviewSelections.set('alert:'+id,candidateSnapshot(data.entries,review));
       return {review:publicReview(review,'alert'),candidates:candidates(data.entries,review).map(publicCandidate)};
     },
+    async listBankTransferReview(id){
+      if(!/^[A-Za-z0-9_-]{1,100}$/.test(String(id||'')))throw Error('이동 확인 번호를 다시 확인해 주세요.');
+      const {data}=await readFinance(),ctx=await transferReviewContext(data,id);
+      reviewSelections.set('transfer:'+id,transferContextSnapshot(ctx));
+      const originals=ctx.proofValid?ctx.review.entryIds.map(id=>ctx.proof.originals[id]):[];
+      return {existing:ctx.existing.map((e,i)=>publicBankRow(e,'entry',ctx.review.entryIds[i])),originalHistory:originals.map(e=>publicBankRow(e,'entry',e.id)),candidates:ctx.choices.map(c=>({...publicBankRow(c.row,c.type,c.id),eligible:!!(c.row&&window.FinCore.bankOriginal(c.row)&&ctx.existing.some(e=>bankPeer(e,c.row)))})),reassignAllowed:!!ctx.reassignAllowed};
+    },
+    async resolveBankTransferReview(id,choice){
+      if(!/^[A-Za-z0-9_-]{1,100}$/.test(String(id||''))||!['keep','reassign'].includes(choice?.action))throw Error('이동 확인 내용을 선택해 주세요.');
+      if(choice.action==='reassign'&&(!/^[A-Za-z0-9_-]{1,100}$/.test(String(choice.anchorId||''))||!['entry','alert'].includes(choice.candidateType)||!/^[A-Za-z0-9_-]{1,100}$/.test(String(choice.candidateId||''))))throw Error('연결할 두 기록을 선택해 주세요.');
+      const result=await changeFinance(async data=>{
+        const prior=data.transferReviews?.[id];
+        if(prior?.status==='RESOLVED'){
+          if(prior.action===choice.action&&(choice.action==='keep'||(prior.anchorId===choice.anchorId&&prior.candidateType===choice.candidateType&&prior.candidateId===choice.candidateId)))return {changed:false,value:{status:'RESOLVED',action:choice.action,checks:{}}};
+          throw Error('이미 확인한 이동 기록입니다.');
+        }
+        const ctx=await transferReviewContext(data,id);
+        if(!reviewSelections.has('transfer:'+id)||reviewSelections.get('transfer:'+id)!==transferContextSnapshot(ctx))throw Error('이동 기록이나 후보가 바뀌었어요. 다시 확인해 주세요.');
+        const checks={};let selection={};
+        if(choice.action==='reassign'){
+          if(!ctx.reassignAllowed)throw Error('기존 기록의 자동 생성 원본을 확인할 수 없어 변경하지 않았습니다.');
+          const F=window.FinCore,anchor=ctx.existing.find(e=>e.id===choice.anchorId),candidate=ctx.choices.find(c=>c.type===choice.candidateType&&c.id===choice.candidateId);
+          if(!anchor||!candidate?.row||!F.bankOriginal(candidate.row)||!bankPeer(anchor,candidate.row))throw Error('선택한 이동 후보를 다시 확인해 주세요.');
+          const shown=c=>{const {id,type,eligible,status,...v}=publicBankRow(c.row,c.type,c.id);return v;};
+          if(ctx.choices.filter(c=>c.row&&sameStored(shown(c),shown(candidate))).length!==1)throw Error('같은 모습의 후보를 구분할 수 없어 장부에서 먼저 확인해 주세요.');
+          const originalAnchor=clone(ctx.proof.originals[anchor.id]),other=ctx.existing.find(e=>e.id!==anchor.id),originalOther=clone(ctx.proof.originals[other.id]),incoming=clone(candidate.row);
+          if(candidate.type==='alert'&&data.entries?.[incoming.id])throw Error('늦은 알림과 같은 번호의 기록이 있어 다시 확인해야 합니다.');
+          const pairs=F.bankTransferPairs({[originalAnchor.id]:originalAnchor,[incoming.id]:incoming});if(pairs.length!==1)throw Error('선택한 두 기록의 이동을 확인할 수 없습니다.');
+          const at=new Date().toISOString();originalOther.updatedAt=at;data.entries[originalOther.id]=originalOther;checks[originalOther.id]=F.transferRowStamp(originalOther);
+          for(const row of pairs[0].rows){row.memo='은행 알림 · 직접 선택한 계좌 이동';row.updatedAt=at;F.validateEntry(row);data.entries[row.id]=row;checks[row.id]=F.transferRowStamp(row);}
+          if(candidate.type==='alert'){
+            data.alertReviews[candidate.id]={...data.alertReviews[candidate.id],status:'RESOLVED',action:'transfer',entryId:incoming.id,resolvedAt:at};
+            data.inboxSeen=data.inboxSeen||{};data.inboxSeen[candidate.id]={...data.inboxSeen[candidate.id],entryId:incoming.id,reviewId:candidate.id,pending:false,at};
+          }
+          selection={anchorId:choice.anchorId,candidateType:choice.candidateType,candidateId:choice.candidateId};
+        }
+        if(choice.action==='keep')await updateTransferReviews(data,id);
+        data.transferReviews[id]={...data.transferReviews[id],status:'RESOLVED',action:choice.action,...selection,resolvedAt:new Date().toISOString()};
+        return {changed:true,value:{status:'RESOLVED',action:choice.action,checks}};
+      },(data,value)=>{const r=data.transferReviews?.[id];return r?.status==='RESOLVED'&&r.action===value.action&&(value.action==='keep'||(r.anchorId===choice.anchorId&&r.candidateType===choice.candidateType&&r.candidateId===choice.candidateId))&&Object.entries(value.checks).every(([key,stamp])=>window.FinCore.transferRowStamp(data.entries?.[key])===stamp)&&(value.action!=='reassign'||choice.candidateType!=='alert'||(data.alertReviews?.[choice.candidateId]?.status==='RESOLVED'&&data.alertReviews[choice.candidateId].entryId==='al_'+choice.candidateId));});
+      return {status:result.status,action:result.action};
+    },
     async listImportReviewCandidates(id){
       const {data}=await readFinance(),review=data.importReviews?.[id];
       if(!review||review.status!=='REVIEW')throw Error('확인할 가져오기 기록이 없습니다.');
@@ -424,32 +555,19 @@ export function openFinStore({ root = ROOT, onChange, onStatus } = {}) {
     // Two rows must become one transfer atomically. ETag retries preserve every unrelated row.
     async reconcileBankTransfers() {
       const F = window.FinCore; if (!F.bankTransferPairs) return 0;
-      for (let attempt = 0; attempt < 3; attempt++) {
-        let entries, tag, url;
-        if (test) entries = await req('GET', PATHS.entries) || {};
-        else {
-          url = await dbUrl(`${root}/${PATHS.entries}`);
-          const response = await fetch(url, {cache:'no-store',headers:{'X-Firebase-ETag':'true'}});
-          if (!response.ok) throw Error('이동 짝을 확인할 장부를 읽지 못했습니다.');
-          entries = await response.json() || {}; tag = response.headers.get('ETag');
-          if (!tag) throw Error('이동 짝의 동시 수정 확인이 필요합니다.');
+      const result=await changeFinance(async data=>{
+        data.entries=data.entries||{};const pending=Object.entries(data.alertReviews||{}).map(([id,r])=>bankPendingEvent(id,r)).filter(Boolean);
+        const pairs=F.bankTransferPairs(data.entries,new Date(),pending),checks=[];
+        for(const pair of pairs){
+          const originals={},stamps={},rowChecks={};for(const row of pair.rows){F.validateEntry(row);originals[row.id]=clone(data.entries[row.id]);rowChecks[row.id]=F.transferRowStamp(row);stamps[row.id]=await safeDigest(rowChecks[row.id]);data.entries[row.id]=row;}
+          data.transferPairProofs=data.transferPairProofs||{};data.transferPairProofs[pair.transferId]={version:1,pairedAt:pair.rows[0].updatedAt,originals,stamps};checks.push({id:pair.transferId,stamps:rowChecks});
         }
-        const pairs = F.bankTransferPairs(entries); if (!pairs.length) return 0;
-        const next = clone(entries);
-        for (const pair of pairs) for (const row of pair.rows) { F.validateEntry(row); next[row.id] = row; }
-        if (test) await req('PUT', PATHS.entries, next);
-        else {
-          const response = await fetch(url, {method:'PUT',headers:{'Content-Type':'application/json','if-match':tag},body:JSON.stringify(next)});
-          if (response.status === 412) continue;
-          if (!response.ok) throw Error('내 계좌 이동 짝을 저장하지 못했습니다.');
-        }
-        const saved = await req('GET', PATHS.entries);
-        for (const pair of pairs) for (const row of pair.rows) {
-          if (saved?.[row.id]?.transferId !== pair.transferId || saved[row.id].kind !== 'move') throw Error('이동 짝 재조회가 달라 확인이 필요합니다.');
-        }
-        book.entries = saved; emit(); return pairs.length;
-      }
-      throw Error('다른 기기에서 장부를 수정 중입니다. 다음 수집 때 이동 짝을 다시 확인합니다.');
+        const changedReviews=await updateTransferReviews(data);
+        if(!pairs.length&&!changedReviews)return {changed:false,value:{count:0,checks:[],reviews:[]}};
+        const reviews=Object.entries(data.transferReviews||{}).filter(([,r])=>r.status==='REVIEW').map(([id,r])=>({id,signature:r.signature}));
+        return {changed:true,value:{count:pairs.length,checks,reviews}};
+      },(data,value)=>value.checks.every(c=>Object.entries(c.stamps).every(([id,stamp])=>F.transferRowStamp(data.entries?.[id])===stamp)&&data.transferPairProofs?.[c.id]?.version===1)&&value.reviews.every(c=>data.transferReviews?.[c.id]?.signature===c.signature));
+      return result.count;
     },
     // 알림 입구(hub/financeInbox/<키>/<id>)의 새 글 → 초안 줄(확인 필요, 규칙표에 있으면 바로 분류) → 처리 표시(inboxSeen).
     // 입구 규칙 · 휴대폰 설정 전에는 입구가 비어 있어 아무 일도 하지 않는다. PC AI도 같은 순서로 처리한다(fin_hub.py, 2단계).
@@ -482,7 +600,7 @@ export function openFinStore({ root = ROOT, onChange, onStatus } = {}) {
                 const identity=repeated&&await alertIdentity(repeated);
                 if(identity&&Object.keys(identity).some(k=>previous.event[k]!==identity[k])){
                   F.validateEntry(repeated);data.alertReviews=data.alertReviews||{};
-                  data.alertReviews[id]={...safeAlert(repeated),reason:'ID_CONFLICT'};
+                  data.alertReviews[id]={...safeAlert(repeated),reason:'ID_CONFLICT'};await updateTransferReviews(data);
                   return {changed:true,value:'collision'};
                 }
               }
@@ -503,10 +621,10 @@ export function openFinStore({ root = ROOT, onChange, onStatus } = {}) {
             if(data.entries[draft.id]||candidates(data.entries,draft).length){
               data.alertReviews=data.alertReviews||{};
               data.alertReviews[id]={...safeAlert(draft),reason:data.entries[draft.id]?'ID_CONFLICT':'POSSIBLE_DUPLICATE'};
-              data.inboxSeen[id]={reviewId:id,pending:true,event:await alertIdentity(draft),at:new Date().toISOString()};
+              data.inboxSeen[id]={reviewId:id,pending:true,event:await alertIdentity(draft),at:new Date().toISOString()};await updateTransferReviews(data);
               return {changed:true,value:'pending'};
             }
-            data.entries[draft.id]=draft;data.inboxSeen[id]={entryId:draft.id,event:await alertIdentity(draft),at:new Date().toISOString()};
+            data.entries[draft.id]=draft;data.inboxSeen[id]={entryId:draft.id,event:await alertIdentity(draft),at:new Date().toISOString()};await updateTransferReviews(data);
             return {changed:true,value:'added'};
           },(data,value)=>value==='added'?!!data.entries?.[data.inboxSeen?.[id]?.entryId]:value==='review'?!!data.bankReviews?.[id]:value==='pending'?!!data.inboxSeen?.[id]?.pending&&!!data.alertReviews?.[id]:value==='collision'?data.alertReviews?.[id]?.reason==='ID_CONFLICT':!!data.inboxSeen?.[id]?.skipped);
           if(outcome==='added'||outcome==='review')made++;

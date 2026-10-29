@@ -1,7 +1,7 @@
 // Synthetic notifications only; never connect to the production ledger.
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
 const F=require('../src/fin-core.js'),NOW=new Date('2026-10-28T03:10:00Z');
-const bank=(src,direction,over={})=>({id:(src==='kakaobank'?'kb_':'tb_')+NOW.getTime(),src,ts:NOW.getTime(),rawInbox:true,
+const bank=(src,direction,over={})=>({id:(src==='kakaobank'?'kb_':'tb_')+(over.ts??NOW.getTime()),src,ts:NOW.getTime(),rawInbox:true,
  text:src==='kakaobank'?`${direction} 5,321원 / 개인사업자통장(1111) → 가상상대 잔액 999,999원`:`5,321원 ${direction} / 가상상대 → 내 토스뱅크 개인사업자 통장`,...over});
 test('autopay without date, instalment or app name uses received time; preserves no names/card/balance',()=>{
  const e=F.draftFromAlert({id:'hd_fixture',rawInbox:true,ts:NOW.getTime(),text:'자동납부 승인 가*상님 LG유플러스통신요 -**11-1111 12,345원'},[],NOW);
@@ -23,7 +23,7 @@ test('only mutual unique opposite bank entries within two minutes pair; moves do
  const book={entries:Object.fromEntries(pairs[0].rows.map(e=>[e.id,e]))};for(const e of pairs[0].rows){assert.equal(e.kind,'move');assert.equal(e.category,'내 계좌 이동');F.validateEntry(e);}
  const sums=F.summarize(book,'month',NOW);assert.equal(sums.sales,0);assert.equal(sums.spend,0);assert.equal(sums.cashFlow,0);
  assert.equal(F.bankTransferPairs({a,b:{...b,alertAt:a.alertAt+120001}},NOW).length,0);
- assert.equal(F.bankTransferPairs({a,b,c:{...a,id:'extra'}},NOW).length,0);
+ const c=F.draftFromAlert(bank('kakaobank','출금',{ts:NOW.getTime()+2000}),[],NOW);assert.equal(F.bankTransferPairs({a,b,c},NOW).length,0);
  assert.equal(F.bankTransferPairs({a:{...a,updatedAt:NOW.toISOString()},b},NOW).length,0);
  assert.equal(F.bankTransferPairs({a,b:{...b,amount:1}},NOW).length,0);
  assert.equal(F.sameMoment(a,{...a,id:'other-copy'}),true);assert.equal(F.sameMoment(a,{...a,alertAt:a.alertAt+1}),false);
@@ -32,21 +32,21 @@ const classify='data:text/javascript;base64,'+Buffer.from(fs.readFileSync(requir
 function moduleSource(db){return fs.readFileSync(require.resolve('../src/fin-hub.js'),'utf8').replace(/import \{ dbUrl \} from '\.\/fbauth\.js(?:\?[^']*)?';/,db).replace("'./fin-classify.js?v=undo-20261027'",JSON.stringify(classify));}
 const loadModule=s=>import('data:text/javascript;base64,'+Buffer.from(s).toString('base64'));
 test('real inbox import deduplicates original notification and persists an internal pair without sensitive text',async()=>{
- const rawA=bank('kakaobank','출금'),rawB=bank('tossbank','입금',{ts:NOW.getTime()+1000});
- const data={entries:{},meta:{},sales:{},__inbox:{},__rawInbox:{private:{a:rawA,aCopy:rawA,b:rawB,personal:bank('kakaobank','출금',{text:'출금 5,321원 개인통장'})}}};
+ const rawA=bank('kakaobank','출금'),rawB=bank('tossbank','입금',{ts:NOW.getTime()+1000}),aCopy=bank('kakaobank','출금',{ts:NOW.getTime()+2000});
+ const data={entries:{},meta:{},sales:{},__inbox:{},__rawInbox:{private:{[rawA.id]:rawA,[aCopy.id]:aCopy,[rawB.id]:rawB,personal:bank('kakaobank','출금',{text:'출금 5,321원 개인통장'})}}};
  global.window={FinCore:F,__MMT_TEST_FIN__:data};const {openFinStore}=await loadModule(moduleSource("const dbUrl=()=>{throw Error('Network forbidden')};"));const store=openFinStore();
- try{await store.load();assert.equal(await store.processInbox(),2);assert.equal(await store.processInbox(),0);assert.equal(Object.keys(data.entries).length,2);assert(data.inboxSeen.aCopy.pending);assert.equal(data.alertReviews.aCopy.status,'REVIEW');assert(data.inboxSeen.personal.skipped);
-  for(const e of Object.values(data.entries))assert.equal(e.kind,'move');assert(!JSON.stringify(data.entries).includes('가상상대'));
+ try{await store.load();assert.equal(await store.processInbox(),2);assert.equal(await store.processInbox(),0);assert.equal(Object.keys(data.entries).length,2);assert(data.inboxSeen[aCopy.id].pending);assert.equal(data.alertReviews[aCopy.id].status,'REVIEW');assert(data.inboxSeen.personal.skipped);
+  assert(Object.values(data.entries).every(e=>e.kind!=='move'));assert(!JSON.stringify(data.entries).includes('가상상대'));
  }finally{store.close();delete global.window;}
 });
 test('atomic transfer reconciliation retries ETag conflict and preserves concurrent unrelated entries',async()=>{
- const a=F.draftFromAlert(bank('kakaobank','출금'),[],NOW),b=F.draftFromAlert(bank('tossbank','입금'),[],NOW);let saved={[a.id]:a,[b.id]:b},puts=0;
+ const a=F.draftFromAlert(bank('kakaobank','출금'),[],NOW),b=F.draftFromAlert(bank('tossbank','입금'),[],NOW);let saved={entries:{[a.id]:a,[b.id]:b}},puts=0;
  global.window={FinCore:F};const oldFetch=global.fetch;
  global.fetch=async(url,opts={})=>{assert(String(url).startsWith('https://test.invalid/'));if((opts.method||'GET')==='GET')return new Response(JSON.stringify(saved),{headers:{ETag:'"'+puts+'"'}});
-  assert.equal(opts.method,'PUT');puts++;if(puts===1){saved.concurrent={id:'concurrent',memo:'preserve collaborator edit'};return new Response('',{status:412});}
-  const next=JSON.parse(opts.body);assert.equal(next.concurrent.memo,'preserve collaborator edit');saved=next;return new Response(JSON.stringify(saved));};
+  assert.equal(opts.method,'PUT');puts++;if(puts===1){saved.entries.concurrent={id:'concurrent',memo:'preserve collaborator edit'};return new Response('',{status:412});}
+  const next=JSON.parse(opts.body);assert.equal(next.entries.concurrent.memo,'preserve collaborator edit');saved=next;return new Response(JSON.stringify(saved));};
  const {openFinStore}=await loadModule(moduleSource("const dbUrl=async p=>'https://test.invalid/'+p;"));const store=openFinStore();
- try{assert.equal(await store.reconcileBankTransfers(),1);assert.equal(puts,2);assert.equal(saved.concurrent.memo,'preserve collaborator edit');assert.equal(saved[a.id].kind,'move');assert.equal(saved[b.id].kind,'move');}
+ try{assert.equal(await store.reconcileBankTransfers(),1);assert.equal(puts,2);assert.equal(saved.entries.concurrent.memo,'preserve collaborator edit');assert.equal(saved.entries[a.id].kind,'move');assert.equal(saved.entries[b.id].kind,'move');}
  finally{store.close();global.fetch=oldFetch;delete global.window;}
 });
 

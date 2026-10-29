@@ -1,10 +1,10 @@
 import {createFinSession} from './fin-session.js?v=access20261028';
-import {mountBankReviewUI} from './fin-review-ui.js?v=invariants20261029';
+import {mountBankReviewUI} from './fin-review-ui.js?v=bankpairs20261029';
 // PC 재무 화면(finance.html) 맨 위 '수기 입력 · 확인 필요' 패널 — 휴대폰 화면(quick.html)과 같은 부품(fin-form) · 같은 공용 장부(hub/financeV1).
 // ERP 화면은 이 PC 저장(localStorage)으로 그려지고 자주 다시 그려지므로, 패널 자리(#fin-hub-panel)가 새로 생길 때마다 다시 붙인다(장부 연결은 하나로 유지).
 import { onAuth, signIn } from './fbauth.js?v=access20261028';
-import { openFinStore } from './fin-hub.js?v=invariants20261029';
-import { mountEntryForm, renderLists, bindListActions, rememberNeeds, coupangCalendar, ledgerFilter, esc, won } from './fin-form.js?v=invariants20261029';
+import { openFinStore } from './fin-hub.js?v=bankpairs20261029';
+import { mountEntryForm, renderLists, bindListActions, rememberNeeds, coupangCalendar, ledgerFilter, esc, won } from './fin-form.js?v=bankpairs20261029';
 
 let store = null, book = { entries: {}, sales: {}, meta: {} }, signedIn = false, host = null, loaded = false, jumped = false;
 let activeUid='',reviewUI=null;
@@ -77,7 +77,7 @@ const session=createFinSession({open:openFinStore,processInbox:true,onBook:b=>{b
 function mount(el) {
   host = el; el.dataset.mounted = '1'; el.classList.add('fin-scope', 'fin-panel');
   el.innerHTML = SHELL;
-  reviewUI=mountBankReviewUI({host:el,getBook:()=>book,getStore:()=>store,getUid:()=>activeUid,onSuccess:(type,action)=>{const m=host?.querySelector('.fin-list-msg');if(m)m.textContent=type==='bank'?'은행 알림을 장부에 확인했어요.':type==='collector'?(action==='keep'?'기존 자료를 유지했어요.':'새 제안을 적용했어요.'):'확인한 내용을 장부에 반영했어요.';}});
+  reviewUI=mountBankReviewUI({host:el,getBook:()=>book,getStore:()=>store,getUid:()=>activeUid,onSuccess:(type,action)=>{const m=host?.querySelector('.fin-list-msg');if(m)m.textContent=type==='bank'?'은행 알림을 장부에 확인했어요.':type==='collector'?(action==='keep'?'기존 자료를 유지했어요.':'새 제안을 적용했어요.'):type==='transfer'?(action==='keep'?'기존 짝을 유지했어요. 늦은 후보는 확인 대기에 남아요.':'선택한 계좌 이동 짝을 반영했어요.'):'확인한 내용을 장부에 반영했어요.';}});
   mountEntryForm(el.querySelector('.fin-form'), { store: () => store, book: () => book, source: 'manual' });
   bindListActions(el, { store: () => store, book: () => book, onError: m => { el.querySelector('.fin-list-msg').textContent = m; }, onRedraw: draw, onMore: () => { ledgerCount += 20; draw(); } });
   el.addEventListener('change', ev => { const k = ev.target.dataset?.ledger; if (!k) return; filter[k] = ev.target.value; ledgerCount = filter.account || filter.method ? 20 : 8; draw(); });

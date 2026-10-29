@@ -92,6 +92,12 @@
     return x;
   }
   const live = rows => (rows || []).filter(r => r && r.status !== 'void');
+  // Both original rows stay out of totals until a human resolves the pairing, even after one is edited.
+  const transferRowStamp=e=>JSON.stringify(['id','kind','amount','date','time','status','source','category','memo','method','account','from','to','transferId','inboxId','bankSource','bankDirection','alertAt','updatedAt','createdAt','evidence','vatIncluded','vendor'].map(k=>e?.[k]??null));
+  function pendingTransferIds(book){
+    const ids=new Set();for(const r of Object.values(book?.transferReviews||{}))if(r?.status==='REVIEW')for(const row of r.rows||[])if(row?.id)ids.add(row.id);
+    return ids;
+  }
 
   // 기간: 'today' | 'month' (한국 시간 기준)
   function inPeriod(date, period, now = new Date()) {
@@ -126,7 +132,7 @@
   // 이동 줄이 이 계좌에서 나간 것인지(from) 들어온 것인지(to). 둘 다 아니면 나간 것으로 본다.
   const moveIn = e => e.kind === 'move' && !!e.to && e.to === accountOf(e) && e.from !== accountOf(e);
   function summarize(book, period = 'month', now = new Date()) {
-    const entries = live(Object.values(book?.entries || {}).map(e => e));
+    const held=pendingTransferIds(book),entries = live(Object.values(book?.entries || {}).filter(e=>!held.has(e?.id)));
     const rows = entries.filter(e => inPeriod(e.date, period, now));
     const outAll = rows.filter(e => e.kind === 'out');
     const outRows = outAll.filter(e => !NOT_EXPENSE.has(e.category));   // 지출(비용) — 분류 필요 줄도 나간 돈이므로 센다. 사장님 인출은 비용 아님
@@ -181,7 +187,7 @@
   // range: {from:'YYYY-MM-DD', at:'YYYY-MM-DD HH:MM'} — 그 사이 줄만(잔액 대조용). 시각 없는 줄은 날짜로.
   function accountTotals(book, range) {
     const when = e => `${e.date} ${e.time || '00:00'}`;
-    const rows = live(Object.values(book?.entries || {})).filter(e => !range || ((!range.from || e.date >= range.from) && (!range.at || when(e) <= range.at)));
+    const held=pendingTransferIds(book),rows = live(Object.values(book?.entries || {}).filter(e=>!held.has(e?.id))).filter(e => !range || ((!range.from || e.date >= range.from) && (!range.at || when(e) <= range.at)));
     const out = {};
     const get = name => (out[name] = out[name] || { account: name, type: accountType(name), in: 0, out: 0, moveIn: 0, moveOut: 0, cardOut: 0, count: 0 });
     ACCOUNTS.forEach(a => get(a.name));
@@ -205,7 +211,7 @@
   }
   // '사장님 돈': 넣은 돈(자금 충전) · 뺀 돈(사장님 인출) · 차이 — 달마다. "빼가서 따로 쓴 게 아니라는 증명"용. 외주 매출은 따로 한 줄.
   function ownerMoney(book) {
-    const rows = live(Object.values(book?.entries || {}));
+    const held=pendingTransferIds(book),rows = live(Object.values(book?.entries || {}).filter(e=>!held.has(e?.id)));
     const months = {};
     const m = e => (months[e.date.slice(0, 7)] = months[e.date.slice(0, 7)] || { month: e.date.slice(0, 7), in: 0, out: 0, outside: 0 });
     for (const e of rows) {
@@ -337,16 +343,24 @@
       memo: vendor ? '자동납부 알림' : '자동납부 알림 · 가맹점 확인 필요',
       ...(!cancel && vendor && !category ? {suggestedCategory: '통신비', check: '통신비 분류 후보 · 확인 후 적용'} : {})}, now);
   }
-  function bankTransferPairs(entries, now = new Date()) {
-    const rows = Object.values(entries || {}).filter(e => e && e.status !== 'void' && !e.category && !e.transferId && !e.updatedAt &&
-      ['kakaobank', 'tossbank'].includes(e.bankSource) && ['in', 'out'].includes(e.kind) && Number.isFinite(e.alertAt) &&
-      accountOf(e) === METHOD_ACCOUNT[e.bankSource === 'kakaobank' ? '카뱅이체' : '토스이체']);
-    const partners = new Map(rows.map(a => [a.id, rows.filter(b => a.id !== b.id && a.bankSource !== b.bankSource &&
+  function bankOriginal(e) {
+    if(!e||e.source!=='alert'||e.status!==NEEDS||e.category||e.transferId||e.updatedAt||!['kakaobank','tossbank'].includes(e.bankSource)||!['in','out'].includes(e.kind)||!Number.isSafeInteger(e.amount)||e.amount<=0||e.amount>100000000||e.evidence!=='없음'||e.vatIncluded!==true)return false;
+    const allowed=new Set(['id','kind','amount','date','time','method','bankSource','bankDirection','alertAt','source','inboxId','vendor','memo','evidence','category','vatIncluded','status','createdAt']);
+    if(Object.keys(e).some(k=>!allowed.has(k)))return false;
+    const prefix=e.bankSource==='kakaobank'?'kb_':'tb_';
+    if(!(e.memo==='개인사업자 통장 알림'&&e.vendor===''&&e.bankDirection===(e.kind==='in'?'입금':'출금')&&typeof e.inboxId==='string'&&new RegExp('^'+prefix+'\\d{13}$').test(e.inboxId)&&e.id==='al_'+e.inboxId&&
+      Number.isSafeInteger(e.alertAt)&&Number(e.inboxId.slice(3))===e.alertAt&&accountOf(e)===METHOD_ACCOUNT[e.bankSource==='kakaobank'?'카뱅이체':'토스이체']))return false;
+    const received=receivedParts({ts:e.alertAt},new Date(e.alertAt));return e.date===received.date&&e.time===received.time&&typeof e.createdAt==='string'&&Number.isFinite(Date.parse(e.createdAt));
+  }
+  function bankTransferPairs(entries, now = new Date(), pending = []) {
+    const rows = Object.values(entries || {}).filter(bankOriginal);
+    const eligible=[...rows,...pending.filter(bankOriginal)];
+    const partners = new Map(rows.map(a => [a.id, eligible.filter(b => a.id !== b.id && a.bankSource !== b.bankSource &&
       a.kind !== b.kind && a.amount === b.amount && Math.abs(a.alertAt - b.alertAt) <= 120000)]));
     const used = new Set(), pairs = [];
     for (const a of rows) {
       const matches = partners.get(a.id); if (used.has(a.id) || matches.length !== 1) continue;
-      const b = matches[0]; if (used.has(b.id) || partners.get(b.id).length !== 1) continue;
+      const b = matches[0]; if (!partners.has(b.id) || used.has(b.id) || partners.get(b.id).length !== 1) continue;
       const out = a.kind === 'out' ? a : b, incoming = a.kind === 'in' ? a : b;
       const transferId = 'bt_' + [out.id, incoming.id].sort().join('_');
       pairs.push({transferId, rows: [out, incoming].map(e => normEntry({...e, kind: 'move', from: accountOf(out),
@@ -411,6 +425,6 @@
   }
 
   const api = { VERSION, METHODS, OFFSET_METHOD, COUPANG_METHOD, ALL_METHODS, OUT_CATEGORIES, IN_CATEGORIES, MOVE_CATEGORY, OWNER_MEAL, OWNER_OUT, OWNER_IN, EVIDENCE, NEEDS,
-    ACCOUNTS, METHOD_ACCOUNT, accountOf, accountType, accountTotals, accountCheck, ownerMoney, kstDate, uid, toWon, maskCard, validDate, normEntry, validateEntry, summarize, flowNote, checkReasons, defaultEvidence, classify, parseCSV, fromLedgerCSV, inPeriod, draftFromAlert, sameMoment, bankTransferPairs, bankReview, confirmedBankReview, bankReviewCandidates, PATTERNS };
+    ACCOUNTS, METHOD_ACCOUNT, accountOf, accountType, accountTotals, accountCheck, ownerMoney, kstDate, uid, toWon, maskCard, validDate, normEntry, validateEntry, summarize, flowNote, checkReasons, defaultEvidence, classify, parseCSV, fromLedgerCSV, inPeriod, draftFromAlert, sameMoment, bankOriginal, bankTransferPairs, bankReview, confirmedBankReview, bankReviewCandidates, transferRowStamp, pendingTransferIds, PATTERNS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.FinCore = api;
 })(typeof window !== 'undefined' ? window : globalThis);

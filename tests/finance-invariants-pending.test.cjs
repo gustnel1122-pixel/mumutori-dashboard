@@ -11,7 +11,7 @@ const ts=Date.parse('2026-10-29T03:00:00Z'),id='kb_'+ts;
 const raw={src:'kakaobank',ts,text:'출금 1,234원 개인사업자'};
 function fixture(){return {hub:{financeV1:{entries:{},sales:{},meta:{},bankReviews:{},inboxSeen:{}},financeInbox:{}},financeRawInbox:{fixture:{[id]:raw}}};}
 function server(initial,{barrierRoot=false,loseFirstWrite=false,firebaseNormalize=false}={}){
- const state=clone(initial),writes=[];let revision=0,rootReads=0,release;
+ const state=clone(initial),writes=[];let revision=0,rootReads=0,release,armed=false;
  function normalize(v){if(v==null)return undefined;if(typeof v!=='object')return v;const o={};for(const k of Object.keys(v).sort().reverse()){const n=normalize(v[k]);if(n!==undefined)o[k]=n;}return Object.keys(o).length?o:undefined;}
  const wait=new Promise(resolve=>{release=resolve;});
  const read=path=>path.reduce((v,k)=>v?.[k],state);
@@ -21,7 +21,7 @@ function server(initial,{barrierRoot=false,loseFirstWrite=false,firebaseNormaliz
   const method=opts.method||'GET',tag='"'+revision+'"';
   if(method==='GET'){
    const snapshot=clone(read(path)??null);
-   if(barrierRoot&&path.join('/')==='hub/financeV1'&&++rootReads<=2){if(rootReads===2)release();await wait;}
+   if(barrierRoot&&armed&&path.join('/')==='hub/financeV1'&&++rootReads<=2){if(rootReads===2)release();await wait;}
    return new Response(JSON.stringify(snapshot),{headers:{ETag:tag}});
   }
   assert(['PUT','PATCH'].includes(method));const match=opts.headers?.['if-match']||opts.headers?.['If-Match'];
@@ -31,7 +31,7 @@ function server(initial,{barrierRoot=false,loseFirstWrite=false,firebaseNormaliz
   if(loseFirstWrite){loseFirstWrite=false;throw Error('synthetic lost response');}
   return new Response(JSON.stringify(body));
  }
- return {state,writes,fetch};
+ return {state,writes,fetch,armBarrier(){armed=true;}};
 }
 async function withStores(s,fn){
  const oldFetch=global.fetch,oldWindow=global.window;global.fetch=s.fetch;global.window={FinCore:F};
@@ -50,7 +50,7 @@ test('reprocessing the same event never overwrites a void or human-edited ledger
 });
 test('two independent collectors use conditional atomic storage, not unconditional ledger overwrites',async()=>{
  const s=server(fixture(),{barrierRoot:true});
- await withStores(s,async(a,b)=>{await Promise.all([a.load(),b.load()]);await Promise.all([a.processInbox(),b.processInbox()]);});
+ await withStores(s,async(a,b)=>{await Promise.all([a.load(),b.load()]);s.armBarrier();await Promise.all([a.processInbox(),b.processInbox()]);});
  assert.equal(Object.keys(s.state.hub.financeV1.entries).length,1);
  const ledgerWrites=s.writes.filter(w=>w.path==='hub/financeV1'||w.path==='hub/financeV1/entries'||w.path.startsWith('hub/financeV1/entries/'));
  assert(ledgerWrites.length>=2);assert(ledgerWrites.every(w=>w.conditional),'ledger writes must use compare-and-set');
@@ -66,7 +66,7 @@ test('different source IDs with similar fields are not silently discarded as the
 test('two devices receiving similar different alerts atomically keep one and hold the other',async()=>{
  const data=fixture(),card={ts,text:'현대 사업구매전용 승인 1,234원 일시불, 10/29 12:00 가상상점'};
  data.financeRawInbox.fixture={hd_alpha:card,hd_beta:card};const s=server(data,{barrierRoot:true});
- await withStores(s,async(a,b)=>{await Promise.all([a.load(),b.load()]);await Promise.all([a.processInbox(),b.processInbox()]);});
+ await withStores(s,async(a,b)=>{await Promise.all([a.load(),b.load()]);s.armBarrier();await Promise.all([a.processInbox(),b.processInbox()]);});
  const fin=s.state.hub.financeV1;assert.equal(Object.keys(fin.entries).length,1);assert.equal(Object.values(fin.alertReviews||{}).filter(r=>r.status==='REVIEW').length,1);
 });
 test('a bank alert similar to an existing manual account transfer stays pending',async()=>{

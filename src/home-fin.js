@@ -4,7 +4,7 @@ import {createFinSession} from './fin-session.js?v=access20261028';
 // 확인 필요 건수를 #home-need-line · #home-month-body에 넣는다. 로그인 전이면 overview.js의 기본 글 아래에 '구글로 로그인' 버튼.
 // ERP가 홈을 자주 다시 그리므로, 계산한 글을 기억했다가 자리가 새로 생길 때마다 다시 넣는다(fin-panel.js와 같은 방식).
 import { onAuth, signIn } from './fbauth.js?v=access20261028';
-import { openFinStore } from './fin-hub.js?v=invariants20261029';
+import { openFinStore } from './fin-hub.js?v=bankpairs20261029';
 import { rememberNeeds, esc, won } from './fin-form.js';
 
 let view = null, store = null, signedIn = false;
@@ -12,7 +12,7 @@ let view = null, store = null, signedIn = false;
 function compute(book) {
   const F = window.FinCore;
   const s = F.summarize(book, 'month'), pcReviews=Object.values(book.meta?.pcCollectorReviews||{}).filter(r=>r?.status==='REVIEW').length;
-  const n = s.needs + ['bankReviews','alertReviews','importReviews'].reduce((total,key)=>total+Object.values(book[key] || {}).filter(r=>r?.status==='REVIEW').length,0)+pcReviews;
+  const n = s.needs + ['bankReviews','alertReviews','importReviews','transferReviews'].reduce((total,key)=>total+Object.values(book[key] || {}).filter(r=>r?.status==='REVIEW').length,0)+pcReviews;
   rememberNeeds(n);
   const key = [s.sales, s.spend, s.cashFlow, s.net, n, pcReviews].join('|');
   const [label, value] = s.salesConnected ? ['남는 돈(추정)', s.net] : ['돈 흐름(들어온 돈 − 나간 돈)', s.cashFlow];
