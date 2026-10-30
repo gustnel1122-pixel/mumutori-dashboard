@@ -122,7 +122,10 @@
     if (e.kind !== 'move' && (e.status === NEEDS || !e.category)) r.push('분류');
     if (e.kind === 'out' && !e.method) r.push('수단');
     if (e.ai?.status === 'pending') r.push('AI 대기');
-    if (e.ai?.status === 'review' || (e.ai?.status === 'applied' && e.vatTreatment === 'review')) r.push('AI 확인');
+    // A confirmed capital inflow is not a taxable sale or an input-VAT item.
+    // Keep an explicit AI review, but do not request VAT review for this case.
+    const capitalIn=e.kind === 'in' && e.category === OWNER_IN;
+    if (e.ai?.status === 'review' || (e.ai?.status === 'applied' && e.vatTreatment === 'review' && !capitalIn)) r.push('AI 확인');
     if (e.check) r.push('확인');   // 가져올 때 적어 둔 '확인할 것'(받는 통장 등) — '확인함'을 누르면 빠짐
     return r;
   }

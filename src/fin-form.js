@@ -210,7 +210,9 @@ function aiControl(e) {
   if(e.kind==='move') return '';
   const status=AI_LABEL[e.ai?.status]||'', decision=['applied','review'].includes(e.ai?.status)?e.ai.decision:null;
   const note=aiDrafts.has(e.id)?aiDrafts.get(e.id):e.ai?.note||'';
-  return `<div class="q-ai"><div class="q-ai-state">${status?`<span class="q-ai-badge">${esc(status)}</span>`:''}${e.vatTreatment?`<span>부가세 ${esc(VAT_LABEL[e.vatTreatment]||'확인 필요')}</span>`:''}${e.ai?.status==='applied'?`<button type="button" class="q-link" data-ai-undo="${esc(e.id)}">한 번에 되돌리기</button>`:''}</div>
+  const capitalIn=e.kind==='in'&&e.category==='자금 충전';
+  const vat=capitalIn?'해당 없음':(e.vatTreatment?(VAT_LABEL[e.vatTreatment]||'확인 필요'):'');
+  return `<div class="q-ai"><div class="q-ai-state">${status?`<span class="q-ai-badge">${esc(status)}</span>`:''}${vat?`<span>부가세 ${esc(vat)}</span>`:''}${e.ai?.status==='applied'?`<button type="button" class="q-link" data-ai-undo="${esc(e.id)}">한 번에 되돌리기</button>`:''}</div>
     ${decision?`<p class="q-ai-reason">${e.ai.status==='review'?`제안: ${esc(decision.category||'분류 확인')} · 부가세 ${esc(VAT_LABEL[decision.vatTreatment])} — `:''}${esc(decision.reason)}</p>`:''}
     <details class="q-ai-editor"><summary>AI에게 물어보기</summary><label>이건 이런 거야<input type="text" maxlength="300" data-ai-note="${esc(e.id)}" value="${esc(note)}" placeholder="예: 포장할 때 쓰는 상자를 샀어" autocomplete="off"></label><small>이름·카드번호·결제 알림 원문은 적지 마세요. 설명만 저장해도 분류를 맡길 수 있어요.</small><button type="button" class="q-btn" data-ai-save="${esc(e.id)}">설명 저장 · AI에게 맡기기</button><p class="q-msg" role="status" data-ai-msg="${esc(e.id)}"></p></details></div>`;
 }
