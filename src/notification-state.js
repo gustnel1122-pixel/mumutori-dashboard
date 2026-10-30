@@ -7,19 +7,40 @@
   async function database(){
     if(!root.firebase?.database){
       if(!root.document)throw Error('database-unavailable');
-      loading ||= new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=new URL('assets/vendor/firebase/firebase-database-compat.js',document.baseURI).href;s.onload=resolve;s.onerror=()=>reject(Error('database-unavailable'));document.head.append(s);});
+      loading ||= new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=new URL('assets/vendor/firebase/firebase-database-compat.js',document.baseURI).href;s.onload=resolve;s.onerror=()=>reject(Error('database-unavailable'));document.head.append(s);}).catch(e=>{loading=undefined;throw e;});
       await loading;
     }
     return root.firebase.app().database(BASE);
   }
   function check(uid,id){if(!validId(uid)||!validId(id)||root.firebase?.auth()?.currentUser?.uid!==uid)throw Error('account-changed');}
-  async function readAll(uid){check(uid,'ok');const db=await database();check(uid,'ok');const snap=await db.ref(`notificationUserState/${uid}/reads`).once('value');check(uid,'ok');return snap.val()||{};}
-  async function readEvents(uid){
+  async function sdkReadAll(uid){check(uid,'ok');const db=await database();check(uid,'ok');const snap=await db.ref(`notificationUserState/${uid}/reads`).once('value');check(uid,'ok');return snap.val()||{};}
+  async function sdkReadEvents(uid){
     check(uid,'ok');const db=await database();check(uid,'ok');const ref=db.ref('activityHub/events');let snap;
     try{snap=await ref.orderByChild('createdAt').limitToLast(100).once('value');}
     catch(e){if(!/index/i.test(String(e?.message||e)))throw e;snap=await ref.once('value');}
     check(uid,'ok');return snap.val()||{};
   }
+  async function restReader(){
+    if(!root.document)throw Error('database-unavailable');
+    const build=encodeURIComponent(root.document.body?.dataset?.build||'unknown');
+    const [,auth]=await Promise.all([import('./notification-rest.js?v='+build),import('./fbauth.js?v=access20261028')]);
+    return root.MumutoriNoticeRest.createReader({auth,fetch:root.fetch.bind(root)});
+  }
+  async function readWithFallback(uid,method,sdk){
+    check(uid,'ok');
+    try{const reader=await restReader();const data=await reader[method](uid);check(uid,'ok');return data;}
+    catch(e){
+      if(e?.message==='REST_DENIED'){const denied=Error('permission denied');denied.code='permission_denied';throw denied;}
+      if(e?.message==='ACCOUNT_CHANGED'||e?.message==='AUTH_REQUIRED')throw Error('account-changed');
+      check(uid,'ok');
+      let timer;
+      try{return await Promise.race([sdk(uid),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('sdk-timeout')),2000);})]);}
+      catch(_){check(uid,'ok');if(e?.message==='REST_TIMEOUT')throw Error('timeout');throw Error('read-failed');}
+      finally{clearTimeout(timer);}
+    }
+  }
+  const readAll=uid=>readWithFallback(uid,'readAll',sdkReadAll);
+  const readEvents=uid=>readWithFallback(uid,'readEvents',sdkReadEvents);
   async function pushRequest(uid,method,path,value){
     check(uid,'ok');if(!/^[A-Za-z0-9_/-]+$/.test(path)||!['GET','PUT','DELETE'].includes(method))throw Error('invalid-request');
     const db=await database();check(uid,'ok');const ref=db.ref(`appPush/${path}`);let result;
