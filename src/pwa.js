@@ -3,6 +3,13 @@
   'use strict';
   const base = new URL('../', document.currentScript.src);
   const pageVersion = document.body.dataset.build;
+  // Mobile navigation is separate so it never rebuilds a form or the alert panel.
+  if (pageVersion && !location.pathname.endsWith('/offline.html')) {
+    const script = document.createElement('script');
+    script.src = new URL('src/mobile-nav.js?v=' + encodeURIComponent(pageVersion), base).href;
+    script.defer = true;
+    document.head.append(script);
+  }
   let registration = null, reloadOnControl = false;
   const notices = document.createElement('div');
   notices.className = 'pwa-notices';

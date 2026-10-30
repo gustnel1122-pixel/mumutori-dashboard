@@ -1,0 +1,19 @@
+/* Mobile presentation only: existing forms, data and authorization remain in place. */
+.home-mobile-welcome{display:none}
+@media(max-width:720px){
+  body{background:#f5f8f6;color:#192c23}
+  .content{padding:22px 20px}
+  .home-heading h1{font-size:28px;line-height:1.3;letter-spacing:-.8px}
+  .home-mobile-welcome{display:block;margin:0 0 24px}
+  .home-mobile-welcome p{margin:0 0 16px;color:#65766c;font-size:14px;line-height:1.55}
+  .home-mobile-welcome>div{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+  .home-mobile-welcome a{min-height:70px;padding:14px 10px;display:flex;align-items:center;justify-content:center;gap:6px;text-align:center;background:#fff;border:1px solid #e5eee8;border-radius:16px;font-size:13px;font-weight:700;color:#245941;text-decoration:none}
+  .home-mobile-welcome a span{font-size:12px;color:#6e8d78}
+  .home-top .panel,.content .panel{border-radius:20px;border-color:#e4eee7;box-shadow:0 4px 16px #143d2709}
+  .home-top .panelhead h2{font-size:17px}.task-link{min-height:56px}.task-link b{font-size:13px}.task-link strong{font-size:20px}.task-basis{font-size:11px}
+  body[data-page=quick]{background:#f5f8f6}
+  .q-top{background:#f5f8f6;color:#183b2c}.q-back{color:#183b2c;min-width:44px;min-height:44px;display:grid;place-items:center}.q-conn{background:#e5f3ea;color:#285a42}
+  .q-main{padding:16px 20px 40px}.q-card,.q-stat{border-color:#e4eee7;border-radius:20px;box-shadow:0 4px 16px #143d2709}.q-card{padding:18px;margin:14px 0}.q-card h2{font-size:18px}.q-stat{padding:16px}.q-stat strong{font-size:24px;line-height:1.25}.q-tabs button{min-height:44px}.q-needs{min-height:48px}
+  .mmt-notice-panel{inset:auto 0 0 0;top:auto;right:0;left:0;bottom:0;width:100%;max-width:none;max-height:min(85dvh,760px);margin:0;border-radius:24px 24px 0 0;box-shadow:0 -8px 36px #143d2726}
+  .mmt-notice-head{padding:16px 20px}.mmt-notice-head strong{font-size:20px}.mmt-notice-info{font-size:13px;padding-left:20px;padding-right:20px}.mmt-notice-list{padding:0 12px 16px}.mmt-notice-card{margin:10px 0;border:1px solid #e4eee7;border-radius:16px;background:#fff;overflow:hidden}.mmt-notice-row{border-top:0;font-size:15px;min-height:54px}.mmt-notice-row small{font-size:12px}.mmt-notice-actions{padding:0 12px 12px}.mmt-notice-actions button{min-height:44px}
+}

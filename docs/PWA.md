@@ -49,7 +49,7 @@ PC 브라우저와 휴대폰 앱은 같은 주소의 같은 화면을 사용합�
 | 설정·백업 `settings` | 없음 | 계좌·창고·백업·병합 전 사본 | 공통 seed / `src/pages/settings.js`, `src/store.js` |
 | 브랜딩 `branding` | 없음 | 공통 원장 `erp.branding` 개인 기록 | 공개 `src/branding-data.json` + seed / `src/pages/branding.js` |
 | 캐릭터 `characters` | `sourcing/meta/characterBoard` | 옛 캐릭터 보드·이전 표시·안내 설정 | 기본 구조·`src/character-ref/` + seed 로딩 / `src/characters-sync.js` |
-| AI 조직도 `agents` | 없음 | 공통 ERP 로딩 의존성 | `src/agents-data.js` + seed 로딩 / `src/pages/agents.js` |
+| AI 조직도 `agents` | 없음 | 공통 ERP 로딩 의존성 | 로그인 후 사장님 전용 서버 자료 / `src/pages/agents.js` |
 | 폰 빠른 장부 `quick` | `hub/financeV1`(PC 재무 상단과 동일) | 최근 수단·거래처 설정, 확인 필요 건수·시각 | 공통 seed 사용 없음 / `src/quick.js`, `src/fin-form.js` |
 
 업무 코드가 직접 쓰는 IndexedDB 원장은 발견되지 않았습니다. Firebase Auth SDK의 IndexedDB 로그인 유지 저장은 사업 원장과 구분합니다. Firebase 자료도 네트워크 연결과 현재 권한이 갖춰져야 함께 보입니다. 이번 작업은 저장 위치·인증·Firebase 규칙·업무 자료를 변경하지 않습니다.

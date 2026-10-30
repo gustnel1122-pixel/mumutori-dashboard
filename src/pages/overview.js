@@ -32,6 +32,7 @@ export default function overview(ctx){
     :`<p class="month-empty">이번 달 매출 · 지출 · 돈 흐름은 <b>재무 화면 맨 위</b>에 있어요(폰 · PC 같은 공용 장부).</p>${link('finance','재무에서 이번 달 보기')}`;
   const audit=data.erp.audit.slice(0,3);
   return `<div class="home-heading"><div><div class="eyebrow">무무토리 운영실</div><h1>오늘도, 무무토리<span class="title-dot">.</span></h1></div><span class="today-date">${date}</span></div>`+
+    `<section class="home-mobile-welcome" aria-label="자주 가는 곳"><p>필요한 일을 한곳에서 차근차근 확인해요.</p><div><a href="quick.html">장부 <span aria-hidden="true">↗</span></a><a href="sourcing.html">소싱 보드 <span aria-hidden="true">↗</span></a><a href="https://gustnel1122-pixel.github.io/mumutori-offline-pages/">주문판 <span aria-hidden="true">↗</span></a></div></section>`+
     renderProgress()+
     `<div id="projects">${renderOperationsEntrance()}</div>`+
     `<div class="home-top"><section class="panel task-panel"><div class="panelhead"><h2>다음으로 챙길 일 <span class="accent-orange">✳</span></h2>${badge('실제 할 일')}</div><div class="task-list">${needLine}</div>`+

@@ -57,7 +57,7 @@ for filename,(page,title) in pages.items():
     extra_img,extra_connect=EXTRA.get(page,('',''))
     auth=page in AUTH
     extra_connect+=AUTH_CONNECT if auth else ''
-    if auth and 'firebasedatabase.app' not in extra_connect: extra_connect+=' https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.app'
+    if auth and ' https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.app' not in extra_connect: extra_connect+=' https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.app'
     extra_script=AUTH_SCRIPT if auth else ''
     frame=AUTH_FRAME if auth else "'none'"
     auth_tags=(AUTH_TAGS if auth else '')+('<script src="src/activity-client.js?v='+version+'"></script>')+NOTICE_TAGS+PAGE_TAGS.get(page,'').replace('{v}',version)

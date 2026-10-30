@@ -1,0 +1,13 @@
+/* Mobile navigation is additive: desktop, data and edit forms are unchanged. */
+.mmt-mobile-nav,.mmt-mobile-all{display:none}
+@media(max-width:720px){
+  body.mmt-mobile-ready{padding-bottom:calc(78px + env(safe-area-inset-bottom,0px))}
+  body.mmt-mobile-ready .mobile-nav{display:none!important}
+  body.mmt-mobile-ready .sub-tabs{display:none!important}
+  .mmt-mobile-nav{position:fixed;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));left:0;right:0;bottom:0;z-index:1000;background:#fff;border-top:1px solid #e5ece7;padding:5px 4px calc(5px + env(safe-area-inset-bottom,0px));box-shadow:0 -5px 24px #173d2d0a}
+  .mmt-mobile-nav button{border:0;background:transparent;color:#899a91;min-width:0;min-height:54px;padding:4px 2px;font:600 11px/1.2 system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer}
+  .mmt-mobile-nav button.is-active{color:#087e61}.mmt-mobile-nav svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .mmt-mobile-all[open]{display:block;position:fixed;inset:auto 0 0;margin:0;width:100%;max-width:none;max-height:min(82dvh,760px);box-sizing:border-box;padding:0 18px calc(18px + env(safe-area-inset-bottom,0px));overflow:auto;border:0;border-radius:22px 22px 0 0;background:#fff;color:#1d3329;box-shadow:0 -8px 35px #0003;font:15px/1.5 system-ui,sans-serif;z-index:1002}
+  .mmt-mobile-all::backdrop{background:#13271a80}.mmt-mobile-all .mmt-drag{width:40px;height:4px;border-radius:5px;background:#d5dfd9;margin:10px auto 14px}.mmt-mobile-all header{display:flex;align-items:center;justify-content:space-between;gap:12px}.mmt-mobile-all h2{font-size:23px;margin:0}.mmt-mobile-all .mmt-close{height:44px;min-width:44px;border:0;border-radius:12px;background:#f1f5f2;font-size:20px;cursor:pointer}.mmt-mobile-all h3{font-size:14px;margin:20px 0 8px;color:#6c8175}.mmt-mobile-all .mmt-links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.mmt-mobile-all .mmt-links button{min-height:48px;padding:10px 12px;border:1px solid #e1eae3;border-radius:12px;background:#f8faf8;color:#224333;font:600 14px/1.3 system-ui,sans-serif;text-align:left;cursor:pointer}.mmt-mobile-all [role=status]{display:block;min-height:1.5em;margin:8px 0 0;color:#9a4b25;font-size:13px}
+  .pwa-notices{bottom:calc(70px + env(safe-area-inset-bottom,0px))}
+}

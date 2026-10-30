@@ -1,0 +1,21 @@
+'use strict';
+const {chromium}=require('playwright'),fs=require('fs'),path=require('path'),assert=require('node:assert/strict');
+const root=path.resolve(__dirname,'..');
+const html=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body data-build="abcdef012345"><div class="mobile-nav">old menu</div><section class="task-panel">할 일</section><button class="mmt-notice-bell" onclick="window.bellCount=(window.bellCount||0)+1">bell</button><form><input id="draft" name="memo"><input id="file" type="file"><button id="save" type="button">저장</button></form><script src="/src/mobile-nav.js?v=abcdef012345"></script></body></html>`;
+async function route(r){const u=new URL(r.request().url());if(u.hostname!=='mobile.test')return r.abort();if(u.pathname.endsWith('.html')||u.pathname==='/')return r.fulfill({contentType:'text/html',body:html});const f=path.join(root,u.pathname.slice(1));return r.fulfill({status:fs.existsSync(f)?200:404,contentType:u.pathname.endsWith('.css')?'text/css':'text/javascript',body:fs.existsSync(f)?fs.readFileSync(f):''});}
+(async()=>{const b=await chromium.launch({headless:true,executablePath:process.env.ERP_CHROME,args:['--no-sandbox']});
+  for(const width of [390,1280]){
+    const c=await b.newContext({viewport:{width,height:844},isMobile:width===390,hasTouch:width===390}),p=await c.newPage(),errors=[];p.on('pageerror',e=>errors.push(e.message));await p.route('**/*',route);await p.goto('https://mobile.test/index.html');await p.locator('.mmt-mobile-nav').waitFor({state:width===390?'visible':'hidden'});
+    if(width===1280){assert.equal(await p.locator('.mmt-mobile-nav').isVisible(),false);await c.close();continue;}
+    assert.equal(await p.locator('.mmt-mobile-nav button').count(),5);for(const tab of await p.locator('.mmt-mobile-nav button').all()){const r=await tab.boundingBox();assert(r.height>=44&&r.width>=44);}
+    assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+    await p.locator('.mmt-mobile-nav [data-tab=bell]').click();assert.equal(await p.evaluate(()=>window.bellCount),1);
+    await p.locator('#draft').fill('보존할 초안');assert.equal(await p.evaluate(()=>window.MumutoriMobileNav.hasActiveWork()),true);await p.locator('.mmt-mobile-nav [data-tab=all]').click();assert(await p.locator('.mmt-mobile-all').evaluate(e=>e.open));
+    const targets=await p.locator('.mmt-links button').evaluateAll(all=>all.map(e=>e.dataset.href));for(const target of ['index.html','quick.html','finance.html','bank.html','finance.html#fin-needs','finance.html#legacy','sourcing.html','sales.html','stock.html','products.html','purchases.html','partners.html','project-hub.html','store-opening.html','branding.html','characters.html','letter-hub.html','agents.html','audit.html','settings.html'])assert(targets.includes(target),target);
+    await p.locator('.mmt-links [data-href="quick.html"]').click();assert((await p.locator('.mmt-mobile-all [role=status]').textContent()).includes('작성'));assert.equal(await p.locator('#draft').inputValue(),'보존할 초안');assert.equal(new URL(p.url()).pathname,'/index.html');
+    await p.goBack();assert.equal(await p.locator('.mmt-mobile-all').evaluate(e=>e.open),false);assert.equal(await p.locator('#draft').inputValue(),'보존할 초안');
+    await p.locator('#draft').fill('');await p.locator('#file').setInputFiles({name:'test.txt',mimeType:'text/plain',buffer:Buffer.from('safe')});let alertText='';p.on('dialog',async d=>{alertText=d.message();await d.dismiss();});await p.locator('.mmt-mobile-nav [data-tab=ledger]').click();assert(alertText.includes('작성'));assert.equal(await p.locator('#file').evaluate(e=>e.files.length),1);assert.equal(new URL(p.url()).pathname,'/index.html');
+    await p.locator('#file').setInputFiles([]);await p.evaluate(()=>{document.querySelector('#save').dataset.busy='1'});alertText='';await p.locator('.mmt-mobile-nav [data-tab=ledger]').click();assert(alertText.includes('작성'));assert.equal(new URL(p.url()).pathname,'/index.html');await p.evaluate(()=>delete document.querySelector('#save').dataset.busy);
+    assert.deepEqual(errors,[]);await c.close();
+  }await b.close();console.log('PASS 390/1280 tabs, menu coverage, alert reuse, draft/file/save guard and back');
+})().catch(e=>{console.error(e);process.exit(1);});
