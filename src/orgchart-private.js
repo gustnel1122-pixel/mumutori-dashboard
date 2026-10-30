@@ -44,9 +44,9 @@ export function mountOrgchart(host){
   }
   async function begin(auth,user){
     const version=++epoch;clean();
-    if(!user?.uid){message('로그인하면 사장님 전용 조직도를 볼 수 있어요.',()=>{try{Promise.resolve(auth.signIn()).catch(()=>message('로그인 연결을 확인해 주세요.',()=>begin(auth,auth.current())));}catch(_){message('로그인 연결을 확인해 주세요.',()=>begin(auth,auth.current()));}},'로그인');return;}
+    if(!user?.uid){message('로그인하면 허용된 계정으로 조직도를 볼 수 있어요.',()=>{try{Promise.resolve(auth.signIn()).catch(()=>message('로그인 연결을 확인해 주세요.',()=>begin(auth,auth.current())));}catch(_){message('로그인 연결을 확인해 주세요.',()=>begin(auth,auth.current()));}},'로그인');return;}
     message('조직도를 불러오는 중이에요.');const controller=new AbortController();abort=controller;let timer=setTimeout(()=>controller.abort(),10000);
-    try{const url=await auth.dbUrl('orgChartPrivate/data');if(!active(version)||auth.current()?.uid!==user.uid)return;const response=await fetch(url,{method:'GET',cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer',redirect:'error',signal:controller.signal});if(!active(version)||auth.current()?.uid!==user.uid)return;if(response.status===401||response.status===403){message('사장님 계정으로만 조직도를 볼 수 있어요.');return;}if(!response.ok)throw Error('load');const result=validated(await response.json());if(!active(version)||auth.current()?.uid!==user.uid)return;data=result;renderMap();}
+    try{const url=await auth.dbUrl('orgChartPrivate/data');if(!active(version)||auth.current()?.uid!==user.uid)return;const response=await fetch(url,{method:'GET',cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer',redirect:'error',signal:controller.signal});if(!active(version)||auth.current()?.uid!==user.uid)return;if(response.status===401||response.status===403){message('이 계정의 조직도 접근 권한을 확인해 주세요.');return;}if(!response.ok)throw Error('load');const result=validated(await response.json());if(!active(version)||auth.current()?.uid!==user.uid)return;data=result;renderMap();}
     catch(_){if(active(version))message('조직도를 불러오지 못했어요. 연결을 확인해 주세요.',()=>begin(auth,auth.current()));}
     finally{clearTimeout(timer);if(abort===controller)abort=null;}
   }
