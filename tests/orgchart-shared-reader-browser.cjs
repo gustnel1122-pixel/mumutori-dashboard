@@ -32,7 +32,7 @@ const html=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewpor
       await Promise.all([page.waitForURL('**/agents.html'),page.locator('.mmt-mobile-all [data-href="agents.html"]').click()]);
       await page.waitForFunction(()=>window.testOrgAccount);await page.evaluate(()=>window.testOrgAccount('dahee'));
       await page.locator('.orgx-node').first().waitFor();assert.equal(await page.locator('.orgx-node').count(),7);
-      await page.locator('[data-id="node_1"]').click();assert.equal(await page.locator('.orgx-sheet ol li').count(),3);await page.locator('.orgx-close').click();
+      await page.locator('[data-id="node_1"]').click();assert.equal(await page.locator('.orgx-desktop-detail ol li').count(),3);assert.equal(await page.locator('dialog[open]').count(),0);
     }
     assert.equal(await page.locator('.orgx-root input,.orgx-root textarea,.orgx-root [contenteditable=true]').count(),0);
     role='other';await page.evaluate(()=>window.testOrgAccount('other'));
