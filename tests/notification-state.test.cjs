@@ -12,7 +12,7 @@ function setup(){
  })};
  const database=Object.assign(()=>db,{ServerValue:{TIMESTAMP:{'.sv':'timestamp'}}});
  const firebase={database,auth:()=>auth,app:()=>({database:()=>db})};
- const ctx={firebase};vm.createContext(ctx);vm.runInContext(fs.readFileSync('src/notification-state.js','utf8'),ctx);
+ const ctx={firebase,setTimeout,clearTimeout};vm.createContext(ctx);vm.runInContext(fs.readFileSync('src/notification-state.js','utf8'),ctx);
  return {api:ctx.MumutoriNoticeState,data,auth,setAt,failBatch:()=>{failBatch=true;},failWrite:()=>{failWrite=true;},pauseWrite:()=>{pauseWrite=true;},releaseWrite:()=>releaseWrite()};
 }
 test('UID-scoped read, bundled reads and repeat explanation use one request',async()=>{const s=setup();s.setAt('notificationBatches/group',{members:{a:true,b:true}});

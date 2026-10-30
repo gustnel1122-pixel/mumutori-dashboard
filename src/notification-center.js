@@ -4,7 +4,8 @@ let signIn=()=>Promise.reject(Error('offline')),current=()=>null;
 const R=globalThis.MumutoriRoutes,make=(tag,text,cls)=>{const n=document.createElement(tag);if(text)n.textContent=text;if(cls)n.className=cls;return n;};
 const bell=make('button','','mmt-notice-bell');bell.type='button';bell.setAttribute('aria-label','알림');bell.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4M12 1v1"/></svg>';const badge=make('span','','mmt-notice-count');badge.hidden=true;bell.append(badge);
 const panel=make('dialog','','mmt-notice-panel');panel.setAttribute('aria-label','알림 목록');const head=make('div','','mmt-notice-head'),title=make('strong','알림'),refresh=make('button','다시 불러오기'),close=make('button','닫기');refresh.type=close.type='button';head.append(title,refresh,close);const info=make('p','','mmt-notice-info'),list=make('div','','mmt-notice-list'),versionLabel=make('p','앱 버전 '+(document.body.dataset.build||'확인 중'),'mmt-notice-version');info.setAttribute('role','status');info.setAttribute('aria-live','polite');panel.append(head,info,list,versionLabel);document.body.append(bell,panel);bell.setAttribute('aria-controls','mmt-notice-panel');bell.setAttribute('aria-expanded','false');panel.id='mmt-notice-panel';
-let me=null,events=[],read=new Set(),readKnown=false,readRevision=0,epoch=0,busy=false,notice='',authLoading=true,authError='',authErrorCode='',eventLoading=false,loadError='',loadErrorCode='';const running=new Set(),diagnosticPending=[];
+const detail=make('dialog','','mmt-notice-detail');detail.setAttribute('aria-label','알림 설명');document.body.append(detail);
+let me=null,events=[],read=new Set(),readKnown=false,readRevision=0,epoch=0,busy=false,notice='',authLoading=true,authError='',authErrorCode='',eventLoading=false,loadError='',loadErrorCode='',openedNotice='';const running=new Set(),diagnosticPending=[];
 function diagnostic(code){try{const d=globalThis.MumutoriNoticeDiagnostics;if(!d){if(diagnosticPending.length<10)diagnosticPending.push(code);return;}Promise.resolve(d.record(code)).catch(()=>{});}catch(_){}}
 import('./bell-diagnostics.js?v='+encodeURIComponent(document.body.dataset.build||'unknown')).then(()=>{for(const code of diagnosticPending.splice(0))diagnostic(code);}).catch(()=>{diagnosticPending.length=0;});
 async function mark(id,action='read'){
@@ -14,6 +15,22 @@ async function mark(id,action='read'){
   catch(_){if(version===epoch){notice='알림을 처리하지 못했어요. 연결을 확인하고 다시 눌러 주세요. (ACTION_FAILED)';paint();}return false;}
   finally{clearTimeout(timer);running.delete(key);if(version===epoch)paint();}
 }
+function destination(e){try{return typeof R.destination==='function'?R.destination(e):'';}catch(_){return '';}}
+function showDescription(e){
+  detail.replaceChildren();const head=make('div','','mmt-notice-detail-head'),title=make('strong','알림 설명'),close=make('button','닫기');close.type='button';close.onclick=()=>{try{detail.close();}catch(_){detail.removeAttribute('open');}};head.append(title,close);detail.append(head,make('h2',String(e.title||e.action||'알림').slice(0,160)),make('p',String(e.body||e.action||'이 알림은 따로 이동할 화면이 없어요.').slice(0,500)));
+  if(!detail.open){try{detail.showModal();}catch(_){try{detail.show();}catch(_){detail.setAttribute('open','');}}}
+}
+function describesHere(url){if(!url)return true;try{const u=new URL(url,location.href);return u.origin===location.origin&&u.pathname===location.pathname&&u.hash==='#notifications';}catch(_){return true;}}
+async function openEvent(e){
+  if(!me)return;const uid=me.uid,version=epoch,url=destination(e);
+  if(describesHere(url)){showDescription(e);if(!read.has(e.eventId))void mark(e.eventId);return;}
+  if(globalThis.MumutoriMobileNav?.hasActiveWork()){notice='작성 중인 내용을 먼저 저장하거나 닫아 주세요.';paint();return;}
+  if(!read.has(e.eventId)){let timer;await Promise.race([mark(e.eventId),new Promise(resolve=>{timer=setTimeout(resolve,6000);})]);clearTimeout(timer);}
+  if(version!==epoch||current()?.uid!==uid)return;
+  if(globalThis.MumutoriMobileNav?.hasActiveWork()){notice='작성 중인 내용을 먼저 저장하거나 닫아 주세요.';paint();return;}
+  // The destination contains notice=<eventId>, so its page retries a failed read mark.
+  location.assign(url);
+}
 function paint(){
   const n=events.filter(e=>!read.has(e.eventId)).length;badge.hidden=!readKnown||!n;badge.textContent=n>99?'99+':String(n);bell.setAttribute('aria-label',readKnown&&n?'알림 · 안 읽음 '+n+'개':'알림');list.replaceChildren();
   info.textContent=authLoading?'불러오는 중이에요.':authError?'불러오기 실패: '+authError+' ('+authErrorCode+')':!me?'로그인이 필요해요.':loadError?'불러오기 실패: '+loadError+' ('+loadErrorCode+')':eventLoading?'불러오는 중이에요.':`알림 ${events.length}건 · ${readKnown?'안 읽음 '+n:'읽음 상태 확인 중'}`;
@@ -22,7 +39,7 @@ function paint(){
   for(const e of events){
     const isRead=read.has(e.eventId),card=make('div','','mmt-notice-card'),b=make('button','','mmt-notice-row'+(readKnown?(isRead?' is-read':' unread'):''));b.type='button';b.dataset.eventId=e.eventId;b.setAttribute('aria-label',(readKnown?(isRead?'읽음 · ':'안 읽음 · '):'읽음 상태 확인 중 · ')+String(e.action||'알림').slice(0,160));
     b.append(make('strong',String(e.action||'알림').slice(0,160)),make('small',[String(e.actor||'운영').slice(0,40),String(e.screen||'운영홈').slice(0,30),new Date(Number(e.createdAt)).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})].join(' · ')));
-    b.disabled=running.has(me.uid+'/'+e.eventId);b.onclick=async()=>{if(await mark(e.eventId))location.assign(R.route(e));};
+    b.disabled=running.has(me.uid+'/'+e.eventId);b.onclick=()=>openEvent(e);
     const actions=make('div','','mmt-notice-actions');
     for(const [action,label] of [['read','읽음'],['explain','무슨 말이야?']]){const button=make('button',label);button.type='button';button.disabled=running.has(me.uid+'/'+e.eventId);button.dataset.noticeAction=action;button.setAttribute('aria-label',`${String(e.action||'알림').slice(0,80)} · ${label}`);button.onclick=()=>mark(e.eventId,action);actions.append(button);}
     card.append(b,actions);list.append(card);
@@ -38,7 +55,11 @@ async function update(){
     notice='';loadError='';loadErrorCode='';eventLoading=true;paint();
     const eventTask=timeout(globalThis.MumutoriNoticeState.readEvents(mine)).then(raw=>{
       if(!live())return;events=Object.entries(raw||{}).filter(([id,e])=>/^[A-Za-z0-9_-]{1,100}$/.test(id)&&e&&typeof e==='object'&&Number.isFinite(Number(e.createdAt))).map(([eventId,e])=>({...e,eventId})).sort((a,b)=>b.createdAt-a.createdAt).slice(0,100);eventLoading=false;paint();
-      const clicked=new URLSearchParams(location.search).get('notice');if(clicked&&events.some(e=>e.eventId===clicked)&&!read.has(clicked))void mark(clicked);
+      const params=new URLSearchParams(location.search),clicked=params.get('notice'),event=events.find(e=>e.eventId===clicked),key=mine+'/'+clicked;
+      if(clicked&&openedNotice!==key){
+        if(event){openedNotice=key;if(params.get('detail')==='1')showDescription(event);if(params.get('push')!=='1'&&!read.has(clicked))void mark(clicked);}
+        else if(params.get('detail')==='1'&&/^[A-Za-z0-9_-]{1,100}$/.test(clicked)){openedNotice=key;showDescription({action:'알림을 찾을 수 없어요',body:'최근 알림 목록에서 확인되지 않아요. 알림함에서 다시 살펴봐 주세요.'});}
+      }
     }).catch(e=>fail('EVENTS',e));
     const readTask=timeout(globalThis.MumutoriNoticeState.readAll(mine)).then(serverRead=>{
       if(!live())return;const next=new Set(Object.keys(serverRead||{}));if(revision!==readRevision)for(const id of read)next.add(id);read=next;readKnown=true;paint();
@@ -50,6 +71,6 @@ function openPanel(){if(!panel.open){try{panel.showModal();}catch(_){diagnostic(
 function closePanel(){if(panel.open){try{panel.close();}catch(_){panel.removeAttribute('open');}}bell.setAttribute('aria-expanded','false');bell.focus();}
 let unsubscribeAuth=()=>{},authAttempt=0;
 function startAuth(){const attempt=++authAttempt;unsubscribeAuth();authLoading=true;authError='';authErrorCode='';paint();const timer=setTimeout(()=>{if(attempt===authAttempt&&authLoading){authLoading=false;authError='로그인 연결이 늦어지고 있어요. 인터넷을 확인해 주세요.';authErrorCode='AUTH_TIMEOUT';paint();}},10000);
-  import('./fbauth.js?v=access20261028').then(auth=>{if(attempt!==authAttempt)return;signIn=auth.signIn;current=auth.current;unsubscribeAuth=auth.onAuth(u=>{if(attempt!==authAttempt)return;clearTimeout(timer);epoch++;busy=false;me=u;events=[];read=new Set();readKnown=false;readRevision=0;notice='';loadError='';loadErrorCode='';eventLoading=false;authLoading=false;authError='';authErrorCode='';paint();update();});}).catch(()=>{if(attempt!==authAttempt)return;clearTimeout(timer);authLoading=false;authError='로그인 연결을 확인해 주세요.';authErrorCode='AUTH_FAILED';paint();});}
+  import('./fbauth.js?v=access20261028').then(auth=>{if(attempt!==authAttempt)return;signIn=auth.signIn;current=auth.current;unsubscribeAuth=auth.onAuth(u=>{if(attempt!==authAttempt)return;clearTimeout(timer);const accountChanged=(me?.uid||'')!==(u?.uid||'');epoch++;busy=false;me=u;events=[];read=new Set();readKnown=false;readRevision=0;if(accountChanged){openedNotice='';try{if(detail.open)detail.close();}catch(_){detail.removeAttribute('open');}}notice='';loadError='';loadErrorCode='';eventLoading=false;authLoading=false;authError='';authErrorCode='';paint();update();});}).catch(()=>{if(attempt!==authAttempt)return;clearTimeout(timer);authLoading=false;authError='로그인 연결을 확인해 주세요.';authErrorCode='AUTH_FAILED';paint();});}
 bell.onclick=openPanel;close.onclick=closePanel;refresh.onclick=()=>{if(!me){startAuth();return;}update();};panel.addEventListener('close',()=>bell.setAttribute('aria-expanded','false'));panel.addEventListener('click',e=>{if(e.target===panel&&e.clientX<panel.getBoundingClientRect().left)closePanel();});
 paint();startAuth();document.addEventListener('visibilitychange',()=>{if(!document.hidden)update();});setInterval(()=>{if(!document.hidden)update();},60000);if(location.hash==='#notifications')openPanel();
