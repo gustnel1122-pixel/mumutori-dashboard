@@ -34,7 +34,7 @@ const html=`<!doctype html><html><head><meta name="viewport" content="width=devi
     await page.locator('.mmt-notice-bell').tap();
     const card=page.locator(`[data-event-id="${id}"]`);await card.waitFor();await card.tap();
     if(expected){await page.waitForURL('**'+expected);const u=new URL(page.url());assert.equal(u.pathname+u.search+u.hash,expected,id);const w=JSON.parse(await page.evaluate(()=>sessionStorage.getItem('write')));assert.equal(w.id,id);assert.equal(w.action,'read');}
-    else{await page.waitForFunction(()=>document.querySelector('.mmt-notice-detail')?.open);assert.equal(new URL(page.url()).pathname,'/mumutori-dashboard/index.html');assert((await page.locator('.mmt-notice-detail p').innerText()).includes('가상 설명'));}
+    else{await page.waitForFunction(()=>document.querySelector('.mmt-notice-detail')?.open);assert.equal(new URL(page.url()).pathname,'/mumutori-dashboard/index.html');assert((await page.locator('.mmt-notice-detail-body').innerText()).includes('가상 설명'));}
     assert.deepEqual(errors,[]);await context.close();
   }
   await browser.close();console.log('PASS 390 touch with real router: letter, finance, bank review, login, cart, sourcing, order and no destination');

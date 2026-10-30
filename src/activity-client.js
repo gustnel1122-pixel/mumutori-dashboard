@@ -9,12 +9,16 @@ function createReporter(deps={}){
  const current=deps.user||user,request=deps.fetch||((...args)=>root.fetch(...args));
  const uuid=deps.uuid||(()=>root.crypto.randomUUID().replaceAll('-','').toLowerCase());
  const attempts=new Map();
- function make(screen,action,workId){try{if(!screens.has(screen)||!actions.has(action))return null;const id=uuid();if(!/^[a-f0-9]{32}$/.test(id))return null;return {eventId:'act_'+id,workId:/^nav1_(letter|finance|cart|board|order|login|home|tasks|spec)_[A-Za-z0-9_-]*$/.test(workId||'')&&workId.length<=80?workId:'web_'+id,screen,action};}catch{return null;}}
+ const validWork=id=>typeof id==='string'&&id.length<=80&&/^nav1_(letter|finance|ledger|bank|cart|board|order|login|home|tasks|spec)_[A-Za-z0-9_-]*$/.test(id);
+ // A generic activity still needs an honest, safe destination. Never place
+ // untrusted action text, record data or a URL into its work identifier.
+ const fallback=(screen,action)=>screen==='장부'?'nav1_finance_':screen==='소싱'?(action==='장바구니 변경'?'nav1_cart_':'nav1_board_'):screen==='주문판'?'nav1_order_':'nav1_home_';
+ function make(screen,action,workId){try{if(!screens.has(screen)||!actions.has(action))return null;const id=uuid();if(!/^[a-f0-9]{32}$/.test(id))return null;return {eventId:'act_'+id,workId:validWork(workId)?workId:fallback(screen,action),screen,action};}catch{return null;}}
  function record(input){
   try{
    if(!input||!screens.has(input.screen)||!actions.has(input.action))return Promise.resolve(false);
-   const item=input.eventId?input:make(input.screen,input.action,input.workId);
-   if(!item||!/^act_[a-f0-9]{32}$/.test(item.eventId)||!(/^(web_[a-f0-9]{32}|nav1_(letter|finance|cart|board|order|login|home|tasks|spec)_[A-Za-z0-9_-]*)$/.test(item.workId)&&item.workId.length<=80))return Promise.resolve(false);
+   const item=input.eventId?{...input,workId:validWork(input.workId)?input.workId:fallback(input.screen,input.action)}:make(input.screen,input.action,input.workId);
+   if(!item||!/^act_[a-f0-9]{32}$/.test(item.eventId)||!validWork(item.workId))return Promise.resolve(false);
    const u=current();if(!u?.uid)return Promise.resolve(false);
    if(attempts.has(item.eventId))return attempts.get(item.eventId);
    const work=async()=>{

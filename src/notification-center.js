@@ -16,14 +16,56 @@ async function mark(id,action='read'){
   finally{clearTimeout(timer);running.delete(key);if(version===epoch)paint();}
 }
 function destination(e){try{return typeof R.destination==='function'?R.destination(e):'';}catch(_){return '';}}
-function showDescription(e){
-  detail.replaceChildren();const head=make('div','','mmt-notice-detail-head'),title=make('strong','알림 설명'),close=make('button','닫기');close.type='button';close.onclick=()=>{try{detail.close();}catch(_){detail.removeAttribute('open');}};head.append(title,close);detail.append(head,make('h2',String(e.title||e.action||'알림').slice(0,160)),make('p',String(e.body||e.action||'이 알림은 따로 이동할 화면이 없어요.').slice(0,500)));
+function closeDescription(){try{if(detail.open)detail.close();}catch(_){detail.removeAttribute('open');}}
+function showDescription(e,warning=''){
+  const info=typeof R.destinationInfo==='function'?R.destinationInfo(e):{url:destination(e),label:'보러가기',kind:'inbox',inferred:true};
+  const shownUid=me?.uid,shownVersion=epoch;
+  const descriptions={
+    finance:['장부에 새 소식이 있어요.','장부를 열어 내용을 확인해 주세요.'],
+    bank:['은행 거래를 확인할 내용이 있어요.','장부의 확인할 내용을 살펴봐 주세요.'],
+    letter:['레터에 새 소식이 있어요.','접수함에서 내용을 확인해 주세요.'],
+    login:['로그인에 관한 소식이 있어요.','설정에서 로그인 상태를 확인해 주세요.'],
+    cart:['장바구니에 관한 소식이 있어요.','장바구니에서 내용을 확인해 주세요.'],
+    board:['소싱에 관한 소식이 있어요.','소싱 보드에서 내용을 확인해 주세요.'],
+    order:['주문판에 새 소식이 있어요.','주문판에서 내용을 확인해 주세요.'],
+    tasks:['확인할 일에 관한 소식이 있어요.','일감에서 내용을 확인해 주세요.'],
+    inbox:['운영에 관한 새 소식이 있어요.','알림함에서 내용을 확인해 주세요.']
+  };
+  const words=descriptions[info.kind]||descriptions.inbox;
+  const original=[e.title,e.action,e.body].map(x=>String(x||'').slice(0,500)).join(' ');
+  const needs=/(?:확인\s*(?:필요|해\s*주세요|요청)|로그인[^.\n]{0,30}(?:필요|풀렸|만료)|실패|오류|부족|승인\s*(?:요청|필요)|고쳐|누락)/.test(original);
+  const uncertain=/(?:실패|오류|필요|확인|대기|보류|지연|아직|검토|수정|요청|불가|미완료|못했|안됐|못\s*했)/.test(original);
+  const completed=/(?:완료|끝났|마쳤|반영됐|반영\s*완료|게시(?:됨|했)|저장(?:됨|했))/.test(original);
+  const task=needs?words[1]:(completed&&!uncertain?'지금 할 일은 없어 보여요. 필요하면 내용을 확인해 주세요.':'할 일이 있는지는 내용을 확인해 주세요.');
+  detail.replaceChildren();const head=make('div','','mmt-notice-detail-head'),title=make('strong','알림 설명'),close=make('button','닫기');close.type='button';close.onclick=closeDescription;head.append(title,close);detail.append(head,make('h2',String(e.title||e.action||'알림').slice(0,160)),make('h3','무슨 일인가요?'),make('p',words[0]));
+  if(e.body)detail.append(make('p',String(e.body).slice(0,500),'mmt-notice-detail-body'));
+  detail.append(make('h3','할 일이 있나요?'),make('p',task));
+  const message=make('p',warning,'mmt-notice-detail-warning');message.setAttribute('role','status');detail.append(message);
+  const go=make('button',info.label,'mmt-notice-go');go.type='button';go.dataset.noticeGo='';
+  go.onclick=async()=>{
+    if(!shownUid||shownVersion!==epoch||me?.uid!==shownUid||current()?.uid!==shownUid||!detail.contains(go))return;
+    const uid=shownUid,version=shownVersion,id=e.eventId,runKey=uid+'/'+id;
+    closeDescription();
+    const same=()=>version===epoch&&current()?.uid===uid;
+    const blocked=()=>!!globalThis.MumutoriMobileNav?.hasActiveWork();
+    if(!same())return;
+    if(blocked()){showDescription(e,'작성하거나 저장 중인 내용을 먼저 저장하거나 닫아 주세요.');return;}
+    if(id&&!read.has(id)){
+      if(!running.has(runKey))await Promise.race([mark(id),new Promise(resolve=>setTimeout(resolve,6000))]);
+      else await new Promise(resolve=>{const started=Date.now(),timer=setInterval(()=>{if(!running.has(runKey)||Date.now()-started>=6000){clearInterval(timer);resolve();}},100);});
+    }
+    if(!same())return;
+    if(blocked()){showDescription(e,'작성하거나 저장 중인 내용을 먼저 저장하거나 닫아 주세요.');return;}
+    if(info.kind==='inbox'){openPanel();return;}
+    location.assign(info.url);
+  };
+  detail.append(go);
   if(!detail.open){try{detail.showModal();}catch(_){try{detail.show();}catch(_){detail.setAttribute('open','');}}}
 }
 function describesHere(url){if(!url)return true;try{const u=new URL(url,location.href);return u.origin===location.origin&&u.pathname===location.pathname&&u.hash==='#notifications';}catch(_){return true;}}
 async function openEvent(e){
-  if(!me)return;const uid=me.uid,version=epoch,url=destination(e);
-  if(describesHere(url)){showDescription(e);if(!read.has(e.eventId))void mark(e.eventId);return;}
+  if(!me)return;const uid=me.uid,version=epoch,url=destination(e),info=typeof R.destinationInfo==='function'?R.destinationInfo(e):null;
+  if(info?.inferred||describesHere(url)){showDescription(e);if(!read.has(e.eventId))void mark(e.eventId);return;}
   if(globalThis.MumutoriMobileNav?.hasActiveWork()){notice='작성 중인 내용을 먼저 저장하거나 닫아 주세요.';paint();return;}
   if(!read.has(e.eventId)){let timer;await Promise.race([mark(e.eventId),new Promise(resolve=>{timer=setTimeout(resolve,6000);})]);clearTimeout(timer);}
   if(version!==epoch||current()?.uid!==uid)return;
