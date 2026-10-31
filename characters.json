@@ -1,0 +1,145 @@
+{
+  "schema": "mumutori-characters-v1",
+  "canon_version": "v1.3",
+  "common": {
+    "world_rules": "1. **모두 씨앗이다** — 열매·곡식·콩. 새 친구도 씨앗류에서만, 사장님 확정 뒤에만 늘린다.\n2. **작은 몸으로 열심히** — 웃음은 '하찮게 작은 몸으로 큰일을 하는 모습'에서 나온다. 몸보다 큰 펜·상자·카메라.\n3. **악당·싸움 없음** — 갈등은 작고 귀엽게(밤의 늦잠, 땅콩의 시큰둥, 완두콩 앞자리 다툼). 누군가를 놀리거나 깎아내리는 개그 금지.\n4. **편지 내용은 비밀** — 캐릭터는 손님 편지 내용을 읽어 주거나 보여 주지 않는다. 그림 속 편지·종이에도 글자 없음.\n5. **따뜻한 계절감** — 기본은 가을·겨울의 포근함(오픈 10/31). 계절마다 소품만 바꾼다(목도리·단풍·눈·벚꽃).\n6. **어른을 위한 귀여움** — 아이·어린이 대상 표현 쓰지 않는다(KC 확인 필요). 과장 광고 말('최고', '1위') 쓰지 않는다.",
+    "voice_and_writing_rules": "- 손님에게 하는 **공식 안내(카카오 채널·공지·상세 안내·답변)는 무무토리 목소리**: 다정하고 담백한 존댓말, 짧은 문장, 이모지 1~2개.\n- 다른 캐릭터 말투는 **콘텐츠·SNS·패키지 속 말풍선**에서만. 한 글에 캐릭터 대사는 2~3줄까지.\n- 일과 캐릭터 짝: 배송·출고 공지=밤 / 신상 소개=땅콩의 한마디 / 이벤트·소식=해바라기씨 / 촬영 비하인드=완두콩 / 대필 안내=병아리콩 / 매장 안내=쌀.\n- 금지: 편지 내용 공개, 실제 손님 정보, 다른 캐릭터를 깎아내리는 농담, 과장 광고 말, 아이 대상 표현.",
+    "style_and_avoid_2d": "```\n[MUMUTORI SEED COMPANY — COMMON STYLE v1]\nFlat 2D hand-drawn cute illustration in the Mumutori \"Seed Company\" style. Thick, rounded, even-weight dark maroon-brown outlines (#602000). Soft flat pastel fills with only gentle shading. Warm palette: oat cream #F5EBDD, butter #F3DDA0, latte #E8D5BC, cocoa brown #985028, small fresh-green accents. The characters are tiny seed and bean creatures whose body IS the head (no neck, no torso), with very short stubby arms and tiny round feet only when needed. No eyebrows, no fingers. Cozy, warm, slightly silly \"humble-cute\" mood with gentle humor. Simple, uncluttered backgrounds. Keep every character exactly as in the attached reference sheet (shape, colors, eyes, mouth, markings, proportions). Do not invent new characters. No text, letters, numbers, logos or watermarks anywhere in the image.\n\n[AVOID]\n3D render, clay, plastic, photorealism, anime style, thin sketchy lines, long arms or legs, hands with fingers, eyebrows, extra or missing characters, swapping markings between characters (vertical stripes belong ONLY to the Sunflower Seed; the Rice grain is always plain), text, signage, logos, watermarks, resemblance to existing brand mascots.\n```",
+    "scene_template": "```\n[SCENE] (누가 · 어디서 · 무엇을 · 감정 — 한두 문장. 소품은 몸보다 크게 하면 하찮은 웃음이 산다.)\n[FORMAT] 3:2 landscape (또는 4:5 / 1:1). 글자 넣을 자리가 필요하면: \"Leave the left 45% as an empty plain butter-colored area for text.\"\n```\n- 자주 쓰는 형식: 첫 화면 PC 3:2 · 휴대폰 첫 화면 4:5(위 30% 비움) · 카드 4:3 · 배너 3:2(왼쪽 45% 비움) · 아이콘 묶음 '3열×2행 정사각 칸, 굵은 크림색 여백'(나중에 잘라 씀) · 인스타 1:1.\n- 한국어로 짧게 시킬 때(ChatGPT): \"첨부 기준 시트의 캐릭터 모양·색·눈·입·무늬·비율 그대로, 2D 손그림, 짙은 갈색 굵은 선, 오트크림·버터 파스텔, 귀엽고 살짝 하찮게, 팔다리 짧게, 글자·로고 없음. 줄무늬는 해바라기씨에만, 쌀은 줄무늬 없는 매끈한 달걀 모양 + 겨자 주황 목도리, 완두콩은 정확히 세 알.\"",
+    "checklist": "- [ ] 쌀에 줄무늬가 생기지 않았나(10/25 두 번 틀림) · 목도리 있나\n- [ ] 완두콩이 정확히 세 알인가 · 위 콩 새싹 · 셋 표정이 다른가\n- [ ] 도토리·밤·땅콩·병아리콩에 입이 생기지 않았나(병아리콩은 부리만)\n- [ ] 해바라기씨 눈이 작은 점인가 · 해를 안고 있나 · 줄무늬 왼쪽 두 줄\n- [ ] 팔다리가 길어지거나 손가락이 생기지 않았나 · 눈썹 없나\n- [ ] 그림 안에 글자·숫자·로고가 없나(편지·간판·책 포함)\n- [ ] 3D·클레이 느낌이 아닌 2D 손그림인가 · 선이 굵고 짙은 갈색인가 (3D 버전을 일부러 만들 때는 6-6을 따름)\n- [ ] 다른 회사 캐릭터를 닮지 않았나",
+    "style_3d": "- 쓰는 곳: 자사몰 브랜드 이야기처럼 **투명 배경 + 3D 오브젝트가 움직이는 화면**(10/25부터). 2026-10-31 사장님: 자사몰 3D 형태 좋음 → **이미 만든 것은 그대로, 3D는 새 작업에서만**. 새 작업에서 2D/3D는 담당이 골라 결과물에 표시하고 사장님 확인(좋아요/고쳐줘).\n- 쓰는 법: ChatGPT 무무토리 프로젝트에 기준 시트(`mumutori_character_ref.png`)를 붙이고 아래 블록 + 원하는 포즈를 쓴다. 한 장에 3~4명씩(가로 3:2), 투명 PNG로 받는다. ChatGPT가 투명도(알파)를 스스로 확인한다.\n- 직무 포즈(확정본): 도토리 = 두 팔 살짝 벌려 반김 · 병아리콩 = 동그란 금테 안경 + 만년필, 눈물 살짝 · 땅콩 = 돋보기 · 밤 = 끈 묶은 작은 상자, 졸린 눈, 작은 발 · 완두콩 = 피라미드, 오른쪽 아래 콩이 작은 카메라 · 해바라기씨 = 작은 해 · 쌀 = 겨자 주황 털목도리 + 찻잔.\n\n```\n[MUMUTORI SEED COMPANY — 3D STYLE v1]\nTurn the attached 2D reference characters into soft 3D figures. Look: premium designer vinyl toy / soft matte clay, rounded chunky forms, smooth surfaces with a very subtle fine texture, soft diffuse studio light from the upper left, gentle ambient occlusion, warm pastel colors matched exactly to the reference. Keep each character's exact design: silhouette, colors, eye shape and expression, markings, proportions (the body IS the head, no neck or torso, tiny stubby arms without fingers, tiny round feet only where the reference has feet). No outlines. Eyes are glossy dark-brown domes with a small white highlight. Rules: vertical stripes belong ONLY to the Sunflower Seed; the Rice grain is completely plain; the Pea Trio is exactly three peas; Dotori, Chestnut and Peanut have NO mouth; Chickpea has only a small orange beak. Do not invent new characters.\nOutput: one PNG with a fully TRANSPARENT background (real alpha, not a checkerboard pattern). Each object fully separate with generous empty space between them, no floor, no cast shadows, no background color, no text, no letters, no logos.\n```\n\n- 소품도 같은 3D 그림체로 따로 뽑아 둠: 버터색 차양 작은 상점, 도토리 실링 크라프트 봉투, 빈 편지지, 끈 묶은 상자, 달, 해, 하트, 반짝이 별, 새싹, 녹는 버터.",
+    "quick_usage": "| 쓰는 곳 | 캐릭터 제안 | 그림체·파일 | 판단 상태 |\n|---|---|---|---|\n| 상세페이지·레터 안내 | 도토리 인쇄 편지 / 병아리콩 대필 / 땅콩 상품 | 기본 2D: 위 캐릭터 SVG·AI와 §6-2·6-3 원문 | 제안. 대필 본문은 정본 지정 실제 담당자만 |\n| 영상·콘텐츠 | 완두콩 삼형제, 상황별 도토리·밤 | 2D 기준 시트·벡터. 자사몰 브랜드 이야기처럼 3D 오브젝트 화면은 아래 3D PNG | 새 작업이면 2D/3D 담당 판단 · 결과물에 표시 |\n| 카카오 소식·안내 | 해바라기씨(소식), 도토리(공식 목소리), 밤(출고) | 2D SVG·AI. 최종 문안·발행은 사장님 확인 | 광고 표기·발송 정책 별도(70_에이전트/플레이북/카카오채널_사용법.md); 새 작업이면 2D/3D 담당 판단 |\n| 인쇄·굿즈 | 도토리 로고, 완두콩·쌀 등 사용 목적별 선택 | 2D AI·인쇄용 PDF; 벡터와 인쇄 샘플 사전 확인 | 품목·제작·상표 및 KC 해당 여부 확인 필요 |\n| 자사몰 브랜드 이야기 | 일곱 캐릭터 | 3D PNG 낱장: [내부 경로 생략] | 자사몰에 쓰는 3D 형태 사장님 선호 전달. CDN 실제 픽셀 일치는 별도 확인 |\n\n2D·3D 모두 원래의 색·눈·입·형태·비율을 지킨다. 원본을 새로 그리거나 다른 회사 캐릭터를 섞지 않는다. §6 영문 공통·캐릭터 블록은 원문을 유지한다.\n\n**공개 자사몰 대조:** https://mumutori.com/?intro=1 공개 HTML에서 일곱 `d3_*` 명칭과 CDN WebP 주소를 확인하고 파일을 읽어 로컬 PNG와 비교했다. 7종 모두 가로·세로는 같고 불투명 본체 RGB가 유사하나, CDN WebP 알파는 불투명이고 원본 PNG는 투명 배경을 사용하므로 동일한 픽셀 파일이 아니다. 실제 브라우저 스크롤 화면에서 어떻게 합성·표시되는지는 **확인 필요**. 이 자료는 이미지를 생성·변형하지 않았다."
+  },
+  "characters": [
+    {
+      "id": "dotori",
+      "name": "도토리 무무토리",
+      "role": "대표 · 인쇄 편지(타자기)",
+      "role_confirmation": "직무 가안",
+      "one_line": "편지 한 통에 밤새 단어를 고르는, 다정한 대표.",
+      "personality": "다정함 · 호기심 · 진심 고집.",
+      "voice": "다정하고 담백한 존댓말, 짧은 문장. 이모지는 많아야 1~2개. **손님에게 하는 공식 안내는 무무토리 목소리.**\n  - \"오늘, 전하고 싶은 마음이 있었나요?\"\n  - \"천천히 골라도 괜찮아요. 마음은 도망가지 않아요.\"\n  - \"너의 하루에 작은 행운을.\" (병아리콩과 함께 쓰는 엽서 문구)",
+      "colors": [
+        "#F8F0E4",
+        "#985028"
+      ],
+      "appearance": "둥근 크림 얼굴(#F8F0E4) + 갈색 도토리 모자(#985028, 위 1/3을 덮고 양옆으로 살짝 튀어나옴) · 모자에 고리 세 개 꼬불 선 · 위 꼭지는 짧게 한쪽으로 말림 · 하이라이트 있는 큰 눈 두 개(옆을 보는 때가 많음) · **입·코 없음**.",
+      "pose_3d": "두 팔 살짝 벌려 반김",
+      "profile_markdown": "도토리 무무토리 — 대표\n- **한 줄**: 편지 한 통에 밤새 단어를 고르는, 다정한 대표.\n- **직무**: 씨앗 컴퍼니 대표 · 인쇄 편지(타자기) 담당.\n- **성격 3**: 다정함 · 호기심 · 진심 고집.\n- **겉과 속**: 겉은 차분한 대표, 속은 '이 단어가 맞을까' 걱정하는 걱정쟁이.\n- **출신**: 오래된 참나무에서 톡 떨어진 도토리. 눈을 뜬 날부터 길을 걸으며 친구들을 모아 상점을 지었다.\n- **버릇**: 타자기의 '딩' 소리를 좋아한다. 생각할 땐 모자 꼭지가 살짝 더 꼬불해진다(라는 친구들 농담).\n- **웃음 포인트**: 키가 작아 타자기 앞에 의자를 두 개 쌓는다. 단어 하나 고르느라 오래 걸린다.\n- **좋아하는 것**: 편지, 타자기 '딩' 소리, 책, 깅엄 무늬, 버터 한 덩이.\n- **싫어하는 것**: 비에 젖은 편지, 서두르기, 전해지지 못한 마음.\n- **말투**: 다정하고 담백한 존댓말, 짧은 문장. 이모지는 많아야 1~2개. **손님에게 하는 공식 안내는 무무토리 목소리.**\n  - \"오늘, 전하고 싶은 마음이 있었나요?\"\n  - \"천천히 골라도 괜찮아요. 마음은 도망가지 않아요.\"\n  - \"너의 하루에 작은 행운을.\" (병아리콩과 함께 쓰는 엽서 문구)\n- **관계**: 병아리콩과 편지 짝꿍 · 땅콩의 쓴소리를 제일 잘 들어 준다 · 완두콩 삼형제가 졸졸 따라다닌다.\n- **생김새 고정**: 둥근 크림 얼굴(#F8F0E4) + 갈색 도토리 모자(#985028, 위 1/3을 덮고 양옆으로 살짝 튀어나옴) · 모자에 고리 세 개 꼬불 선 · 위 꼭지는 짧게 한쪽으로 말림 · 하이라이트 있는 큰 눈 두 개(옆을 보는 때가 많음) · **입·코 없음**.",
+      "prompt_character": "[CHARACTER 1 — DOTORI \"MUMUTORI\" (acorn, the leader)]\nAn acorn. Round cream-white face-body (#F8F0E4) wearing a brown acorn cap (#985028) that covers the top third and slightly overhangs the sides. The cap has a curly line of three small loops drawn across it and a short curled stem on top bending to one side. Two big round dark-brown eyes with white highlights, often glancing sideways. NO mouth, no nose. Calm, kind, curious leader.",
+      "image_2d": "https://gustnel1122-pixel.github.io/mumutori-dashboard/src/character-canon/2d-dotori.png",
+      "image_3d": "https://gustnel1122-pixel.github.io/mumutori-dashboard/src/character-canon/3d-dotori.png"
+    },
+    {
+      "id": "chickpea",
+      "name": "병아리콩",
+      "role": "대필 작가 · 마음 설문",
+      "role_confirmation": "직무 가안",
+      "one_line": "남의 사연에 먼저 우는, 문장에는 누구보다 진지한 작가.",
+      "personality": "공감왕 · 눈물 많음 · 꼼꼼한 문장.",
+      "voice": "밝은 해요체, 공감 리액션, 느낌표는 하나만.\n  - \"어머, 그 마음 너무 예뻐요!\"\n  - \"말로 못 한 부분, 제가 예쁘게 받아 적을게요.\"\n  - \"(훌쩍) 이건… 꼭 전해져야 해요.\"",
+      "colors": [
+        "#FCF0C0"
+      ],
+      "appearance": "둥글고 살짝 울퉁불퉁한 연한 버터 노랑 몸(#FCF0C0) · 위에 병아리 볏 같은 작은 뾰족 털 · 작은 주황 세모 부리 · 큰 눈 두 개(한쪽이 조금 더 커도 됨) · **부리 말고 입 없음, 날개·긴 다리 없음**. 안경은 쓸 때만.",
+      "pose_3d": "동그란 금테 안경 + 만년필, 눈물 살짝",
+      "profile_markdown": "병아리콩 — 대필 작가\n- **한 줄**: 남의 사연에 먼저 우는, 문장에는 누구보다 진지한 작가.\n- **직무**: 대필 편지 · 마음 설문 담당.\n- **실제 담당(2026-10-25 사장님)**: 병아리콩 = 백다희 님(사장님 아내 · 공동사업자 · 함께 관리). **대필 편지는 다희 님만 쓸 수 있다** — AI나 다른 사람이 대필 편지 본문을 대신 쓰지 않는다(안내 문구·설문 화면 같은 주변 작업만 돕는다). 『버터밀크웨이』도 다희 님 글(원문 아직 볼트에 없음).\n- **성격 3**: 공감왕 · 눈물 많음 · 꼼꼼한 문장.\n- **겉과 속**: 겉은 밝고 수다스럽고, 속은 쉼표 하나에도 고민하는 진지한 작가.\n- **출신**: 길에서 무무토리가 처음 만난 친구. 무무토리의 이야기를 듣다 울어 버린 날, 첫 작가가 되었다.\n- **버릇**: 쓸 때만 동그란 안경을 쓴다. 사연을 읽다 훌쩍인다.\n- **웃음 포인트**: 큰 소리에 깜짝 놀라 펜을 떨어뜨린다. 자기 몸만 한 만년필.\n- **좋아하는 것**: 사연 듣기, 만년필, 창가 햇살, 하트 라떼.\n- **싫어하는 것**: 큰 소리, 대충 쓴 문장, 슬픈 결말.\n- **말투**: 밝은 해요체, 공감 리액션, 느낌표는 하나만.\n  - \"어머, 그 마음 너무 예뻐요!\"\n  - \"말로 못 한 부분, 제가 예쁘게 받아 적을게요.\"\n  - \"(훌쩍) 이건… 꼭 전해져야 해요.\"\n- **관계**: 무무토리의 편지 짝꿍 · 쌀이 늘 차를 가져다준다.\n- **생김새 고정**: 둥글고 살짝 울퉁불퉁한 연한 버터 노랑 몸(#FCF0C0) · 위에 병아리 볏 같은 작은 뾰족 털 · 작은 주황 세모 부리 · 큰 눈 두 개(한쪽이 조금 더 커도 됨) · **부리 말고 입 없음, 날개·긴 다리 없음**. 안경은 쓸 때만.",
+      "prompt_character": "[CHARACTER 2 — CHICKPEA (ghostwriter)]\nA chick-like chickpea. Soft, round, slightly lumpy pale butter-yellow body (#FCF0C0) with a small pointed tuft on top like a chick's crown. A tiny orange triangle beak between two big glossy eyes (one eye may look slightly bigger). No other mouth, no wings, no long legs. Expressive and easily moved; may wear small round glasses when writing.",
+      "image_2d": "https://gustnel1122-pixel.github.io/mumutori-dashboard/src/character-canon/2d-chickpea.png",
+      "image_3d": "https://gustnel1122-pixel.github.io/mumutori-dashboard/src/character-canon/3d-chickpea.png"
+    },
+    {
+      "id": "chestnut",
+      "name": "밤",
+      "role": "물류 · 밤 근무 포장 출고 (열려 있는 자리)",
+      "role_confirmation": "직무 가안",
+      "one_line": "이름처럼 밤에 일해서 늘 졸린, 그런데 상자 하나 안 빠뜨리는 친구.",
+      "personality": "늘 졸림 · 느긋함 · 빈틈없음.",
+      "voice": "느릿느릿, 말끝을 늘이는 해요체.\n  - \"하암… 오늘 상자, 하나도 안 빠졌어요…\"\n  - \"급해도… 포장은… 꼼꼼히…\"\n  - \"(쿨쿨) …출고… 완료…\"",
+      "colors": [
+        "#C05430",
+        "#E4CCA8"
+      ],
+      "appearance": "윤기 나는 적갈색 껍질(#C05430) · 위가 뾰족 · 아래 넓고 평평한 베이지 바닥(#E4CCA8) · 작은 발 두 개 · **위 눈꺼풀이 평평한 반쯤 감긴 졸린 눈 · 입 없음**.",
+      "pose_3d": "끈 묶은 작은 상자, 졸린 눈, 작은 발",
+      "profile_markdown": "밤 — 물류 (밤 근무)\n- **한 줄**: 이름처럼 밤에 일해서 늘 졸린, 그런데 상자 하나 안 빠뜨리는 친구.\n- **직무**: 물류 · 포장과 출고(밤 근무). *열려 있는 자리의 얼굴.*\n- **성격 3**: 늘 졸림 · 느긋함 · 빈틈없음.\n- **겉과 속**: 겉은 맨날 조는 느림보, 속은 제일 믿음직한 마무리 담당.\n- **출신**: 어느 가을밤 나무에서 툭 떨어져 상점 창고로 굴러 들어왔다. 그날부터 밤 근무.\n- **버릇**: 말끝마다 \"하암\". 뽁뽁이 한 칸은 꼭 몰래 터뜨린다.\n- **웃음 포인트**: 아침에 못 일어나서 해바라기씨가 해를 비춰 깨운다.\n- **좋아하는 것**: 조용한 밤, 뽁뽁이, 반듯하게 접힌 상자, 따뜻한 이불.\n- **싫어하는 것**: 아침 알람, 구겨진 상자, 해바라기씨의 아침 햇살.\n- **말투**: 느릿느릿, 말끝을 늘이는 해요체.\n  - \"하암… 오늘 상자, 하나도 안 빠졌어요…\"\n  - \"급해도… 포장은… 꼼꼼히…\"\n  - \"(쿨쿨) …출고… 완료…\"\n- **관계**: 쌀과 교대 짝(밤이 싼 상자를 쌀이 아침에 내보낸다) · 해바라기씨와 아침마다 티격태격.\n- **생김새 고정**: 윤기 나는 적갈색 껍질(#C05430) · 위가 뾰족 · 아래 넓고 평평한 베이지 바닥(#E4CCA8) · 작은 발 두 개 · **위 눈꺼풀이 평평한 반쯤 감긴 졸린 눈 · 입 없음**.",
+      "prompt_character": "[CHARACTER 3 — CHESTNUT (night-shift logistics)]\nA chestnut. Glossy reddish-brown shell (#C05430) with a pointed tip on top, a wide flat pale-beige base patch (#E4CCA8) across the bottom, and two tiny feet. Half-closed, heavy-lidded sleepy eyes with flat upper lids. No mouth. Always a little drowsy but reliable.",
+      "image_2d": "https://gustnel1122-pixel.github.io/mumutori-dashboard/src/character-canon/2d-chestnut.png",
+      "image_3d": "https://gustnel1122-pixel.github.io/mumutori-dashboard/src/character-canon/3d-chestnut.png"
+    },
+    {
+      "id": "peanut",
+      "name": "땅콩",
+      "role": "MD · 상품 고르기와 품평 (열려 있는 자리)",
+      "role_confirmation": "직무 가안",
+      "one_line": "겉은 딱딱, 속은 고소. 땅콩이 \"괜찮네\" 하면 그건 진짜 괜찮은 물건.",
+      "personality": "시큰둥 · 까다로운 눈 · 은근 다정.",
+      "voice": "짧고 퉁명한 반말, 끝에 한마디 챙김.\n  - \"…별로. 근데 이건 괜찮네.\"\n  - \"흥. 품절되기 전에 사 둬.\"\n  - \"대표, 그거 다시 봐. …아니, 나쁘다는 건 아니고.\"",
+      "colors": [
+        "#F0C078"
+      ],
+      "appearance": "껍질째인 땅콩 · 황갈색(#F0C078) 8자 모양, 아래쪽이 조금 더 큼 · 짧게 휜 홈 선 몇 개 · **반쯤 감긴 시큰둥한 눈이 위·옆을 봄 · 입 없음**.",
+      "pose_3d": "돋보기",
+      "profile_markdown": "땅콩 — MD\n- **한 줄**: 겉은 딱딱, 속은 고소. 땅콩이 \"괜찮네\" 하면 그건 진짜 괜찮은 물건.\n- **직무**: MD · 상품 고르기와 품평. *열려 있는 자리의 얼굴.*\n- **성격 3**: 시큰둥 · 까다로운 눈 · 은근 다정.\n- **겉과 속**: 땅콩처럼 겉은 퉁명한 껍질, 속은 고소하게 챙기는 츤데레.\n- **출신**: 동네 간식 가게 진열대에서 하도 까다롭게 굴어 아무도 못 사 갔다. 그 안목을 보고 무무토리가 데려왔다.\n- **버릇**: \"음…\" 한 글자로 평가한다. 마음에 들면 말없이 장바구니에 슬쩍 넣는다.\n- **웃음 포인트**: 칭찬받으면 딴 데를 본다.\n- **좋아하는 것**: 혼자 있는 시간, 잘 만든 물건, 깔끔한 마감.\n- **싫어하는 것**: 호들갑, 대충 만든 물건, \"껍질 까 줄까?\"라는 말.\n- **말투**: 짧고 퉁명한 반말, 끝에 한마디 챙김.\n  - \"…별로. 근데 이건 괜찮네.\"\n  - \"흥. 품절되기 전에 사 둬.\"\n  - \"대표, 그거 다시 봐. …아니, 나쁘다는 건 아니고.\"\n- **관계**: 무무토리의 솔직한 조언자 · 완두콩 둘째와 '시큰둥 동지' · 땅콩이 고르고 완두콩이 찍는다.\n- **생김새 고정**: 껍질째인 땅콩 · 황갈색(#F0C078) 8자 모양, 아래쪽이 조금 더 큼 · 짧게 휜 홈 선 몇 개 · **반쯤 감긴 시큰둥한 눈이 위·옆을 봄 · 입 없음**.",
+      "prompt_character": "[CHARACTER 4 — PEANUT (merchandiser)]\nAn unshelled peanut. Tan shell (#F0C078) in a figure-eight peanut shape with a slightly bigger lower lobe and a few short curved groove lines. Half-lidded, unimpressed eyes glancing up and to the side. No mouth. Deadpan and picky, secretly caring.",
+      "image_2d": "https://gustnel1122-pixel.github.io/mumutori-dashboard/src/character-canon/2d-peanut.png",
+      "image_3d": "https://gustnel1122-pixel.github.io/mumutori-dashboard/src/character-canon/3d-peanut.png"
+    },
+    {
+      "id": "peas",
+      "name": "완두콩 삼형제",
+      "role": "콘텐츠 팀 · 첫째 글·기획 / 둘째 사진 / 셋째 영상 (열려 있는 자리)",
+      "role_confirmation": "확인 필요",
+      "one_line": "한 꼬투리에서 같이 튀어나온 세 알. 셋이 모여야 한 문장이 된다.",
+      "personality": "늘 셋이 함께 · 손발 척척 · 앞자리 다툼.",
+      "voice": "셋이 나눠 말하기.\n  - \"우리가—\" \"찍고—\" \"올렸다!\"\n  - (둘째) \"…구도 별로.\" (셋째) \"헉, 진짜?\"\n  - \"셋이 모이면 콘텐츠 완성!\"",
+      "colors": [
+        "#A8CC84"
+      ],
+      "appearance": "**정확히 세 알**(둘·넷 금지)의 둥근 연두 콩(#A8CC84) · 포즈를 잡을 땐 피라미드(위 하나, 아래 둘) · 위 콩 머리에 두 잎 새싹 · 위=밝은 둥근 눈 / 왼쪽 아래=반쯤 감긴 눈 / 오른쪽 아래=둥근 눈 + 작은 'o' 입.",
+      "pose_3d": "피라미드, 오른쪽 아래 콩이 작은 카메라",
+      "profile_markdown": "완두콩 삼형제 — 콘텐츠 팀\n- **한 줄**: 한 꼬투리에서 같이 튀어나온 세 알. 셋이 모여야 한 문장이 된다.\n- **직무**: 콘텐츠 팀 — 첫째 글·기획 / 둘째 사진 / 셋째 영상. *열려 있는 자리의 얼굴.*\n- **성격 3**: 늘 셋이 함께 · 손발 척척 · 앞자리 다툼.\n- **셋의 차이**: 첫째(위, 머리에 새싹, 밝은 눈) 밝은 리더 · 둘째(왼쪽 아래, 반쯤 감긴 눈) 시큰둥한 사진 담당, 구도에 깐깐 · 셋째(오른쪽 아래, 작은 'o' 입) 뭐든 놀라는 영상 담당.\n- **출신**: 한 꼬투리에서 동시에 톡 튀어나왔다.\n- **버릇**: 셋이 한 문장을 나눠 말한다. 사진 찍을 때 서로 앞자리를 차지하려고 꼬물거린다.\n- **웃음 포인트**: 떨어지면 불안해서 일을 못 한다. '꼬투리 잡히는 것'을 제일 싫어한다.\n- **좋아하는 것**: 셋이 함께, 새싹 키우기, 쨍한 햇빛(사진이 잘 나와서).\n- **싫어하는 것**: 떨어지기, 흔들린 사진, 꼬투리 잡히기.\n- **말투**: 셋이 나눠 말하기.\n  - \"우리가—\" \"찍고—\" \"올렸다!\"\n  - (둘째) \"…구도 별로.\" (셋째) \"헉, 진짜?\"\n  - \"셋이 모이면 콘텐츠 완성!\"\n- **관계**: 무무토리를 졸졸 따라다닌다 · 해바라기씨에게 촬영 부탁을 받는다 · 땅콩이 고른 상품을 찍는다.\n- **생김새 고정**: **정확히 세 알**(둘·넷 금지)의 둥근 연두 콩(#A8CC84) · 포즈를 잡을 땐 피라미드(위 하나, 아래 둘) · 위 콩 머리에 두 잎 새싹 · 위=밝은 둥근 눈 / 왼쪽 아래=반쯤 감긴 눈 / 오른쪽 아래=둥근 눈 + 작은 'o' 입.",
+      "prompt_character": "[CHARACTER 5 — PEA TRIO (content team)]\nExactly THREE separate round green peas (#A8CC84), always together; when posing they stack in a small pyramid (one on top, two below). The top pea has a two-leaf green sprout on its head and bright round eyes; the bottom-left pea has half-lidded bored eyes; the bottom-right pea has round eyes and a tiny \"o\" surprised mouth. Never two or four peas.",
+      "image_2d": "https://gustnel1122-pixel.github.io/mumutori-dashboard/src/character-canon/2d-peas.png",
+      "image_3d": "https://gustnel1122-pixel.github.io/mumutori-dashboard/src/character-canon/3d-peas.png"
+    },
+    {
+      "id": "sunflower",
+      "name": "해바라기씨",
+      "role": "마케팅 · 소식·이벤트·채널 (열려 있는 자리)",
+      "role_confirmation": "직무 가안",
+      "one_line": "해를 따라 고개를 돌리듯, 좋은 소식을 따라 뛰어다니는 분위기 메이커.",
+      "personality": "늘 맑음 · 소식통 · 유행 레이더.",
+      "voice": "밝고 경쾌한 해요체, 날씨에 빗대기.\n  - \"오늘도 맑음! 새 소식 들고 왔어요.\"\n  - \"이건 꼭 알려야 해요. 해가 쨍할 때!\"\n  - \"밤아, 일어나~ 해 떴어!\"",
+      "colors": [
+        "#FCF0D8",
+        "#A88460"
+      ],
+      "appearance": "위가 뾰족하고 아래가 넓은 긴 물방울 씨앗 · 아이보리(#FCF0D8) · **왼쪽에 갈색 세로 줄무늬 두 줄(#A88460) — 줄무늬는 해바라기씨에게만** · 큰 눈이 아닌 **작은 점 눈** · 작은 'ω' 웃는 입 · 가슴 앞에 주황 세모 빛살의 작은 노란 해를 안음 · 작은 발 두 개.",
+      "pose_3d": "작은 해",
+      "profile_markdown": "해바라기씨 — 마케팅\n- **한 줄**: 해를 따라 고개를 돌리듯, 좋은 소식을 따라 뛰어다니는 분위기 메이커.\n- **직무**: 마케팅 · 소식·이벤트·채널. *열려 있는 자리의 얼굴.*\n- **성격 3**: 늘 맑음 · 소식통 · 유행 레이더.\n- **겉과 속**: 겉은 늘 웃는 분위기 메이커, 속은 '좋은 물건이 아무에게도 안 알려지는 것'이 제일 속상한 진지함.\n- **출신**: 해를 따라 굴러가다 상점 쇼윈도 햇볕 자리에 자리 잡았다.\n- **버릇**: 작은 해를 꼭 안고 다닌다. 사람 많은 쪽(유행)으로 고개를 돌린다.\n- **웃음 포인트**: 흐린 날엔 기운이 없다. 신나서 소식을 너무 일찍 말해 버린다.\n- **좋아하는 것**: 해, 맑은 날, 새 소식, 손님들의 '좋아요'.\n- **싫어하는 것**: 흐린 날, 아무도 모르는 좋은 물건.\n- **말투**: 밝고 경쾌한 해요체, 날씨에 빗대기.\n  - \"오늘도 맑음! 새 소식 들고 왔어요.\"\n  - \"이건 꼭 알려야 해요. 해가 쨍할 때!\"\n  - \"밤아, 일어나~ 해 떴어!\"\n- **관계**: 밤을 아침마다 깨운다 · 완두콩 삼형제에게 촬영을 부탁한다 · 완두콩과 피크닉 단짝.\n- **생김새 고정**: 위가 뾰족하고 아래가 넓은 긴 물방울 씨앗 · 아이보리(#FCF0D8) · **왼쪽에 갈색 세로 줄무늬 두 줄(#A88460) — 줄무늬는 해바라기씨에게만** · 큰 눈이 아닌 **작은 점 눈** · 작은 'ω' 웃는 입 · 가슴 앞에 주황 세모 빛살의 작은 노란 해를 안음 · 작은 발 두 개.",
+      "prompt_character": "[CHARACTER 6 — SUNFLOWER SEED (marketing)]\nA tall teardrop-shaped seed, pointed at the top and wide at the bottom, ivory (#FCF0D8) with two brown-gray vertical stripes (#A88460) along its left side. Small simple dot eyes (not big eyes) and a tiny cat-like \"ω\" smile. Holds a small yellow sun with orange triangular rays at chest height. Two tiny feet. Sunny and upbeat.",
+      "image_2d": "https://gustnel1122-pixel.github.io/mumutori-dashboard/src/character-canon/2d-sunflower.png",
+      "image_3d": "https://gustnel1122-pixel.github.io/mumutori-dashboard/src/character-canon/3d-sunflower.png"
+    },
+    {
+      "id": "rice",
+      "name": "쌀",
+      "role": "매장지기 · 손님 맞이·고객 응대",
+      "role_confirmation": "확인 필요",
+      "one_line": "수줍어서 말은 작지만, 손님 얼굴을 다 기억하는 따뜻한 한 알.",
+      "personality": "수줍음 · 포근함 · 세심함.",
+      "voice": "작고 조용한 존댓말, 말줄임.\n  - \"어서 오세요… 천천히 구경하세요.\"\n  - \"편지는… 여기 우편함에 넣어 주시면 돼요.\"\n  - \"저… 따뜻한 차 드릴까요?\"",
+      "colors": [
+        "#FCF0D8",
+        "#F0B46C"
+      ],
+      "appearance": "**줄무늬 없는 매끈한 크림색 달걀 모양**(#FCF0D8, 위가 조금 좁음, 작은 흰 하이라이트만) · 큰 눈 · 작은 'u' 웃는 입 · 항상 **겨자 주황 니트 목도리**(#F0B46C)를 가운데 두르고 술 달린 끝이 한쪽으로 늘어짐.",
+      "pose_3d": "겨자 주황 털목도리 + 찻잔",
+      "profile_markdown": "쌀 — 매장지기\n- **한 줄**: 수줍어서 말은 작지만, 손님 얼굴을 다 기억하는 따뜻한 한 알.\n- **직무**: 매장지기 · 손님 맞이, 타자기 코너, 고객 응대.\n- **성격 3**: 수줍음 · 포근함 · 세심함.\n- **겉과 속**: 겉은 낯을 가리는 조용한 친구, 속은 단골의 취향까지 기억하는 세심함.\n- **출신**: 부엌 쌀 포대에서 제일 따뜻한 한 알이 굴러 나왔다.\n- **버릇**: 긴장하면 목도리를 고쳐 맨다. 차를 끓여 나눠 준다.\n- **웃음 포인트**: 추위에 약하고, 목도리가 풀리면 당황한다.\n- **좋아하는 것**: 겨자 주황 목도리, 따뜻한 밥 냄새, 차 끓이기, 손님 인사.\n- **싫어하는 것**: 추위, 소란, 목도리 풀리는 것.\n- **말투**: 작고 조용한 존댓말, 말줄임.\n  - \"어서 오세요… 천천히 구경하세요.\"\n  - \"편지는… 여기 우편함에 넣어 주시면 돼요.\"\n  - \"저… 따뜻한 차 드릴까요?\"\n- **관계**: 밤과 교대 짝 · 병아리콩에게 차를 가져다준다 · 타자기 코너 지기.\n- **생김새 고정**: **줄무늬 없는 매끈한 크림색 달걀 모양**(#FCF0D8, 위가 조금 좁음, 작은 흰 하이라이트만) · 큰 눈 · 작은 'u' 웃는 입 · 항상 **겨자 주황 니트 목도리**(#F0B46C)를 가운데 두르고 술 달린 끝이 한쪽으로 늘어짐.",
+      "prompt_character": "[CHARACTER 7 — RICE (store keeper)]\nA single rice grain. Smooth, plain cream-white egg shape (#FCF0D8), slightly narrower at the top, with NO stripes or markings except a small white highlight. Big glossy eyes and a small \"u\" smile. Always wears a mustard-orange knitted scarf (#F0B46C) wrapped around the middle with fringed ends hanging on one side. Shy, warm, gentle.",
+      "image_2d": "https://gustnel1122-pixel.github.io/mumutori-dashboard/src/character-canon/2d-rice.png",
+      "image_3d": "https://gustnel1122-pixel.github.io/mumutori-dashboard/src/character-canon/3d-rice.png"
+    }
+  ]
+}

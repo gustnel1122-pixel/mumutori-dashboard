@@ -9,6 +9,9 @@ const {STORAGE_KEY,MOVED_KEY,STATUS,GROUPS,SLOTS}=K;
 const {openStore}=await import(`../characters-sync.js?v=${B}`);
 const GUIDE=await import(`../characters-guide.js?v=${B}`);   // '처음이면 읽기' 가이드(화면 글만)
 const {CANON_V13}=await import(`../characters-canon-v13.js?v=${B}`);
+const aiStyle=document.createElement('link');aiStyle.rel='stylesheet';aiStyle.href=`src/characters-ai.css?v=${encodeURIComponent(B)}`;document.head.append(aiStyle);
+let AI_CANON=null;try{const r=await fetch(`characters.json?v=${encodeURIComponent(B)}`,{cache:'no-cache'});if(r.ok){const x=await r.json();if(x?.schema==='mumutori-characters-v1'&&x.characters?.length===7)AI_CANON=x}}catch(_){}
+const aiChar=id=>AI_CANON?.characters?.find(x=>x.id===id)||null;
 // 옛 칸을 화면에서만 숨깁니다. 원본과 잠금·이력은 그대로 보관합니다.
 const HIDDEN_OLD=new Set(['pumpkin','seed']);
 const visibleCharacters=()=>board.characters.filter(c=>!HIDDEN_OLD.has(c.id));
@@ -57,8 +60,8 @@ function normWorld(w){
   const x={version:str(w.version,20),oneLine:str(w.oneLine,300),rules:strs(w.rules,200,20),org,voiceRule:str(w.voiceRule,400),promptCommon:str(w.promptCommon,3000),promptAvoid:str(w.promptAvoid,1500),promptHowTo:str(w.promptHowTo,400),checklist:strs(w.checklist,200,20),updatedAt:str(w.updatedAt,30)};
   return x.oneLine||x.promptCommon||x.rules.length?x:null;
 }
-const commonPrompt=()=>[world?.promptCommon,world?.promptAvoid].filter(Boolean).join('\n\n');
-const charBlock=c=>{const m=String(c?.memo||''),i=m.indexOf('[CHARACTER');return i<0?'':m.slice(i).trim();};   // 메모 칸 끝의 영문 캐릭터 블록
+const commonPrompt=()=>AI_CANON?.common?.style_and_avoid_2d||[world?.promptCommon,world?.promptAvoid].filter(Boolean).join('\n\n');
+const charBlock=c=>{const fixed=aiChar(c?.id)?.prompt_character;if(fixed)return fixed;const m=String(c?.memo||''),i=m.indexOf('[CHARACTER');return i<0?'':m.slice(i).trim();};   // 메모 칸 끝의 영문 캐릭터 블록
 function worldPanel(){
   if(!world)return '';
   const w=world,li=a=>a.map(x=>`<li>${esc(x)}</li>`).join(''),nameOf=id=>board?.characters.find(c=>c.id===id)?.name||WORLD_NAMES[id]||id;
@@ -94,23 +97,19 @@ async function copyText(text,btn,done){
 function roster(){
   const c0=cur();
   return `<div class="cb-roster" role="tablist" aria-label="캐릭터 고르기">${visibleCharacters().map(c=>{const p=K.progress(c),ref=CANON_V13[c.id];
-    return `<button type="button" role="tab" aria-selected="${c===c0}" class="cb-pick${c===c0?' active':''}" data-cb="pick" data-id="${esc(c.id)}"><b>${esc(ref?.name||c.name||'이름 없음')}</b><small>${esc(ref?.role||c.role||'역할 미정')}</small>
-      <span class="cb-state${c.lock?' locked':''}">${c.lock?'🔒 확정':'만드는 중'} · 그림 ${p.done}/${p.all}</span></button>`;}).join('')}
+    return `<button type="button" role="tab" aria-selected="${c===c0}" class="cb-pick${c===c0?' active':''}" data-cb="pick" data-id="${esc(c.id)}"><b>${esc(ref?.name||c.name||'이름 없음')}</b><small>${esc(ref?.role||c.role||'역할 미정')}${aiChar(c.id)?.role_confirmation==='확인 필요'?' · 확인 필요':''}</small>
+      ${aiChar(c.id)?`<span class="cb-ai-pair"><span><img src="${esc(aiChar(c.id).image_2d)}" alt="${esc(aiChar(c.id).name)} 2D" loading="lazy"><small>2D</small></span><span><img src="${esc(aiChar(c.id).image_3d)}" alt="${esc(aiChar(c.id).name)} 3D" loading="lazy"><small>3D</small></span></span>`:''}<span class="cb-state${c.lock?' locked':''}">${c.lock?'🔒 확정':'만드는 중'} · 그림 ${p.done}/${p.all}</span></button>`;}).join('')}
     <button type="button" class="cb-add" data-cb="add">＋ 캐릭터 추가</button></div>`;
 }
 function quickGuide(){
-  return `<section class="panel cb-canon-guide"><div class="panelhead"><h2>2D·3D 빠른 사용법</h2></div><div class="panelbody">
-    <p><b>이미 만든 그림은 그대로.</b> 새 작업은 담당자가 2D 또는 3D를 골라 결과물에 표시하고 사장님께 확인받습니다.</p>
-    <details><summary>쓰는 곳과 그림 규칙 보기</summary>
-    <ul><li>상세페이지와 레터: 도토리·병아리콩·땅콩을 용도에 맞게 사용합니다.</li><li>영상과 콘텐츠: 완두콩 삼형제를 중심으로 장면에 맞게 고릅니다.</li><li>소식과 안내: 해바라기씨·도토리·밤을 용도에 맞게 사용하고 최종 문안을 확인합니다.</li><li>인쇄와 굿즈: 제작 전 벡터와 인쇄 샘플을 확인하고 상표·KC 해당 여부를 살핍니다.</li></ul>
-    <p>2D·3D 모두 원래의 색·눈·입·형태·비율을 지킵니다. 3D는 부드러운 무광 점토처럼 표현하고 머리와 몸이 하나인 모습과 짧은 팔다리를 유지합니다. 세로줄은 해바라기씨에만, 완두콩은 세 알이며 쌀에는 줄무늬가 없습니다.</p></details>
-    <p>그림 파일·프롬프트는 볼트 정본 10_브랜드/무무토리_캐릭터_씨앗컴퍼니.md 7절을 확인해 주세요.</p></div></section>`;
+  const c=AI_CANON?.common,parts=[['세계 규칙',c?.world_rules],['말투 · 글 규칙',c?.voice_and_writing_rules],['공통 그림체 · 피할 것',c?.style_and_avoid_2d],['3D 그림체 v1',c?.style_3d],['장면 · 형식 틀',c?.scene_template],['검수표',c?.checklist],['2D · 3D 빠른 사용법',c?.quick_usage]];
+  return `<section class="panel cb-canon-guide cb-ai-guide"><div class="panelhead"><h2>캐릭터를 콘텐츠에 쓰는 법</h2><a class="cb-ai-link" href="characters.json" target="_blank" rel="noopener">AI용 자료</a></div><div class="panelbody"><p>정본 v1.3의 규칙과 그림을 읽고 작업에 맞는 캐릭터와 2D·3D를 골라요.</p>${c?parts.map(([title,text])=>`<details class="cb-ai-common"><summary>${esc(title)}</summary><pre>${esc(text||'')}</pre></details>`).join(''):'<p>AI용 자료를 불러오지 못했습니다. 연결을 확인하고 새로고침해 주세요.</p>'}</div></section>`;
 }
 function canonProfile(c){
   const x=CANON_V13[c?.id];if(!x)return '';
   return `<section class="panel cb-canon"><div class="panelhead"><h2>정본 v1.3 · ${esc(x.name)}</h2></div><div class="panelbody">
     <dl><dt>회사 속 직무</dt><dd>${esc(x.role)}</dd><dt>한 줄</dt><dd>${esc(x.oneLine)}</dd><dt>성격</dt><dd>${esc(x.traits.join(' · '))}</dd><dt>말투</dt><dd>${esc(x.voice)}</dd><dt>색</dt><dd>${esc(x.colors.join(' · '))} ${swatches(x.colors.join(' '))}</dd><dt>꼭 지킬 생김새</dt><dd>${esc(x.must)}</dd></dl>
-    <p class="cb-small muted">정본 안내는 읽기 전용입니다. 아래의 기존 작업 내용과 잠금·이력은 그대로입니다.</p></div></section>`;
+    ${aiChar(c.id)?`<div class="cb-ai-profile"><p><b>직무 확인</b> ${esc(aiChar(c.id).role_confirmation)}</p><p><b>3D 직무 포즈</b> ${esc(aiChar(c.id).pose_3d)}</p><p><a href="${esc(aiChar(c.id).image_2d)}" target="_blank" rel="noopener">2D 그림 열기</a> · <a href="${esc(aiChar(c.id).image_3d)}" target="_blank" rel="noopener">3D 그림 열기</a></p><details><summary>정본 캐릭터 내용 전체</summary><pre>${esc(aiChar(c.id).profile_markdown)}</pre></details><details><summary>영문 캐릭터 블록</summary><pre>${esc(aiChar(c.id).prompt_character)}</pre></details></div>`:''}<p class="cb-small muted">정본 안내는 읽기 전용입니다. 아래의 기존 작업 내용과 잠금·이력은 그대로입니다.</p></div></section>`;
 }
 function lockBar(c){
   if(c.lock)return `<div class="cb-lock locked"><div><b>🔒 확정된 캐릭터입니다</b><span>${esc(day(c.lock.at))} · ${esc(c.lock.by)} 님이 확정했습니다. 프로필과 대표 그림은 잠겨 있습니다. 고치려면 먼저 잠금을 풀어 주세요.</span></div>
