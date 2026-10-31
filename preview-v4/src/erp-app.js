@@ -1,7 +1,7 @@
 // Auth is optional for cached local-only screens; never block their renderer offline.
 let productAuth=null;
 import('./fbauth.js?v=access20261028').then(a=>{productAuth=a;a.onAuth(()=>{});}).catch(()=>{});
-const { DEPARTMENTS, icon, departmentCards, workflowStrip, menuGroups } = await import(`./departments.js?v=${document.body.dataset.build}`);
+const { DEPARTMENTS, icon, departmentCards, workflowStrip, menuGroups, hrefFor } = await import(`./departments.js?v=${document.body.dataset.build}`);
 const { createStore } = await import(`./store.js?v=${document.body.dataset.build}`);
 const {mergeSharedProducts,restoreLocalProducts} = await import(`./product-v4-shared-projection.js?v=${document.body.dataset.build}`);
 const {confirmedLinks,confirmLink} = await import(`./product-v4-links.js?v=${document.body.dataset.build}`);
@@ -26,7 +26,9 @@ const {confirmedLinks,confirmLink} = await import(`./product-v4-links.js?v=${doc
   let data,savedRaw=null,loadError='',toastTimer,modal=null,priorFocus=null,filterTimer,privateProducts=null,privateCandidates=[];
   let currentPage=null,hasRendered=false;
   const pageId=document.body.dataset.page||'overview';
-  const state={view:pageId,query:new URLSearchParams(location.search).get('q')||'',filter:'전체',month:'',warehouse:'기본 창고',page:1,showVoided:false,stockTab:new URLSearchParams(location.search).get('tab')==='ledger'?'입출고 기록':'재고 현황',attention:new URLSearchParams(location.search).get('attention')||''};
+  // A srcdoc frame has no query string: use the same-origin parent URL for old product links.
+  const sourceSearch=window.parent===window?location.search:window.parent.location.search;
+  const state={view:pageId,query:new URLSearchParams(sourceSearch).get('q')||'',filter:'전체',month:'',warehouse:'기본 창고',page:1,showVoided:false,stockTab:new URLSearchParams(sourceSearch).get('tab')==='ledger'?'입출고 기록':'재고 현황',attention:new URLSearchParams(sourceSearch).get('attention')||''};
   if(!NAV.some(n=>n[0]===state.view))state.view='overview';
   try{
     const result=await store.load(); data=result.data;savedRaw=result.raw;loadError=result.warning;
@@ -48,7 +50,7 @@ const {confirmedLinks,confirmLink} = await import(`./product-v4-links.js?v=${doc
     window.MumutoriActivity?.record({screen:'운영홈',action:'기록 저장',workId:'nav1_home_'});
     render();notify(message||'저장했습니다.');
   }
-  const link=(view,label,query='',extra='')=>`<a class="inline-link ${extra}" href="${view==='overview'?'index':view}.html${query?'?q='+encodeURIComponent(query):''}">${esc(label)} <span aria-hidden="true">↗</span></a>`;
+  const link=(view,label,query='',extra='')=>`<a class="inline-link ${extra}" href="${hrefFor(view)}${query?'?q='+encodeURIComponent(query):''}">${esc(label)} <span aria-hidden="true">↗</span></a>`;
   const accountName=id=>data.erp.accounts.find(a=>a.id===id)?.name||id;
   const viewData=()=>({...data,products:mergeSharedProducts(data.products,privateProducts,confirmedLinks(productAuth?.current()?.uid))});
   const findProduct=sku=>viewData().products.find(p=>p.id===sku);
@@ -73,7 +75,7 @@ const {confirmedLinks,confirmLink} = await import(`./product-v4-links.js?v=${doc
     const context={C,data:viewData(),state,esc,won,money,dateTime,badge,btn,options,TYPE_LABEL,accountName,findProduct,matches,inMonth,visible,byDate,rowClass,rowsTable,editButtons,filters,metric,head,accountSummary,link,icon,departmentCards,workflowStrip,privateProducts,privateCandidates};
     // 지금 화면이 어느 메뉴에 속하나(통장 탭 → 재무). '더보기'는 그 안의 화면이거나 이 탭에서 열어 둔 적이 있으면 펼친다.
     const navOf=DEPARTMENTS.find(x=>x.id===state.view)?.tabOf||state.view;
-    const navItem=n=>`<a href="${n.id==='overview'?'index':n.id}.html" class="nav-item ${navOf===n.id?'active':''}" data-view="${n.id}" ${navOf===n.id?'aria-current="page"':''}><span class="nav-icon">${icon(n.icon)}</span><span>${n.label}</span><small>${n.number}</small></a>`;
+    const navItem=n=>`<a href="${hrefFor(n.id)}" class="nav-item ${navOf===n.id?'active':''}" data-view="${n.id}" ${navOf===n.id?'aria-current="page"':''}><span class="nav-icon">${icon(n.icon)}</span><span>${n.label}</span><small>${n.number}</small></a>`;
     const {daily,more}=menuGroups();
     const moreOpen=more.some(n=>n.id===navOf)||(()=>{try{return sessionStorage.getItem('mmt-nav-more')==='1';}catch{return false;}})();
     const mobileNav=`<optgroup label="매일">${daily.map(n=>`<option value="${n.id}" ${state.view===n.id?'selected':''}>${esc(n.label)}</option>`+(n.id==='finance'?`<option value="bank" ${state.view==='bank'?'selected':''}>재무 · 계좌별</option>`:'')).join('')}</optgroup><optgroup label="더보기">${more.map(n=>`<option value="${n.id}" ${state.view===n.id?'selected':''}>${esc(n.label)}</option>`).join('')}</optgroup>`;
@@ -84,7 +86,7 @@ const {confirmedLinks,confirmLink} = await import(`./product-v4-links.js?v=${doc
     hasRendered=true;
     if(focusId){const el=document.getElementById(focusId);if(el){el.focus();if(selection!=null&&['text','search'].includes(el.type))el.setSelectionRange(selection,selection);}}
   }
-  function navigate(view){if(modal&&!closeModal())return;location.assign((view==='overview'?'index':view)+'.html');}
+  function navigate(view){if(modal&&!closeModal())return;(window.parent===window?window:window.top).location.assign(hrefFor(view));}
   function field(name,label,value='',config={}){
     const attrs=`id="f-${name}" name="${name}" ${config.required?'required':''} ${config.disabled?'disabled':''} ${config.min!=null?`min="${config.min}"`:''} ${config.step!=null?`step="${config.step}"`:''}`;
     let input;

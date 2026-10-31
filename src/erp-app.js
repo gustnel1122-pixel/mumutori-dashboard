@@ -1,6 +1,6 @@
 // Auth is optional for cached local-only screens; never block their renderer offline.
 import('./fbauth.js?v=access20261028').then(a=>a.onAuth(()=>{})).catch(()=>{});
-const { DEPARTMENTS, icon, departmentCards, workflowStrip, menuGroups } = await import(`./departments.js?v=${document.body.dataset.build}`);
+const { DEPARTMENTS, icon, departmentCards, workflowStrip, menuGroups, hrefFor } = await import(`./departments.js?v=${document.body.dataset.build}`);
 const { createStore } = await import(`./store.js?v=${document.body.dataset.build}`);
 (async function () {
   'use strict';
@@ -45,7 +45,7 @@ const { createStore } = await import(`./store.js?v=${document.body.dataset.build
     window.MumutoriActivity?.record({screen:'운영홈',action:'기록 저장',workId:'nav1_home_'});
     render();notify(message||'저장했습니다.');
   }
-  const link=(view,label,query='',extra='')=>`<a class="inline-link ${extra}" href="${view==='overview'?'index':view}.html${query?'?q='+encodeURIComponent(query):''}">${esc(label)} <span aria-hidden="true">↗</span></a>`;
+  const link=(view,label,query='',extra='')=>`<a class="inline-link ${extra}" href="${hrefFor(view)}${query?'?q='+encodeURIComponent(query):''}">${esc(label)} <span aria-hidden="true">↗</span></a>`;
   const accountName=id=>data.erp.accounts.find(a=>a.id===id)?.name||id;
   const findProduct=sku=>data.products.find(p=>p.id===sku);
   const matches=(r,fields)=>!state.query||fields.map(k=>r[k]).join(' ').toLowerCase().includes(state.query.toLowerCase());
@@ -69,7 +69,7 @@ const { createStore } = await import(`./store.js?v=${document.body.dataset.build
     const context={C,data,state,esc,won,money,dateTime,badge,btn,options,TYPE_LABEL,accountName,findProduct,matches,inMonth,visible,byDate,rowClass,rowsTable,editButtons,filters,metric,head,accountSummary,link,icon,departmentCards,workflowStrip};
     // 지금 화면이 어느 메뉴에 속하나(통장 탭 → 재무). '더보기'는 그 안의 화면이거나 이 탭에서 열어 둔 적이 있으면 펼친다.
     const navOf=DEPARTMENTS.find(x=>x.id===state.view)?.tabOf||state.view;
-    const navItem=n=>`<a href="${n.id==='overview'?'index':n.id}.html" class="nav-item ${navOf===n.id?'active':''}" data-view="${n.id}" ${navOf===n.id?'aria-current="page"':''}><span class="nav-icon">${icon(n.icon)}</span><span>${n.label}</span><small>${n.number}</small></a>`;
+    const navItem=n=>`<a href="${hrefFor(n.id)}" class="nav-item ${navOf===n.id?'active':''}" data-view="${n.id}" ${navOf===n.id?'aria-current="page"':''}><span class="nav-icon">${icon(n.icon)}</span><span>${n.label}</span><small>${n.number}</small></a>`;
     const {daily,more}=menuGroups();
     const moreOpen=more.some(n=>n.id===navOf)||(()=>{try{return sessionStorage.getItem('mmt-nav-more')==='1';}catch{return false;}})();
     const mobileNav=`<optgroup label="매일">${daily.map(n=>`<option value="${n.id}" ${state.view===n.id?'selected':''}>${esc(n.label)}</option>`+(n.id==='finance'?`<option value="bank" ${state.view==='bank'?'selected':''}>재무 · 계좌별</option>`:'')).join('')}</optgroup><optgroup label="더보기">${more.map(n=>`<option value="${n.id}" ${state.view===n.id?'selected':''}>${esc(n.label)}</option>`).join('')}</optgroup>`;
@@ -80,7 +80,7 @@ const { createStore } = await import(`./store.js?v=${document.body.dataset.build
     hasRendered=true;
     if(focusId){const el=document.getElementById(focusId);if(el){el.focus();if(selection!=null&&['text','search'].includes(el.type))el.setSelectionRange(selection,selection);}}
   }
-  function navigate(view){if(modal&&!closeModal())return;location.assign((view==='overview'?'index':view)+'.html');}
+  function navigate(view){if(modal&&!closeModal())return;location.assign(hrefFor(view));}
   function field(name,label,value='',config={}){
     const attrs=`id="f-${name}" name="${name}" ${config.required?'required':''} ${config.disabled?'disabled':''} ${config.min!=null?`min="${config.min}"`:''} ${config.step!=null?`step="${config.step}"`:''}`;
     let input;

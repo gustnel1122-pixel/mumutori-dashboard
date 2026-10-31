@@ -11,7 +11,7 @@ offline:[['공동 매장 작업판','https://gustnel1122-pixel.github.io/mumutor
 letter:[['레터 운영 허브','letter-hub.html'],['인쇄 편지 작성','https://letter.mumutori.com/print.html'],['대필 편지 작성','https://letter.mumutori.com/ghost.html']],
 mall:[['자사몰','https://mumutori.com']],smartstore:[['스마트스토어','https://smartstore.naver.com/mumutori_market']],
 coupang:[['판매·정산','sales.html'],['물류·재고','stock.html']],
-product:[['소싱 보드','sourcing.html'],['상품','products.html'],['재고','stock.html']],
+product:[['소싱 보드','sourcing.html'],['상품','products-preview.html'],['재고','stock.html']],
 marketing:[['카카오 채널','https://pf.kakao.com/_lqpZX'],['자사몰','https://mumutori.com']],
 finance:[['공용 재무 장부','finance.html'],['빠른 장부','quick.html']],
 brand:[['캐릭터 보드','characters.html'],['브랜딩 도구','branding.html']],

@@ -26,9 +26,10 @@ seed=R/'data/seed.json'
 if seed.exists(): (R/'data/seed.json.gz').write_bytes(gzip.compress(seed.read_bytes(),mtime=0))
 pages={'index':('overview','운영 홈'),'finance':('finance','재무'),'bank':('bank','재무 · 계좌별'),'products':('products','상품'),'purchases':('purchases','구매·원가'),'sourcing':('sourcing','소싱'),'sales':('sales','판매·정산'),'stock':('stock','물류·재고'),'partners':('partners','거래처'),'audit':('audit','변경 이력'),'settings':('settings','설정·백업'),'branding':('branding','브랜딩'),'characters':('characters','캐릭터'),'agents':('agents','AI 조직도')}
 private_documents=['letter-hub.html']
+network_only_documents=['products-preview.html']
 version_files=[R/'build.py',R/'manifest.webmanifest',R/'offline.html',R/'firebase-messaging-sw.js']
 version_files += [R/name for name in private_documents]
-version_files += [p for folder in ['src','assets','_tools'] for p in (R/folder).rglob('*') if p.is_file() and '__pycache__' not in p.parts and p.suffix!='.pyc']
+version_files += [p for folder in ['src','assets','_tools','preview-v4'] for p in (R/folder).rglob('*') if p.is_file() and '__pycache__' not in p.parts and p.suffix!='.pyc']
 # Include paths as well as bytes: renaming/removing a resource must change the worker.
 version=hashlib.sha256(b''.join(p.relative_to(R).as_posix().encode()+b'\0'+content_bytes(p)+b'\0' for p in sorted(version_files))).hexdigest()[:12]
 PWA_HEAD='''<link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="assets/apple-touch-icon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="무무토리"><meta name="mobile-web-app-capable" content="yes"><link rel="stylesheet" href="src/pwa.css?v={v}"><script src="src/pwa.js?v={v}" defer></script>'''.replace('{v}',version)
@@ -66,6 +67,8 @@ for filename,(page,title) in pages.items():
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#174d3c"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'{extra_script}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:{extra_img}; font-src 'self'; connect-src 'self'{extra_connect}; worker-src 'self'; manifest-src 'self'; object-src 'none'; frame-src {frame}; form-action 'none'; base-uri 'self'"><title>{title} — 무무토리 스튜디오</title><link rel="icon" href="assets/mark.svg" type="image/svg+xml"><link rel="stylesheet" href="src/erp.css?v={version}">{page_head}{PWA_HEAD}</head>
 <body data-page="{page}" data-build="{version}"><a class="skip-link" href="#main-content">본문으로 이동</a><div id="root"><div class="loading-state" role="status"><span class="loading-flower">✳</span><b>mumutori studio.</b><p>오늘의 기록을 불러오는 중이에요.</p></div></div><div id="modal-root"></div><div id="toast" class="toast" role="status" hidden></div><noscript>이 ERP는 JavaScript가 필요합니다. 브라우저 설정에서 허용해 주세요.</noscript><script src="src/demo.js?v={version}"></script>{auth_tags}<script src="src/legacy-route.js?v={version}"></script><script src="src/erp-core.js?v={version}"></script><script type="module" src="src/erp-app.js?v={version}"></script></body></html>'''
     (R/f'{filename}.html').write_text(html,encoding='utf-8',newline=chr(10))
+preview=(R/'src/products-v4-shell.html').read_text(encoding='utf-8').replace('{{VERSION}}',version)
+(R/'products-preview.html').write_text(preview,encoding='utf-8',newline=chr(10))
 quick=(R/'src/quick-shell.html').read_text(encoding='utf-8').replace('{{PWA_HEAD}}',PWA_HEAD).replace('{{VERSION}}',version).replace('</head>',NOTICE_TAGS+'</head>')
 (R/'quick.html').write_text(quick,encoding='utf-8',newline=chr(10))
 # Public operations pages share versioned source templates; keep their source in src.
@@ -92,7 +95,7 @@ assets['manifest.webmanifest']=hashlib.sha256(content_bytes(R/'manifest.webmanif
 cached_pages={f'{name}.html':hashlib.sha256(content_bytes(R/f'{name}.html')).hexdigest()
               for name in pages if name not in {'index','finance','bank','sourcing','characters','branding','settings'}}
 cached_pages.update({f'{name}.html':hashlib.sha256(content_bytes(R/f'{name}.html')).hexdigest() for name in operations_pages})
-worker=(R/'_tools/sw-template.js').read_text(encoding='utf-8').replace('__PWA_VERSION__',version).replace('__PWA_ASSETS__',json.dumps(assets,ensure_ascii=False,sort_keys=True)).replace('__PWA_PAGES__',json.dumps(cached_pages,sort_keys=True)).replace('__PWA_DOCUMENTS__',json.dumps([name+'.html' for name in pages]+[name+'.html' for name in operations_pages]+[name+'.html' for name in redirect_pages]+['quick.html','offline.html']+private_documents))
+worker=(R/'_tools/sw-template.js').read_text(encoding='utf-8').replace('__PWA_VERSION__',version).replace('__PWA_ASSETS__',json.dumps(assets,ensure_ascii=False,sort_keys=True)).replace('__PWA_PAGES__',json.dumps(cached_pages,sort_keys=True)).replace('__PWA_DOCUMENTS__',json.dumps([name+'.html' for name in pages]+[name+'.html' for name in operations_pages]+[name+'.html' for name in redirect_pages]+['quick.html','offline.html']+private_documents+network_only_documents))
 (R/'sw.js').write_text(worker,encoding='utf-8',newline=chr(10))
 print(f'Built {len(pages)+len(operations_pages)+len(redirect_pages)+1} independent pages + service worker · {version}; seed unchanged')
 

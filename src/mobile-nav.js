@@ -11,7 +11,7 @@
   }
   const menus = [
     ['자주 쓰는 업무', [['운영 홈','index.html'],['빠른 장부','quick.html'],['재무 · 장부','finance.html'],['계좌별','bank.html'],['확인 필요','finance.html#fin-needs'],['옛 기록','finance.html#legacy']]],
-    ['상품과 운영', [['소싱 보드','sourcing.html'],['판매 · 정산','sales.html'],['물류 · 재고','stock.html'],['상품','products.html'],['구매 · 원가','purchases.html'],['거래처','partners.html']]],
+    ['상품과 운영', [['소싱 보드','sourcing.html'],['판매 · 정산','sales.html'],['물류 · 재고','stock.html'],['상품','products-preview.html'],['구매 · 원가','purchases.html'],['거래처','partners.html']]],
     ['프로젝트와 만들기', [['프로젝트','project-hub.html'],['매장 준비','store-opening.html'],['브랜딩','branding.html'],['캐릭터','characters.html'],['오프라인 주문판','https://gustnel1122-pixel.github.io/mumutori-offline-pages/'],['레터 페이지','letter-hub.html']]],
     ['함께 관리', [['조직도','agents.html'],['변경 이력','audit.html'],['설정 · 백업','settings.html']]]
   ];
