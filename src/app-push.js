@@ -7,6 +7,7 @@ const ROOT='appPush', DEVICE_KEY='mumutori-push-device-v1';
 let host=null, busy=false, status='공동 운영 계정으로 로그인한 뒤 이 기기의 알림을 켜 주세요.', registered=false;
 let serverReady=false;
 let messaging=null, stopForeground=null, requestTimer=null, generation=0;
+let receiverProof=null;
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ios=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1;
 const supported=()=>window.isSecureContext && 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window && (!ios()||standalone());
@@ -41,8 +42,9 @@ async function getMessaging(){
   return messaging;
 }
 async function enable(){
+  receiverProof=null;
   if(!serverReady)throw Error('알림 서버 연결을 먼저 확인해 주세요.');
-  const uid=current()?.uid;
+  const uid=current()?.uid, mine=generation;
   // Called from the user's click, after setup is known; never ask on page load.
   const permission=Notification.permission==='granted'?'granted':await Notification.requestPermission();
   if(permission!=='granted')throw Error('알림을 허용하지 않았어요. 다시 누르거나 휴대폰 알림 설정을 확인해 주세요.');
@@ -55,11 +57,24 @@ async function enable(){
   await request('PUT',path,value);
   const saved=await request('GET',path);
   if(saved?.token!==token)throw Error('기기 연결 저장을 확인하지 못했어요. 다시 눌러 주세요.');
+  let tokenFingerprint='';
+  try{tokenFingerprint=[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(token)))].map(x=>x.toString(16).padStart(2,'0')).join('');}catch(_){/* Existing push remains available if the optional proof cannot be made. */}
+  if(current()?.uid!==uid||mine!==generation)throw Error('로그인이 바뀌어 지정을 멈췄어요.');
+  receiverProof=tokenFingerprint?{uid,id,tokenFingerprint}:null;
   registered=true;status='이 기기로 알림을 받아요. ‘시험 알림 보내기’로 휴대폰 도착을 확인해 주세요.';
 }
 async function disable(){
+  receiverProof=null;
   const id=deviceId();if(id){const path=`devices/${current().uid}/${id}`;await request('DELETE',path);if(await request('GET',path))throw Error('알림 끄기를 확인하지 못했어요.');}
   registered=false;const api=await getMessaging();await api.deleteToken();status='이 기기의 알림을 껐어요.';localStorage.removeItem(DEVICE_KEY);
+}
+// Called only after the user explicitly chooses this phone for ledger notices.
+// Only a fingerprint is retained; the token is never returned or written to a receiver binding.
+export async function ledgerReceiverCurrentDeviceProof(){
+  const uid=current()?.uid, id=deviceId();
+  if(!uid||!id||!registered||Notification.permission!=='granted')throw Error('먼저 이 휴대폰에서 알림 받기를 켜 주세요.');
+  if(!receiverProof||receiverProof.uid!==uid||receiverProof.id!==id||!/^[a-f0-9]{64}$/.test(receiverProof.tokenFingerprint||''))throw Error('이 휴대폰 알림을 다시 켠 뒤 지정해 주세요.');
+  return {...receiverProof};
 }
 async function test(){
   const uid=current()?.uid;await ready();if(current()?.uid!==uid)throw Error('로그인 계정이 바뀌었어요. 다시 눌러 주세요.');const id=deviceId();if(!id||!registered)throw Error('먼저 이 기기의 알림을 켜 주세요.');
@@ -71,7 +86,7 @@ async function test(){
   const mine=generation;let attempts=0;clearInterval(requestTimer);
   requestTimer=setInterval(async()=>{if(mine!==generation||++attempts>20){clearInterval(requestTimer);return;}try{const result=await request('GET',path);if(result?.status==='pending')return;clearInterval(requestTimer);status=result?.status==='sent'?'푸시 서버가 시험 알림을 발송했어요. 휴대폰에서 실제 도착을 확인해 주세요.':result?.status==='throttled'?'시험 알림은 1분에 한 번만 보낼 수 있어요.':'시험 알림 발송에 실패했어요. 운영 담당이 서버 권한과 기기 연결을 확인해야 해요.';paint();}catch{clearInterval(requestTimer);}},5000);
 }
-async function refresh(){const mine=++generation;clearInterval(requestTimer);registered=false;serverReady=false;if(!current()){status='공동 운영 계정으로 로그인한 뒤 이 기기의 알림을 켜 주세요.';paint();return;}const timer=setTimeout(()=>{if(mine===generation){status='알림 서버 응답을 기다리고 있어요.';paint();}},8000);try{await ready();if(mine!==generation)return;serverReady=true;const id=deviceId();registered=!!(id&&(await request('GET',`devices/${current().uid}/${id}`))?.token);if(mine!==generation)return;status=registered?'이 기기에 알림이 연결되어 있어요.':'‘알림 받기’를 눌러 이 기기에 연결해 주세요.';if(registered&&supported()&&Notification.permission==='granted'){await enable();}}catch(e){if(mine===generation)status=e.message;}finally{clearTimeout(timer);}if(mine===generation)paint();}
+async function refresh(){const mine=++generation;receiverProof=null;clearInterval(requestTimer);registered=false;serverReady=false;if(!current()){status='공동 운영 계정으로 로그인한 뒤 이 기기의 알림을 켜 주세요.';paint();return;}const timer=setTimeout(()=>{if(mine===generation){status='알림 서버 응답을 기다리고 있어요.';paint();}},8000);try{await ready();if(mine!==generation)return;serverReady=true;const id=deviceId();registered=!!(id&&(await request('GET',`devices/${current().uid}/${id}`))?.token);if(mine!==generation)return;status=registered?'이 기기에 알림이 연결되어 있어요.':'‘알림 받기’를 눌러 이 기기에 연결해 주세요.';if(registered&&supported()&&Notification.permission==='granted'){await enable();}}catch(e){if(mine===generation)status=e.message;}finally{clearTimeout(timer);}if(mine===generation)paint();}
 document.addEventListener('click',async event=>{const button=event.target.closest('[data-push-action]');if(!button||busy)return;busy=true;paint();const timer=setTimeout(()=>{status='서버 응답을 기다리고 있어요. 중복 요청을 막기 위해 잠시 기다려 주세요.';paint();},8000);try{await ({login:signIn,enable,disable,test}[button.dataset.pushAction])();}catch(e){status=e.message;}finally{clearTimeout(timer);busy=false;paint();}});
 const mount=()=>{const found=document.getElementById('app-push-settings');if(found&&found!==host){host=found;paint();}};
 new MutationObserver(mount).observe(document.getElementById('root'),{childList:true,subtree:true});

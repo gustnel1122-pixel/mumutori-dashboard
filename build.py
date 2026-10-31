@@ -46,7 +46,7 @@ EXTRA['overview']=EXTRA['finance']
 EXTRA['bank']=EXTRA['finance']
 EXTRA['settings']=('',' https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.app https://firebaseinstallations.googleapis.com https://fcmregistrations.googleapis.com')
 PAGE_HEAD={'finance':'<link rel="stylesheet" href="src/fin-form.css?v={v}">','bank':'<link rel="stylesheet" href="src/fin-form.css?v={v}">','overview':'<link rel="stylesheet" href="src/project-progress.css?v={v}">'}
-PAGE_TAGS={'settings':'<script src="assets/vendor/firebase/firebase-messaging-compat.js?sdk=12.19.0"></script><script type="module" src="src/app-push.js?v={v}"></script>', 'finance':'<script src="src/fin-core.js?v={v}"></script><script type="module" src="src/fin-panel.js?v={v}"></script>',
+PAGE_TAGS={'settings':'<script src="assets/vendor/firebase/firebase-messaging-compat.js?sdk=12.19.0"></script><script type="module" src="src/app-push.js?v={v}"></script><script type="module" src="src/ledger-ai-receiver-ui.js?v={v}"></script>', 'finance':'<script src="src/fin-core.js?v={v}"></script><script type="module" src="src/fin-panel.js?v={v}"></script>',
            'bank':'<script src="src/fin-core.js?v={v}"></script><script type="module" src="src/fin-accounts.js?v={v}"></script>',
            'overview':'<script src="src/fin-core.js?v={v}"></script><script type="module" src="src/home-fin.js?v={v}"></script>'}   # 홈: 공용 장부 이번 달 · 확인 필요(읽기만, 구글 로그인)
 AUTH_CONNECT=' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com wss://*.asia-southeast1.firebasedatabase.app'
