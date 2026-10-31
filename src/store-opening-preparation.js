@@ -31,7 +31,7 @@ function render(data){
   details.append(inner);list.append(details)});body.append(list);
  const corners=section('코너 이름'),cornerList=E('div',undefined,'prep-corners');for(const row of src.corners||[]){const el=E('div',undefined,'prep-corner');el.append(E('b',row[0]),E('p',row[1]));cornerList.append(el)}corners.append(cornerList);body.append(corners);
  const later=section('오픈 후 천천히 추가할 것');for(const item of src.later||[]){const label=E('label'),box=E('input');box.type='checkbox';box.checked=shared.checks?.[item[0]]===true;box.onchange=()=>save({['state/checks/'+item[0]]:box.checked});const content=E('span');content.append(E('b',item[1]),E('span',item[2],'prep-detail'));label.append(box,content);later.append(label)}body.append(later);
- const info=E('details');info.append(E('summary','매장 정보'));for(const item of src.sections||[]){const part=E('section');part.append(E('h4',item.title));for(const key of ['sub','caption','facts','dims','notice'])textBlock(part,item[key],'prep-muted');info.append(part)}body.append(info);
+ const info=E('details');info.append(E('summary','매장 정보'));for(const text of src.info||[])info.append(E('p',text,'prep-muted'));for(const item of src.sections||[]){const part=E('section');part.append(E('h4',item.title));for(const key of ['sub','caption','facts','dims','notice'])textBlock(part,item[key],'prep-muted');info.append(part)}body.append(info);
  mount.replaceChildren(body);
 }
 function connect(user){const version=++session;reset();if(!user?.uid){message('사장님 또는 다희 님 계정으로 로그인하면 준비 순서와 예산 메모를 볼 수 있어요.',true);return}activeUid=user.uid;mount.append(E('p','준비 순서를 불러오고 있어요.','prep-message'));
