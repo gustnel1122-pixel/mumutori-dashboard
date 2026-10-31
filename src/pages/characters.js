@@ -6,8 +6,12 @@
 const B=document.body.dataset.build;
 const K=await import(`../characters-core.js?v=${B}`);
 const {STORAGE_KEY,MOVED_KEY,STATUS,GROUPS,SLOTS}=K;
-const {openStore,readWorld}=await import(`../characters-sync.js?v=${B}`);
+const {openStore}=await import(`../characters-sync.js?v=${B}`);
 const GUIDE=await import(`../characters-guide.js?v=${B}`);   // '처음이면 읽기' 가이드(화면 글만)
+const {CANON_V13}=await import(`../characters-canon-v13.js?v=${B}`);
+// 옛 칸을 화면에서만 숨깁니다. 원본과 잠금·이력은 그대로 보관합니다.
+const HIDDEN_OLD=new Set(['pumpkin','seed']);
+const visibleCharacters=()=>board.characters.filter(c=>!HIDDEN_OLD.has(c.id));
 const REFS=[['dotori','도토리'],['sunflower','해바라기씨'],['chickpea','병아리콩'],['peanut','땅콩'],['seed','작은 씨앗']];
 const FIELDS=[['name','이름','예: 도토리',30],['role','역할','예: 주인공, 씨앗 친구',40]];
 const LONG=[['voice','말투 · 대사 예시','이 캐릭터가 할 법한 말을 두세 줄 적어 주세요',600],['likes','좋아하는 것','',200],['dislikes','싫어하는 것','',200],['relations','세계관 속 관계','다른 캐릭터와 어떤 사이인지',600],['memo','메모','더 적어 둘 것',1000]];
@@ -17,7 +21,7 @@ let ctx=null,started=false,board=null,sel='',by='',msg=null,saveTimer=0,store=nu
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const now=()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;};
 const day=at=>String(at||'').slice(0,10);
-const cur=()=>board.characters.find(c=>c.id===sel)||board.characters[0]||null;
+const cur=()=>visibleCharacters().find(c=>c.id===sel)||visibleCharacters()[0]||null;
 // 예전에 이 브라우저에만 저장해 둔 내용(2026-10-14 오전까지의 방식). 읽기만 하고 지우지 않는다 — '예전 내용 올리기'로 옮긴다.
 function readLegacy(){
   try{if(localStorage.getItem(MOVED_KEY))return null;const raw=JSON.parse(localStorage.getItem(STORAGE_KEY)||'null');return raw&&Array.isArray(raw.characters)&&raw.characters.length?K.normalizeBoard(raw):null;}catch(e){return null;}
@@ -89,10 +93,24 @@ async function copyText(text,btn,done){
 // ---- 화면
 function roster(){
   const c0=cur();
-  return `<div class="cb-roster" role="tablist" aria-label="캐릭터 고르기">${board.characters.map(c=>{const p=K.progress(c);
-    return `<button type="button" role="tab" aria-selected="${c===c0}" class="cb-pick${c===c0?' active':''}" data-cb="pick" data-id="${esc(c.id)}"><b>${esc(c.name||'이름 없음')}</b><small>${esc(c.role||'역할 미정')}</small>
+  return `<div class="cb-roster" role="tablist" aria-label="캐릭터 고르기">${visibleCharacters().map(c=>{const p=K.progress(c),ref=CANON_V13[c.id];
+    return `<button type="button" role="tab" aria-selected="${c===c0}" class="cb-pick${c===c0?' active':''}" data-cb="pick" data-id="${esc(c.id)}"><b>${esc(ref?.name||c.name||'이름 없음')}</b><small>${esc(ref?.role||c.role||'역할 미정')}</small>
       <span class="cb-state${c.lock?' locked':''}">${c.lock?'🔒 확정':'만드는 중'} · 그림 ${p.done}/${p.all}</span></button>`;}).join('')}
     <button type="button" class="cb-add" data-cb="add">＋ 캐릭터 추가</button></div>`;
+}
+function quickGuide(){
+  return `<section class="panel cb-canon-guide"><div class="panelhead"><h2>2D·3D 빠른 사용법</h2></div><div class="panelbody">
+    <p><b>이미 만든 그림은 그대로.</b> 새 작업은 담당자가 2D 또는 3D를 골라 결과물에 표시하고 사장님께 확인받습니다.</p>
+    <details><summary>쓰는 곳과 그림 규칙 보기</summary>
+    <ul><li>상세페이지와 레터: 도토리·병아리콩·땅콩을 용도에 맞게 사용합니다.</li><li>영상과 콘텐츠: 완두콩 삼형제를 중심으로 장면에 맞게 고릅니다.</li><li>소식과 안내: 해바라기씨·도토리·밤을 용도에 맞게 사용하고 최종 문안을 확인합니다.</li><li>인쇄와 굿즈: 제작 전 벡터와 인쇄 샘플을 확인하고 상표·KC 해당 여부를 살핍니다.</li></ul>
+    <p>2D·3D 모두 원래의 색·눈·입·형태·비율을 지킵니다. 3D는 부드러운 무광 점토처럼 표현하고 머리와 몸이 하나인 모습과 짧은 팔다리를 유지합니다. 세로줄은 해바라기씨에만, 완두콩은 세 알이며 쌀에는 줄무늬가 없습니다.</p></details>
+    <p>그림 파일·프롬프트는 볼트 정본 10_브랜드/무무토리_캐릭터_씨앗컴퍼니.md 7절을 확인해 주세요.</p></div></section>`;
+}
+function canonProfile(c){
+  const x=CANON_V13[c?.id];if(!x)return '';
+  return `<section class="panel cb-canon"><div class="panelhead"><h2>정본 v1.3 · ${esc(x.name)}</h2></div><div class="panelbody">
+    <dl><dt>회사 속 직무</dt><dd>${esc(x.role)}</dd><dt>한 줄</dt><dd>${esc(x.oneLine)}</dd><dt>성격</dt><dd>${esc(x.traits.join(' · '))}</dd><dt>말투</dt><dd>${esc(x.voice)}</dd><dt>색</dt><dd>${esc(x.colors.join(' · '))} ${swatches(x.colors.join(' '))}</dd><dt>꼭 지킬 생김새</dt><dd>${esc(x.must)}</dd></dl>
+    <p class="cb-small muted">정본 안내는 읽기 전용입니다. 아래의 기존 작업 내용과 잠금·이력은 그대로입니다.</p></div></section>`;
 }
 function lockBar(c){
   if(c.lock)return `<div class="cb-lock locked"><div><b>🔒 확정된 캐릭터입니다</b><span>${esc(day(c.lock.at))} · ${esc(c.lock.by)} 님이 확정했습니다. 프로필과 대표 그림은 잠겨 있습니다. 고치려면 먼저 잠금을 풀어 주세요.</span></div>
@@ -111,7 +129,7 @@ function profile(c){
     ${LONG.slice(1,3).map(([k,l,ph,max])=>inp(k,l,ph,max,c[k])).join('')}
     <div class="field full cb-look"><span>생김새 규칙</span><small>그림을 그릴 때 꼭 지켜야 하는 것들입니다. 색은 #으로 시작하는 여섯 자리 값으로 적어 주세요.</small></div>
     ${LOOK.map(([k,l,ph,max])=>inp('look.'+k,l,ph,max,c.look[k],k==='colors'?`<span class="cb-swatches" id="cb-swatches">${swatches(c.look.colors)}</span>`:'')).join('')}
-    ${LONG.slice(3).map(([k,l,ph,max])=>`<label class="field full"><span>${l}</span><textarea data-cb-field="${k}" maxlength="${max}" placeholder="${esc(ph)}" ${off}>${esc(c[k])}</textarea></label>`).join('')}
+    ${LONG.slice(3).filter(([k])=>k!=='memo').map(([k,l,ph,max])=>`<label class="field full"><span>${l}</span><textarea data-cb-field="${k}" maxlength="${max}" placeholder="${esc(ph)}" ${off}>${esc(c[k])}</textarea></label>`).join('')}
   </div></div></section>`;
 }
 function slotCard(c,s,g){
@@ -121,7 +139,6 @@ function slotCard(c,s,g){
     <div class="cb-slotbody"><div class="cb-slothead"><b>${esc(s.label)}</b>${cover?'<span class="badge green">대표 그림</span>':''}${locked?'<span class="badge">🔒 잠김</span>':''}</div>
       ${g.id==='face'||g.id==='pose'?`<input class="cb-note" data-cb-note="${s.id}" maxlength="60" value="${esc(im.note)}" placeholder="${g.id==='face'?'어떤 표정인지 (예: 웃음)':'어떤 자세인지 (예: 손 흔들기)'}" aria-label="${esc(s.label)} 설명" ${off} autocomplete="off">`:''}
       <label class="cb-row">상태<select data-cb-status="${s.id}" ${off}>${STATUS.map(([k,l])=>`<option value="${k}" ${im.status===k?'selected':''}>${l}</option>`).join('')}</select></label>
-      <label class="cb-row">파일 위치<input data-cb-link="${s.id}" maxlength="500" value="${esc(im.link)}" placeholder="파일 이름이나 주소" ${off} autocomplete="off"></label>
       <div class="cb-slotact"><label class="cb-upload${locked?' off':''}">미리보기 올리기<input type="file" accept="image/png,image/jpeg,image/webp" data-cb-file="${s.id}" ${off}></label>
         ${im.thumb&&!locked?`<button type="button" class="text" data-cb="clear" data-slot="${s.id}">그림 지우기</button>`:''}
         ${cover?'':`<button type="button" class="text" data-cb="cover" data-slot="${s.id}" ${c.lock?'disabled':''}>대표 그림으로</button>`}</div>
@@ -130,12 +147,12 @@ function slotCard(c,s,g){
 function images(c){
   const p=K.progress(c);
   return `<section class="panel"><div class="panelhead"><h2>그림 체크리스트</h2><span class="muted cb-small">확정 ${p.done} · 작업 중 ${p.doing} · 전체 ${p.all}칸</span></div><div class="panelbody">
-    <div class="note">칸마다 그림을 만들면 <b>상태</b>를 바꾸고, 파일을 어디에 두었는지 적어 주세요. '미리보기 올리기'는 그림을 작게 줄여 이 화면에서 볼 수 있게 할 뿐이니, <b>원본 파일은 따로 보관</b>해 주세요.</div>
+    <div class="note">칸마다 그림을 만들면 <b>상태</b>를 바꿔 주세요. '미리보기 올리기'는 그림을 작게 줄여 보여 주며, 원본 파일은 따로 보관합니다.</div>
     ${GROUPS.map(g=>`<h3 class="cb-group">${g.label} <small>${g.hint}</small></h3><div class="cb-slots">${g.slots.map(([id,label])=>slotCard(c,{id,label},g)).join('')}</div>`).join('')}
   </div></section>`;
 }
 function detail(c){
-  return `<div class="cb-detail" data-character="${esc(c.id)}">${lockBar(c)}${promptBar(c)}${profile(c)}${images(c)}
+  return `<div class="cb-detail" data-character="${esc(c.id)}">${canonProfile(c)}${lockBar(c)}${profile(c)}${images(c)}
     ${c.lock?'':`<div class="cb-danger"><button type="button" class="text danger" data-cb="remove">이 캐릭터를 목록에서 빼기</button></div>`}</div>`;
 }
 function refs(){
@@ -170,11 +187,11 @@ function legacyBar(){
     <span class="cb-legacyact"><button type="button" class="primary" data-cb="legacy-up">예전 내용 올리기</button><button type="button" data-cb="legacy-file">파일로 받아 두기</button><button type="button" class="text" data-cb="legacy-hide">이 안내 닫기</button></span></div>`;
 }
 function view(){
-  if(!ready)return `${worldPanel()}<div class="note cb-wait${link==='denied'||link==='offline'?' error':''}" role="status">${link==='denied'||link==='offline'?'함께 보는 내용을 불러오지 못했습니다. 인터넷 연결을 확인하고 새로고침해 주세요. 계속 안 되면 담당자에게 알려 주세요.':'함께 보는 내용을 불러오는 중입니다…'}</div>${refs()}`;
+  if(!ready)return `${quickGuide()}<div class="note cb-wait${link==='denied'||link==='offline'?' error':''}" role="status">${link==='denied'||link==='offline'?'함께 보는 내용을 불러오지 못했습니다. 인터넷 연결을 확인하고 새로고침해 주세요. 계속 안 되면 담당자에게 알려 주세요.':'함께 보는 내용을 불러오는 중입니다…'}</div>`;
   const c=cur();
-  return `${worldPanel()}${topbar()}${legacyBar()}<div class="note cb-guide"><b>이렇게 쓰세요</b> ① 아래에서 캐릭터를 고릅니다 → ② 프로필을 적습니다 → ③ 그림을 하나씩 만들어 상태를 바꿉니다 → ④ 다 되면 <b>확정(고정)</b>을 누릅니다.</div>
+  return `${quickGuide()}${topbar()}${legacyBar()}<div class="note cb-guide"><b>이렇게 쓰세요</b> ① 아래에서 캐릭터를 고릅니다 → ② 프로필을 적습니다 → ③ 그림을 하나씩 만들어 상태를 바꿉니다 → ④ 다 되면 <b>확정(고정)</b>을 누릅니다.</div>
     <div id="cb-msg" class="note cb-msg${msg?.error?' error':''}" role="status" ${msg?'':'hidden'}>${esc(msg?.text||'')}</div>
-    ${roster()}${c?detail(c):'<div class="empty"><b>캐릭터가 없습니다</b>위의 ＋ 캐릭터 추가를 눌러 주세요.</div>'}${refs()}${handoff()}`;
+    ${roster()}${c?detail(c):'<div class="empty"><b>캐릭터가 없습니다</b>위의 ＋ 캐릭터 추가를 눌러 주세요.</div>'}${handoff()}`;
 }
 function refresh(keepMsg=false){stale=false;if(!keepMsg)msg=null;const root=document.getElementById('cb-root');if(root)root.innerHTML=view();}
 
@@ -239,13 +256,13 @@ async function onChange(e){
     if(t.dataset.cbStatus&&c){if(K.slotLocked(c,t.dataset.cbStatus))throw Error('잠긴 대표 그림입니다. 먼저 잠금을 풀어 주세요.');c.images[t.dataset.cbStatus].status=t.value;commit({[path(c,'images/'+t.dataset.cbStatus+'/status')]:t.value});refresh();return;}
     if(t.dataset.cbFile&&c){const file=t.files?.[0],slot=t.dataset.cbFile;t.value='';if(!file)return;if(K.slotLocked(c,slot))throw Error('잠긴 대표 그림입니다. 먼저 잠금을 풀어 주세요.');
       const id=c.id,thumb=await shrink(file),d=board.characters.find(x=>x.id===id);if(!d||K.slotLocked(d,slot))return;   // 줄이는 동안 다른 기기의 변경이 들어왔을 수 있어 다시 찾는다
-      d.images[slot].thumb=thumb;if(!d.images[slot].link)d.images[slot].link=file.name.slice(0,500);if(d.images[slot].status==='todo')d.images[slot].status='doing';
+      d.images[slot].thumb=thumb;if(d.images[slot].status==='todo')d.images[slot].status='doing';
       commit({[path(d,'images/'+slot)]:{...d.images[slot]}});refresh();say('미리보기를 올렸습니다. 원본 파일은 따로 보관해 주세요.');return;}
     if(t.matches('[data-cb-import]')){const file=t.files?.[0];t.value='';if(!file)return;const next=K.parseBackup(await file.text());
       if(!confirm(`파일에 캐릭터 ${next.characters.length}명이 들어 있습니다. 함께 보는 내용을 이 파일 내용으로 바꿉니다(다른 분의 화면도 바뀝니다). 계속할까요?`))return;
       try{await store.replace(K.toRemote(next,now()));}catch(err){throw Error('파일 내용을 올리지 못했습니다. 인터넷 연결을 확인하고 다시 해 주세요.');}
       sel=board.characters[0]?.id||'';refresh();say(`파일에서 캐릭터 ${board.characters.length}명을 가져왔습니다.`);return;}
-    if(t.dataset.cbField||t.dataset.cbLink||t.dataset.cbNote){clearTimeout(saveTimer);store.flush().then(()=>stamp(savedText()));const el=document.querySelector(`.cb-pick[data-id="${CSS.escape(sel)}"]`);if(el&&c){el.querySelector('b').textContent=c.name||'이름 없음';el.querySelector('small').textContent=c.role||'역할 미정';}}
+    if(t.dataset.cbField||t.dataset.cbLink||t.dataset.cbNote){clearTimeout(saveTimer);store.flush().then(()=>stamp(savedText()));const el=document.querySelector(`.cb-pick[data-id="${CSS.escape(sel)}"]`),ref=CANON_V13[sel];if(el&&c){el.querySelector('b').textContent=ref?.name||c.name||'이름 없음';el.querySelector('small').textContent=ref?.role||c.role||'역할 미정';}}
   }catch(err){say(err.message,true);}
 }
 
@@ -268,7 +285,7 @@ function valueFor(c,el){
 // (한글 입력이 끊기지 않게) — 칸에서 나오면 전체를 다시 그린다.
 function onRemote(tree){
   const first=!ready,keep=sel,el=typingEl(),before=first?'':JSON.stringify(board);
-  board=K.fromRemote(tree);ready=true;sel=board.characters.some(c=>c.id===keep)?keep:(board.characters[0]?.id||'');
+  board=K.fromRemote(tree);ready=true;sel=visibleCharacters().some(c=>c.id===keep)?keep:(visibleCharacters()[0]?.id||'');
   if(first){refresh(true);return;}
   if(JSON.stringify(board)===before){stamp(savedText());return;}   // 달라진 것이 없으면(내가 보낸 것이 되돌아온 경우) 다시 그리지 않는다
   if(!el){refresh(true);return;}
@@ -277,7 +294,7 @@ function onRemote(tree){
   // 치고 있는 칸의 글은 화면 것이 맞다(아직 보내는 중일 수 있다) → 내 자료에 다시 얹는다
   if(el.dataset.cbField)setField(c,el.dataset.cbField,el.value);else if(el.dataset.cbLink||el.dataset.cbNote){const slot=el.dataset.cbLink||el.dataset.cbNote;if(!K.slotLocked(c,slot))c.images[slot][el.dataset.cbLink?'link':'note']=el.value;}
   for(const f of root.querySelectorAll('[data-cb-field],[data-cb-link],[data-cb-note],[data-cb-status]')){if(f===el)continue;const v=valueFor(c,f);if(f.value!==v)f.value=v;}
-  for(const p of root.querySelectorAll('.cb-pick')){const x=board.characters.find(y=>y.id===p.dataset.id);if(x){p.querySelector('b').textContent=x.name||'이름 없음';p.querySelector('small').textContent=x.role||'역할 미정';}}
+  for(const p of root.querySelectorAll('.cb-pick')){const x=board.characters.find(y=>y.id===p.dataset.id),ref=CANON_V13[p.dataset.id];if(x){p.querySelector('b').textContent=ref?.name||x.name||'이름 없음';p.querySelector('small').textContent=ref?.role||x.role||'역할 미정';}}
   stamp(savedText());
 }
 // 치던 칸에서 나오면 미뤄 둔 다시 그리기를 한다(누른 단추가 사라지지 않게 한 박자 늦춘다).
@@ -290,7 +307,6 @@ export default function renderPage(c){
     document.addEventListener('click',onClick);document.addEventListener('input',onInput);document.addEventListener('change',onChange);document.addEventListener('focusout',onFocusOut);
     addEventListener('pagehide',()=>{clearTimeout(saveTimer);store?.flush();});   // 창을 닫을 때 아직 안 보낸 것이 있으면 보낸다
     document.addEventListener('toggle',e=>{if(e.target?.id==='cb-world')worldOpen=e.target.open;},true);   // 다시 그려도 펼친 상태 유지
-    store=openStore({onChange:onRemote,onStatus:onLink});
-    readWorld().then(w=>{world=normWorld(w);if(!world)return;if(typingEl())stale=true;else refresh(true);});}   // 못 읽으면 그 칸만 숨김
-  return ctx.head('캐릭터 만들기','캐릭터마다 프로필과 그림을 채우고, 다 되면 확정(고정)합니다. 확정한 캐릭터는 파일로 내보내 자사몰에 넣습니다.','')+GUIDE.guideHtml({shared:true})+`<div id="cb-root">${view()}</div>`;
+    store=openStore({onChange:onRemote,onStatus:onLink});}
+  return ctx.head('캐릭터 만들기','캐릭터마다 프로필과 그림을 채우고, 다 되면 확정(고정)합니다. 확정한 캐릭터는 파일로 내보내 자사몰에 넣습니다.','')+`<div id="cb-root">${view()}</div>`+GUIDE.guideHtml({shared:true});
 }
