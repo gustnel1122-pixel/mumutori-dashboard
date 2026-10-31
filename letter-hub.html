@@ -195,6 +195,13 @@ td.n{font-family:var(--type);color:var(--brand);width:40px}
 .lt .ty.ghost{background:var(--cream-2);color:var(--brand)}
 .lt .body{padding:0 16px 16px;display:flex;flex-direction:column;gap:10px}
 .lt pre{margin:0;font-family:var(--type);font-size:13px;white-space:pre-wrap;background:#FFFDF8;border:1px solid var(--line);border-radius:6px;padding:12px}
+.lt .tw{background:#FFFDF8;border:1px solid var(--line);border-radius:6px;padding:10px 8px;container-type:inline-size}
+.lt .tw-ln{display:grid;grid-template-columns:22px minmax(0,1fr);gap:6px;align-items:baseline;line-height:1.75;border-bottom:1px dashed #efe6d8}
+.lt .tw-ln.over{background:#fdecea;color:#9d2222}
+.lt .tw-no{text-align:right;font-family:var(--type);font-size:10px;color:#82766a}
+.lt .tw-row{display:grid;grid-template-columns:repeat(var(--cols),minmax(0,1fr));grid-auto-flow:column;grid-auto-columns:calc(100% / var(--cols));overflow-x:auto;white-space:nowrap}
+.lt .tw-c{text-align:center;font-family:var(--type);font-size:min(15px,calc((100cqw - 28px) / var(--cols) * .92));white-space:pre}
+.lt .tw-cap{margin:4px 0 0;font-size:12px;color:#6e6256}
 .empty{background:var(--paper);border:1px dashed var(--line);border-radius:10px;padding:26px;text-align:center;color:var(--ink-2);font-size:14px}
 .login{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .btn{background:var(--brand);color:#FDF3E6;border:0;border-radius:8px;padding:9px 16px;font-size:14px}
@@ -950,18 +957,26 @@ function boot(){
 
   /* ================= 로그인 · 공유 · 접수함 ================= */
   function letterText(p){
-    if(p.type==='print') return (p.letter.to?p.letter.to+'에게\n\n':'')+(p.letter.body||'')+'\n\n— '+(p.letter.from||'');
+    if(p.type==='print') return (p.letter.to?p.letter.to+'에게\n\n':'')+(p.letter.body||'')+'\n\n- '+(p.letter.from||'');
     var A=appliedSpec(), out=['관계: '+p.relation,'받는 분: '+p.letter.to+' / 보내는 분: '+p.letter.from,''];
     (A.survey||[]).forEach(function(q){ var v=p.survey&&p.survey[q.id]; if(v&&(v.length)) out.push('Q. '+q.q+'\nA. '+(Array.isArray(v)?v.join(', '):v)+'\n'); });
     if(p.memo) out.push('꼭 넣고 싶은 말: '+p.memo);
     return out.join('\n');
   }
+  // Same wrapping and line order as the customer's letter.js preview.
+  function letterChars(s){return Array.from(String(s||''));}
+  function wrapLetter(text,n){var out=[];String(text||'').replace(/\r/g,'').split('\n').forEach(function(para){if(para===''){out.push('');return;}var line=[];para.split(' ').forEach(function(w){var a=letterChars(w);while(a.length>n){if(line.length){out.push(line.join(''));line=[];}out.push(a.slice(0,n).join(''));a=a.slice(n);}if(!line.length)line=a;else if(line.length+1+a.length<=n)line=line.concat([' '],a);else{out.push(line.join(''));line=a;}});out.push(line.join(''));});return out;}
+  function letterSize(value,fallback,defaultValue){var n=Number(value);if(Number.isInteger(n)&&n>0&&n<=200)return n;n=Number(fallback);return Number.isInteger(n)&&n>0&&n<=200?n:defaultValue;}
+  function letterSheet(p){var A=appliedSpec()||{},sp=p.spec||{},n=letterSize(sp.lineChars,A.lineChars,33),max=letterSize(sp.maxLines,A.maxLines,20),L=p.letter||{};
+    var lines=[L.to?L.to+'에게':'',''].concat(wrapLetter(L.body,n),['',L.from?'- '+L.from:'']);
+    return '<div class="tw" style="--cols:'+n+'">'+lines.map(function(t,i){return '<div class="tw-ln'+(i>=max?' over':'')+'"><span class="tw-no" aria-hidden="true">'+(i+1)+'</span><span class="tw-row" aria-label="'+esc(t||'빈 줄')+'">'+letterChars(t).map(function(c){return '<span class="tw-c" aria-hidden="true">'+(c===' '?'&nbsp;':esc(c))+'</span>';}).join('')+'</span></div>';}).join('')+
+      '</div><p class="tw-cap">고객 미리보기와 같은 줄바꿈 · 한 줄 '+n+'자 · '+lines.length+' / '+max+'줄'+(lines.length>max?' · 빨간 줄은 한 장을 넘음':'')+'</p>';}
   function renderInbox(list, note){
     var A=appliedSpec();
     $('#inbox').innerHTML = (note?'<p class="note">'+note+'</p>':'') + (list.length ? list.map(function(p){
       var env=(A.envelopes||[]).filter(function(e){return e.id===(p.envelope&&p.envelope.id)})[0];
       var when=new Date(p.createdAt||Date.now()).toLocaleString('ko-KR');
-      return '<details class="lt" data-letter-id="'+esc(p._key||p.id||'')+'"><summary><span class="ty '+p.type+'">'+(p.type==='print'?'인쇄':'대필')+'</span><span><b>'+esc(p.order&&p.order.name)+'</b> <span class="faint small mono">휴대폰 뒤 4자리 '+esc(p.order&&p.order.phone4)+' · 접수 '+esc(p.id||'')+'</span></span><span class="small faint">'+when+'</span></summary><div class="body"><div class="kv"><div><span>상태</span><b>'+esc(p.status==='received'?'접수':(p.status||'접수'))+'</b></div><div><span>봉투</span><b>'+esc(env?env.name:(p.envelope&&p.envelope.id)||'')+(p.envelope&&p.envelope.writeName?' · 이름 찍기':'')+'</b></div><div><span>연락처 뒤 4자리</span><b>'+esc(p.order&&p.order.phone4)+'</b></div></div><pre>'+esc(letterText(p))+'</pre></div></details>';
+      return '<details class="lt" data-letter-id="'+esc(p._key||p.id||'')+'"><summary><span class="ty '+p.type+'">'+(p.type==='print'?'인쇄':'대필')+'</span><span><b>'+esc(p.order&&p.order.name)+'</b> <span class="faint small mono">휴대폰 뒤 4자리 '+esc(p.order&&p.order.phone4)+' · 접수 '+esc(p.id||'')+'</span></span><span class="small faint">'+when+'</span></summary><div class="body"><div class="kv"><div><span>상태</span><b>'+esc(p.status==='received'?'접수':(p.status||'접수'))+'</b></div><div><span>봉투</span><b>'+esc(env?env.name:(p.envelope&&p.envelope.id)||'')+(p.envelope&&p.envelope.writeName?' · 이름 찍기':'')+'</b></div><div><span>연락처 뒤 4자리</span><b>'+esc(p.order&&p.order.phone4)+'</b></div></div>'+(p.type==='print'?letterSheet(p):'<pre>'+esc(letterText(p))+'</pre>')+'</div></details>';
     }).join('') : '<div class="empty">아직 접수된 편지가 없어요.</div>');
     focusLetter();
   }
