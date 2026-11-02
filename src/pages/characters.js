@@ -19,7 +19,7 @@ const REFS=[['dotori','도토리'],['sunflower','해바라기씨'],['chickpea','
 const FIELDS=[['name','이름','예: 도토리',30],['role','역할','예: 주인공, 씨앗 친구',40]];
 const LONG=[['voice','말투 · 대사 예시','이 캐릭터가 할 법한 말을 두세 줄 적어 주세요',600],['likes','좋아하는 것','',200],['dislikes','싫어하는 것','',200],['relations','세계관 속 관계','다른 캐릭터와 어떤 사이인지',600],['memo','메모','더 적어 둘 것',1000]];
 const LOOK=[['colors','색 (HEX)','예: 몸 #F2C58B, 모자 #6A3906',200],['ratio','비율','예: 머리와 몸이 1:1, 팔다리는 짧게',120],['must','꼭 지킬 특징','빠지면 이 캐릭터가 아닌 것',400],['never','하면 안 되는 것','예: 눈썹 그리지 않기',400]];
-let ctx=null,started=false,board=null,sel='',by='',msg=null,saveTimer=0,store=null,ready=false,link='connecting',stale=false,legacy=null,world=null,worldOpen=false;
+let ctx=null,started=false,board=null,sel='',by='',msg=null,saveTimer=0,store=null,ready=false,link='connecting',stale=false,legacy=null,world=null,worldOpen=false,viewsOpen=false;
 
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const now=()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;};
@@ -103,13 +103,35 @@ function roster(){
 }
 function quickGuide(){
   const c=AI_CANON?.common,parts=[['세계 규칙',c?.world_rules],['말투 · 글 규칙',c?.voice_and_writing_rules],['공통 그림체 · 피할 것',c?.style_and_avoid_2d],['3D 그림체 v1',c?.style_3d],['장면 · 형식 틀',c?.scene_template],['검수표',c?.checklist],['2D · 3D 빠른 사용법',c?.quick_usage]];
-  return `<section class="panel cb-canon-guide cb-ai-guide"><div class="panelhead"><h2>캐릭터를 콘텐츠에 쓰는 법</h2><a class="cb-ai-link" href="characters.json" target="_blank" rel="noopener">AI용 자료</a></div><div class="panelbody"><p>정본 v1.3의 규칙과 그림을 읽고 작업에 맞는 캐릭터와 2D·3D를 골라요.</p>${c?parts.map(([title,text])=>`<details class="cb-ai-common"><summary>${esc(title)}</summary><pre>${esc(text||'')}</pre></details>`).join(''):'<p>AI용 자료를 불러오지 못했습니다. 연결을 확인하고 새로고침해 주세요.</p>'}</div></section>`;
+  return `<section class="panel cb-canon-guide cb-ai-guide"><div class="panelhead"><h2>캐릭터를 콘텐츠에 쓰는 법</h2><a class="cb-ai-link" href="characters.json" target="_blank" rel="noopener">AI용 자료</a></div><div class="panelbody"><p>정본 ${esc(canonVer())}의 규칙과 그림을 읽고 작업에 맞는 캐릭터와 2D·3D를 골라요.</p>${c?parts.map(([title,text])=>`<details class="cb-ai-common"><summary>${esc(title)}</summary><pre>${esc(text||'')}</pre></details>`).join(''):'<p>AI용 자료를 불러오지 못했습니다. 연결을 확인하고 새로고침해 주세요.</p>'}</div></section>`;
+}
+// ---- 옆 · 뒤(정본 v1.4 §6-7, 2026-11-02 사장님 확정). 글만 넣는다 — 옆 · 3/4 · 뒤 그림은 아직 없어 '그림 준비 중' 칸으로 둔다.
+const canonVer=()=>AI_CANON?.canon_version||'v1.3';
+const VIEW_SLOTS=[['front','정면','image_2d'],['34','3/4','image_34'],['side','옆','image_side'],['back','뒤','image_back']];
+function viewRules(){
+  const r=AI_CANON?.common?.view_rules;if(!Array.isArray(r)||!r.length)return '';
+  const fb=AI_CANON.common.view_rules_fallback;
+  return `<section class="panel cb-views-rules"><div class="panelhead"><h2>옆 · 뒤 공통 규칙</h2><span class="muted cb-small">정본 ${esc(canonVer())} · 그림은 아직 준비 중</span></div><div class="panelbody"><ol>${r.map(x=>`<li>${esc(x)}</li>`).join('')}</ol>${fb?`<p class="cb-small muted">${esc(fb)}</p>`:''}</div></section>`;
+}
+function viewSlot(x,[key,label,field]){
+  const allowed=(x.views?.views_allowed||[]).includes(label),src=typeof x[field]==='string'?x[field]:'';
+  const body=!allowed?'<span class="cb-views-empty off">그리지 않음</span>':src?`<img src="${esc(src)}" alt="${esc(x.name)} ${esc(label)} 그림" loading="lazy">`:'<span class="cb-views-empty">그림 준비 중</span>';
+  return `<div class="cb-views-slot" data-view="${key}">${body}<b>${esc(label)}</b></div>`;
+}
+function viewsSection(x){
+  const v=x?.views;if(!v)return '';
+  const rows=Array.isArray(v.parts)?v.parts:[];
+  const info=[['옆 두께',v.depth],['위 부분',v.top_parts],['뒤 무늬',v.markings_back],['그리는 방향',(v.views_allowed||[]).join(' · ')],['3/4',v.three_quarter]].filter(([,t])=>t);
+  return `<details class="cb-views" id="cb-views"${viewsOpen?' open':''}><summary>옆 · 뒤<small>정면 · 3/4 · 옆 · 뒤</small></summary>
+    <div class="cb-views-slots">${VIEW_SLOTS.map(s=>viewSlot(x,s)).join('')}</div>
+    <dl class="cb-views-info">${info.map(([k,t])=>`<div><dt>${esc(k)}</dt><dd>${esc(t)}</dd></div>`).join('')}</dl>
+    ${rows.length?`<div class="cb-views-scroll"><table class="cb-views-table"><thead><tr><th scope="col">부위</th><th scope="col">옆</th><th scope="col">뒤</th></tr></thead><tbody>${rows.map(p=>`<tr><th scope="row">${esc(p.part)}</th><td>${esc(p.side)}</td><td>${esc(p.back)}</td></tr>`).join('')}</tbody></table></div>`:''}</details>`;
 }
 function canonProfile(c){
   const x=CANON_V13[c?.id];if(!x)return '';
-  return `<section class="panel cb-canon"><div class="panelhead"><h2>정본 v1.3 · ${esc(x.name)}</h2></div><div class="panelbody">
+  return `<section class="panel cb-canon"><div class="panelhead"><h2>정본 ${esc(canonVer())} · ${esc(x.name)}</h2></div><div class="panelbody">
     <dl><dt>회사 속 직무</dt><dd>${esc(x.role)}</dd><dt>한 줄</dt><dd>${esc(x.oneLine)}</dd><dt>성격</dt><dd>${esc(x.traits.join(' · '))}</dd><dt>말투</dt><dd>${esc(x.voice)}</dd><dt>색</dt><dd>${esc(x.colors.join(' · '))} ${swatches(x.colors.join(' '))}</dd><dt>꼭 지킬 생김새</dt><dd>${esc(x.must)}</dd></dl>
-    ${aiChar(c.id)?`<div class="cb-ai-profile"><p><b>직무 확인</b> ${esc(aiChar(c.id).role_confirmation)}</p><p><b>3D 직무 포즈</b> ${esc(aiChar(c.id).pose_3d)}</p><p><a href="${esc(aiChar(c.id).image_2d)}" target="_blank" rel="noopener">2D 그림 열기</a> · <a href="${esc(aiChar(c.id).image_3d)}" target="_blank" rel="noopener">3D 그림 열기</a></p><details><summary>정본 캐릭터 내용 전체</summary><pre>${esc(aiChar(c.id).profile_markdown)}</pre></details><details><summary>영문 캐릭터 블록</summary><pre>${esc(aiChar(c.id).prompt_character)}</pre></details></div>`:''}<p class="cb-small muted">정본 안내는 읽기 전용입니다. 아래의 기존 작업 내용과 잠금·이력은 그대로입니다.</p></div></section>`;
+    ${aiChar(c.id)?`<div class="cb-ai-profile"><p><b>직무 확인</b> ${esc(aiChar(c.id).role_confirmation)}</p><p><b>3D 직무 포즈</b> ${esc(aiChar(c.id).pose_3d)}</p><p><a href="${esc(aiChar(c.id).image_2d)}" target="_blank" rel="noopener">2D 그림 열기</a> · <a href="${esc(aiChar(c.id).image_3d)}" target="_blank" rel="noopener">3D 그림 열기</a></p>${viewsSection(aiChar(c.id))}<details><summary>정본 캐릭터 내용 전체</summary><pre>${esc(aiChar(c.id).profile_markdown)}</pre></details><details><summary>영문 캐릭터 블록</summary><pre>${esc(aiChar(c.id).prompt_character)}</pre></details></div>`:''}<p class="cb-small muted">정본 안내는 읽기 전용입니다. 아래의 기존 작업 내용과 잠금·이력은 그대로입니다.</p></div></section>`;
 }
 function lockBar(c){
   if(c.lock)return `<div class="cb-lock locked"><div><b>🔒 확정된 캐릭터입니다</b><span>${esc(day(c.lock.at))} · ${esc(c.lock.by)} 님이 확정했습니다. 프로필과 대표 그림은 잠겨 있습니다. 고치려면 먼저 잠금을 풀어 주세요.</span></div>
@@ -186,9 +208,9 @@ function legacyBar(){
     <span class="cb-legacyact"><button type="button" class="primary" data-cb="legacy-up">예전 내용 올리기</button><button type="button" data-cb="legacy-file">파일로 받아 두기</button><button type="button" class="text" data-cb="legacy-hide">이 안내 닫기</button></span></div>`;
 }
 function view(){
-  if(!ready)return `${quickGuide()}<div class="note cb-wait${link==='denied'||link==='offline'?' error':''}" role="status">${link==='denied'||link==='offline'?'함께 보는 내용을 불러오지 못했습니다. 인터넷 연결을 확인하고 새로고침해 주세요. 계속 안 되면 담당자에게 알려 주세요.':'함께 보는 내용을 불러오는 중입니다…'}</div>`;
+  if(!ready)return `${quickGuide()}${viewRules()}<div class="note cb-wait${link==='denied'||link==='offline'?' error':''}" role="status">${link==='denied'||link==='offline'?'함께 보는 내용을 불러오지 못했습니다. 인터넷 연결을 확인하고 새로고침해 주세요. 계속 안 되면 담당자에게 알려 주세요.':'함께 보는 내용을 불러오는 중입니다…'}</div>`;
   const c=cur();
-  return `${quickGuide()}${topbar()}${legacyBar()}<div class="note cb-guide"><b>이렇게 쓰세요</b> ① 아래에서 캐릭터를 고릅니다 → ② 프로필을 적습니다 → ③ 그림을 하나씩 만들어 상태를 바꿉니다 → ④ 다 되면 <b>확정(고정)</b>을 누릅니다.</div>
+  return `${quickGuide()}${viewRules()}${topbar()}${legacyBar()}<div class="note cb-guide"><b>이렇게 쓰세요</b> ① 아래에서 캐릭터를 고릅니다 → ② 프로필을 적습니다 → ③ 그림을 하나씩 만들어 상태를 바꿉니다 → ④ 다 되면 <b>확정(고정)</b>을 누릅니다.</div>
     <div id="cb-msg" class="note cb-msg${msg?.error?' error':''}" role="status" ${msg?'':'hidden'}>${esc(msg?.text||'')}</div>
     ${roster()}${c?detail(c):'<div class="empty"><b>캐릭터가 없습니다</b>위의 ＋ 캐릭터 추가를 눌러 주세요.</div>'}${handoff()}`;
 }
@@ -305,7 +327,7 @@ export default function renderPage(c){
   if(!started){started=true;board=K.defaultBoard();sel=board.characters[0].id;legacy=readLegacy();
     document.addEventListener('click',onClick);document.addEventListener('input',onInput);document.addEventListener('change',onChange);document.addEventListener('focusout',onFocusOut);
     addEventListener('pagehide',()=>{clearTimeout(saveTimer);store?.flush();});   // 창을 닫을 때 아직 안 보낸 것이 있으면 보낸다
-    document.addEventListener('toggle',e=>{if(e.target?.id==='cb-world')worldOpen=e.target.open;},true);   // 다시 그려도 펼친 상태 유지
+    document.addEventListener('toggle',e=>{if(e.target?.id==='cb-world')worldOpen=e.target.open;if(e.target?.id==='cb-views')viewsOpen=e.target.open;},true);   // 다시 그려도 펼친 상태 유지
     store=openStore({onChange:onRemote,onStatus:onLink});}
   return ctx.head('캐릭터 만들기','캐릭터마다 프로필과 그림을 채우고, 다 되면 확정(고정)합니다. 확정한 캐릭터는 파일로 내보내 자사몰에 넣습니다.','')+`<div id="cb-root">${view()}</div>`+GUIDE.guideHtml({shared:true});
 }
