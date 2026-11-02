@@ -331,6 +331,25 @@
       method: src === 'kakaobank' ? '카뱅이체' : '토스이체', bankSource: src, bankDirection: direction,
       alertAt: got.ts, source: 'alert', inboxId: item.id || '', vendor: '', memo: '개인사업자 통장 알림', evidence: '없음'}, now);
   }
+  // 카카오뱅크 사업자 체크카드 결제 알림(11/2 견본 모양, 값은 가짜): '카드 결제 12,300원 / 체크카드(1234) | 가맹점 / 잔액 50,000원' · 취소면 들어옴.
+  // 카드 끝 4자리 · 잔액 · 원문은 장부에 남기지 않는다. bankSource를 넣지 않아 통장 이체 짝맞춤 · 은행 확인 대상이 아니다.
+  function kbCardDraft(item, rules, now) {
+    if (String(item?.src || '').toLowerCase() !== 'kakaobank') return null;
+    const raw = String(item?.big || item?.text || '');
+    if (raw.includes('개인사업자') || !/체크카드\s*\(\d{4}\)/.test(raw)) return null;
+    const head = raw.split('잔액')[0];
+    if (!/결제|취소/.test(head)) return null;
+    const am = head.match(/(?:결제|취소)\s*((?:\d{1,3}(?:,\d{3})+|\d+))\s*원/) || head.match(/(?:^|[^\d.,])((?:\d{1,3}(?:,\d{3})+|\d+))\s*원/);
+    if (!am) return null;
+    const got = receivedParts(item, now), cancel = /취소/.test(head), bar = head.indexOf('|');
+    const vendor = bar < 0 ? '' : head.slice(bar + 1).split(/\r?\n/)[0].trim().slice(0, 40);
+    let category = cancel ? '' : classify(vendor, rules);
+    if (category === OWNER_OUT) category = ''; // 사업용 카드에 개인 인출 규칙 자동 적용 금지(현대카드와 같음)
+    const memo = [cancel ? '결제 취소 알림 — 원래 결제 줄과 맞춰 주세요' : '', vendor ? '' : '가맹점 확인 필요(알림에 가맹점이 없음)'].filter(Boolean).join(' · ');
+    return normEntry({id: 'al_' + String(item.id || ('kakaobank_' + got.ts)).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 60),
+      kind: cancel ? 'in' : 'out', amount: am[1], date: got.date, time: got.time, method: '카뱅체크',
+      category, vendor, memo, source: 'alert', inboxId: item.id || ''}, now);
+  }
   function autopayDraft(item, rules, now) {
     const raw = String(item?.big || item?.text || '').split(/잔액|누적/)[0];
     if (!/자동납부\s*(?:승인|취소)/.test(raw)) return null;
@@ -374,7 +393,7 @@
     return pairs;
   }
   function draftFromAlert(item, rules, now = new Date()) {
-    if (['kakaobank', 'tossbank'].includes(String(item?.src || '').toLowerCase())) return bankDraft(item, now);
+    if (['kakaobank', 'tossbank'].includes(String(item?.src || '').toLowerCase())) return kbCardDraft(item, rules, now) || bankDraft(item, now);
     const auto = autopayDraft(item, rules, now); if (auto) return auto;
     // 펼친 글(big)에 금액이 있으면 그걸 읽는다(접힌 글엔 가맹점이 없을 수 있음). 이름('홍길동 님,' · '김*수님')은 지운다.
     const body = /원/.test(String(item?.big || '')) ? item.big : item?.text;
@@ -401,7 +420,7 @@
     const cardMatch = raw.match(/현대\s+([가-힣A-Za-z0-9 _()-]{1,40}?)\s+(?:승인|승인취소|취소)\s+\d/);
     const card = cardMatch ? cardMatch[1].trim() : '';
     const transfer = /(입금|출금|이체|송금)/.test(raw);
-    const method = /현대/.test(both) ? '현대카드' : /카카오|카뱅/.test(both) ? (transfer ? '카뱅이체' : '카뱅체크')   // 카카오뱅크(견본 아직 없음 — 일반 판정만, 총괄 #14)
+    const method = /현대/.test(both) ? '현대카드' : /카카오|카뱅/.test(both) ? (transfer ? '카뱅이체' : '카뱅체크')   // src가 'kakaobank'인 원본 알림은 위 kbCardDraft · bankDraft가 처리. 여기는 그 밖의 '카카오' 글 일반 판정(총괄 #14)
       : /토스/.test(both) && transfer ? '토스이체' : /토스/.test(both) ? '토스체크' : '';
     const cancel = /취소/.test(raw);
     // 가맹점: 금액 뒤에서 할부 · 승인 같은 말을 빼고 남은 앞부분(누적 · 잔액 앞까지)
