@@ -171,6 +171,7 @@ function bankReviewRow(review) {
 // filter: {account, method} — 장부 목록만 거른다(계좌별 '이 계좌 줄 보기'). 반환: 확인 필요 건수.
 export function renderLists({ book, needsRoot, recentRoot, recentCount = 10, filter = {} }) {
   const F_ = F();
+  [needsRoot,recentRoot].forEach(r=>r?.querySelectorAll?.('details.q-ai-editor[data-ai-open]').forEach(d=>{if(d.open)aiOpen.add(d.dataset.aiOpen);else aiOpen.delete(d.dataset.aiOpen);}));   // 지금 화면의 열림 상태를 먼저 기억(확인 필요 n: · 최근 r: 따로)
   const bankReviews = Object.values(book.bankReviews || {}).filter(r => r && r.status === 'REVIEW').sort((a,b) => (Number(b.ts)||0)-(Number(a.ts)||0));
   // Keep an active note editor alive during timer/onChange redraws.
   if ([needsRoot,recentRoot].some(r=>r?.contains(document.activeElement) && document.activeElement.matches('[data-ai-note]'))) return Object.values(book.entries||{}).filter(e=>F_.checkReasons(e).length).length + bankReviews.length;
@@ -191,14 +192,14 @@ export function renderLists({ book, needsRoot, recentRoot, recentCount = 10, fil
       const met = why.includes('수단') ? `<div class="q-row q-fix"><span class="q-why">결제 수단</span>${F_.METHODS.map(m => `<button type="button" class="q-chip" data-fixmethod="${esc(e.id)}" data-method="${esc(m)}">${esc(m)}</button>`).join('')}</div>` : '';
       // 가져올 때 적어 둔 '확인할 것'(받는 통장 등) — 확인했으면 '확인함'으로 지운다(줄 내용은 그대로)
       const chk = why.includes('확인') ? `<div class="q-row q-fix"><span class="q-why">확인</span><span class="q-checktext">${esc(e.check)}</span><button type="button" class="q-chip" data-checkdone="${esc(e.id)}">확인함</button></div>` : '';
-      return entryRow(e, cat + met + chk + aiControl(e));
+      return entryRow(e, cat + met + chk + aiControl(e,'n:'));
     }).join('') + bankReviews.map(bankReviewRow).join('');
   }
   if (recentRoot) {
     const toggle = voids ? `<button type="button" class="q-link q-void-toggle" data-togglevoid="1" aria-pressed="${showVoid}">${showVoid ? '취소된 줄 숨기기' : `취소 포함 보기 (${voids})`}</button>` : '';
     const more = shown.length > recentCount ? `<p class="q-more-line">${won(shown.length)}줄 중 ${won(recentCount)}줄 <button type="button" class="q-link" data-more="1">더 보기</button></p>` : '';
     const testNote = book.inboxTestCount ? `<p class="q-msg ok" role="status">알림 연결 시험 ${won(book.inboxTestCount)}건 수신 · 장부 합계에서 제외</p>` : '';
-    recentRoot.innerHTML = (target ? '<p class="q-msg">알림에서 연 기록</p>'+entryRow(target,aiControl(target)) : targetId?'<p class="q-msg">알림의 기록을 찾지 못했어요. 삭제 여부와 접근 권한을 확인해 주세요.</p>':'') + testNote + (shown.filter(e=>e.id!==targetId).slice(0, recentCount).map(e => entryRow(e, e.status === 'void' ? '<span class="q-void">취소됨</span>' : `${e.kind==='move'?'':`<button type="button" class="q-link" data-pick="${esc(e.id)}" aria-haspopup="dialog">분류 고르기</button>`}<button type="button" class="q-link" data-void="${esc(e.id)}">취소</button>${aiControl(e)}`)).join('') || `<p class="q-empty">${filter.account || filter.method ? '고른 계좌 · 수단의 줄이 없어요.' : '아직 기록이 없어요. 위에서 첫 줄을 넣어 보세요.'}</p>`) + more + toggle;
+    recentRoot.innerHTML = (target ? '<p class="q-msg">알림에서 연 기록</p>'+entryRow(target,aiControl(target,'r:')) : targetId?'<p class="q-msg">알림의 기록을 찾지 못했어요. 삭제 여부와 접근 권한을 확인해 주세요.</p>':'') + testNote + (shown.filter(e=>e.id!==targetId).slice(0, recentCount).map(e => entryRow(e, e.status === 'void' ? '<span class="q-void">취소됨</span>' : `${e.kind==='move'?'':`<button type="button" class="q-link" data-pick="${esc(e.id)}" aria-haspopup="dialog">분류 고르기</button>`}<button type="button" class="q-link" data-void="${esc(e.id)}">취소</button>${aiControl(e,'r:')}`)).join('') || `<p class="q-empty">${filter.account || filter.method ? '고른 계좌 · 수단의 줄이 없어요.' : '아직 기록이 없어요. 위에서 첫 줄을 넣어 보세요.'}</p>`) + more + toggle;
   }
   if(target&&recentRoot){const row=Array.from(recentRoot.querySelectorAll('[data-id]')).find(n=>n.dataset.id===targetId);if(row){row.classList.add('mmt-notice-target');if(!recentRoot.dataset.focusedNotice){recentRoot.dataset.focusedNotice=targetId;row.tabIndex=-1;requestAnimationFrame(()=>{row.focus({preventScroll:true});row.scrollIntoView({block:'center'});});}}}
   return needs.length + bankReviews.length;
@@ -206,7 +207,9 @@ export function renderLists({ book, needsRoot, recentRoot, recentCount = 10, fil
 
 // Drafts stay in memory through redraws and failed saves; no financial notes in localStorage.
 const aiDrafts = new Map();
-function aiControl(e) {
+// Open 'AI에게 물어보기' boxes stay open through the 60s refresh and other redraws (사장님 11/2: 토글이 계속 닫힘).
+const aiOpen = new Set();
+function aiControl(e, where='') {
   if(e.kind==='move') return '';
   const status=AI_LABEL[e.ai?.status]||'', decision=['applied','review'].includes(e.ai?.status)?e.ai.decision:null;
   const note=aiDrafts.has(e.id)?aiDrafts.get(e.id):e.ai?.note||'';
@@ -214,7 +217,7 @@ function aiControl(e) {
   const vat=capitalIn?'해당 없음':(e.vatTreatment?(VAT_LABEL[e.vatTreatment]||'확인 필요'):'');
   return `<div class="q-ai"><div class="q-ai-state">${status?`<span class="q-ai-badge">${esc(status)}</span>`:''}${vat?`<span>부가세 ${esc(vat)}</span>`:''}${e.ai?.status==='applied'?`<button type="button" class="q-link" data-ai-undo="${esc(e.id)}">한 번에 되돌리기</button>`:''}</div>
     ${decision?`<p class="q-ai-reason">${e.ai.status==='review'?`제안: ${esc(decision.category||'분류 확인')} · 부가세 ${esc(VAT_LABEL[decision.vatTreatment])} — `:''}${esc(decision.reason)}</p>`:''}
-    <details class="q-ai-editor"><summary>AI에게 물어보기</summary><label>이건 이런 거야<input type="text" maxlength="300" data-ai-note="${esc(e.id)}" value="${esc(note)}" placeholder="예: 포장할 때 쓰는 상자를 샀어" autocomplete="off"></label><small>이름·카드번호·결제 알림 원문은 적지 마세요. 설명만 저장해도 분류를 맡길 수 있어요.</small><button type="button" class="q-btn" data-ai-save="${esc(e.id)}">설명 저장 · AI에게 맡기기</button><p class="q-msg" role="status" data-ai-msg="${esc(e.id)}"></p></details></div>`;
+    <details class="q-ai-editor" data-ai-open="${esc(where+e.id)}"${aiOpen.has(where+e.id)?' open':''}><summary>AI에게 물어보기</summary><label>이건 이런 거야<input type="text" maxlength="300" data-ai-note="${esc(e.id)}" value="${esc(note)}" placeholder="예: 포장할 때 쓰는 상자를 샀어" autocomplete="off"></label><small>이름·카드번호·결제 알림 원문은 적지 마세요. 설명만 저장해도 분류를 맡길 수 있어요.</small><button type="button" class="q-btn" data-ai-save="${esc(e.id)}">설명 저장 · AI에게 맡기기</button><p class="q-msg" role="status" data-ai-msg="${esc(e.id)}"></p></details></div>`;
 }
 
 // 장부 거르기(계좌 · 수단) — PC 재무 '장부' 위. 고른 값은 onChange({account, method})로.
@@ -258,6 +261,7 @@ export function accountsView(book, { compact = false } = {}) {
 // 목록 버튼(분류 정하기 · 취소 · 취소 포함 보기 · 확인함 · 더 보기)을 한 곳에서 처리. onError(msg), onRedraw() — 목록을 다시 그리는 화면 함수, onMore() — 더 보기
 export function bindListActions(root, { store, book, onError, onRedraw, onMore }) {
   root.addEventListener('input', ev=>{if(ev.target.dataset.aiNote) aiDrafts.set(ev.target.dataset.aiNote,ev.target.value);});
+  root.addEventListener('toggle', ev=>{const d=ev.target;if(!d?.matches?.('details.q-ai-editor'))return;const id=d.dataset.aiOpen;if(!id)return;if(d.open)aiOpen.add(id);else aiOpen.delete(id);}, true);
   root.addEventListener('click', async ev => {
     const t = ev.target.closest('button'); if (!t) return;
     try {
@@ -271,7 +275,7 @@ export function bindListActions(root, { store, book, onError, onRedraw, onMore }
       if (t.dataset.aiSave) {
         const id=t.dataset.aiSave, editor=t.closest('.q-ai-editor'), note=editor.querySelector('[data-ai-note]').value;
         t.disabled=true;
-        try{await humanWrite(store(),'requestAi',id,note); aiDrafts.delete(id); onRedraw?.();}
+        try{await humanWrite(store(),'requestAi',id,note); aiDrafts.delete(id); aiOpen.delete('n:'+id); aiOpen.delete('r:'+id); onRedraw?.();}
         finally{t.disabled=false;}
         return;
       }
