@@ -111,7 +111,8 @@ const VIEW_SLOTS=[['front','정면','image_2d'],['34','3/4','image_34'],['side',
 function viewRules(){
   const r=AI_CANON?.common?.view_rules;if(!Array.isArray(r)||!r.length)return '';
   const fb=AI_CANON.common.view_rules_fallback;
-  return `<section class="panel cb-views-rules"><div class="panelhead"><h2>옆 · 뒤 공통 규칙</h2><span class="muted cb-small">정본 ${esc(canonVer())} · 그림은 아직 준비 중</span></div><div class="panelbody"><ol>${r.map(x=>`<li>${esc(x)}</li>`).join('')}</ol>${fb?`<p class="cb-small muted">${esc(fb)}</p>`:''}</div></section>`;
+  let total=0,filled=0;for(const x of AI_CANON.characters||[])for(const [,label,field] of VIEW_SLOTS.slice(1))if((x.views?.views_allowed||[]).includes(label)){total++;if(typeof x[field]==='string'&&x[field])filled++;}
+  return `<section class="panel cb-views-rules"><div class="panelhead"><h2>옆 · 뒤 공통 규칙</h2><span class="muted cb-small">정본 ${esc(canonVer())} · ${filled?`옆 · 뒤 그림 ${filled}/${total}칸`:'그림은 아직 준비 중'}</span></div><div class="panelbody"><ol>${r.map(x=>`<li>${esc(x)}</li>`).join('')}</ol>${fb?`<p class="cb-small muted">${esc(fb)}</p>`:''}</div></section>`;
 }
 function viewSlot(x,[key,label,field]){
   const allowed=(x.views?.views_allowed||[]).includes(label),src=typeof x[field]==='string'?x[field]:'';

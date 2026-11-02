@@ -19,7 +19,7 @@
       "꼬리 · 귀: 7명 모두 없다."
     ],
     "view_rules_fallback": "여기 없는 것은 그림 만들 때 정본 기준 시트 따라감. 새 색 · 소품 · 몸 부분을 만들지 않는다.",
-    "view_rules_confirmed": "2026-11-02 사장님 확정 · 옆 · 뒤 · 3/4 그림은 아직 없음(그림 준비 중)"
+    "view_rules_confirmed": "2026-11-02 사장님 확정 · 옆 · 3/4 · 뒤 2D 그림 19/19칸 (2026-11-02 ChatGPT 무무토리 프로젝트로 생성, 정본 §6-5 · §6-7 검수 통과본만; 빈 칸은 그림 준비 중)"
   },
   "characters": [
     {
@@ -91,9 +91,9 @@
           }
         ]
       },
-      "image_34": null,
-      "image_side": null,
-      "image_back": null
+      "image_34": "https://gustnel1122-pixel.github.io/mumutori-dashboard/src/character-canon/2d-34-dotori.png",
+      "image_side": "https://gustnel1122-pixel.github.io/mumutori-dashboard/src/character-canon/2d-side-dotori.png",
+      "image_back": "https://gustnel1122-pixel.github.io/mumutori-dashboard/src/character-canon/2d-back-dotori.png"
     },
     {
       "id": "chickpea",
@@ -158,9 +158,9 @@
           }
         ]
       },
-      "image_34": null,
-      "image_side": null,
-      "image_back": null
+      "image_34": "https://gustnel1122-pixel.github.io/mumutori-dashboard/src/character-canon/2d-34-chickpea.png",
+      "image_side": "https://gustnel1122-pixel.github.io/mumutori-dashboard/src/character-canon/2d-side-chickpea.png",
+      "image_back": "https://gustnel1122-pixel.github.io/mumutori-dashboard/src/character-canon/2d-back-chickpea.png"
     },
     {
       "id": "chestnut",
@@ -221,9 +221,9 @@
           }
         ]
       },
-      "image_34": null,
-      "image_side": null,
-      "image_back": null
+      "image_34": "https://gustnel1122-pixel.github.io/mumutori-dashboard/src/character-canon/2d-34-chestnut.png",
+      "image_side": "https://gustnel1122-pixel.github.io/mumutori-dashboard/src/character-canon/2d-side-chestnut.png",
+      "image_back": "https://gustnel1122-pixel.github.io/mumutori-dashboard/src/character-canon/2d-back-chestnut.png"
     },
     {
       "id": "peanut",
@@ -278,9 +278,9 @@
           }
         ]
       },
-      "image_34": null,
-      "image_side": null,
-      "image_back": null
+      "image_34": "https://gustnel1122-pixel.github.io/mumutori-dashboard/src/character-canon/2d-34-peanut.png",
+      "image_side": "https://gustnel1122-pixel.github.io/mumutori-dashboard/src/character-canon/2d-side-peanut.png",
+      "image_back": "https://gustnel1122-pixel.github.io/mumutori-dashboard/src/character-canon/2d-back-peanut.png"
     },
     {
       "id": "peas",
@@ -329,7 +329,7 @@
           }
         ]
       },
-      "image_34": null,
+      "image_34": "https://gustnel1122-pixel.github.io/mumutori-dashboard/src/character-canon/2d-34-peas.png",
       "image_side": null,
       "image_back": null
     },
@@ -397,9 +397,9 @@
           }
         ]
       },
-      "image_34": null,
-      "image_side": null,
-      "image_back": null
+      "image_34": "https://gustnel1122-pixel.github.io/mumutori-dashboard/src/character-canon/2d-34-sunflower.png",
+      "image_side": "https://gustnel1122-pixel.github.io/mumutori-dashboard/src/character-canon/2d-side-sunflower.png",
+      "image_back": "https://gustnel1122-pixel.github.io/mumutori-dashboard/src/character-canon/2d-back-sunflower.png"
     },
     {
       "id": "rice",
@@ -460,9 +460,9 @@
           }
         ]
       },
-      "image_34": null,
-      "image_side": null,
-      "image_back": null
+      "image_34": "https://gustnel1122-pixel.github.io/mumutori-dashboard/src/character-canon/2d-34-rice.png",
+      "image_side": "https://gustnel1122-pixel.github.io/mumutori-dashboard/src/character-canon/2d-side-rice.png",
+      "image_back": "https://gustnel1122-pixel.github.io/mumutori-dashboard/src/character-canon/2d-back-rice.png"
     }
   ]
 }
