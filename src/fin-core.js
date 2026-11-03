@@ -212,6 +212,38 @@
     const got = (Number(check.opening) || 0) + (a ? a.balance : 0);
     return { ...check, got, diff: (Number(check.balance) || 0) - got, ok: got === (Number(check.balance) || 0) };
   }
+  // 재무 맨 위 '돈 한눈에'(사장님 11/3): 통장마다 '지금' 잔액 + 이번 달 카드별 쓴 돈. 금액은 장부에서만 계산한다.
+  // 통장 잔액 = 시작 잔액(meta/accountChecks의 opening — 10/22 통장 내역 기준) + 그 from 날부터 지금까지 장부 계산.
+  //   (accountCheck는 파일 잔액 대조용이라 at 시각까지만 센다 — 여기서는 at 없이 지금까지.) 시작 잔액이 없는 통장은 장부 전체 계산.
+  // 카드 쓴 돈 = 이번 달(한국 시간) 그 수단의 결제(out) − 취소 · 환불(in). 체크카드는 연결 통장 잔액에 이미 빠져 있다.
+  const CARD_GLANCE = [
+    { method: '토스체크', name: '토스 체크카드', type: 'debit', link: '토스뱅크(정산 통장)' },
+    { method: '카뱅체크', name: '카카오뱅크 체크카드', type: 'debit', link: '카카오뱅크(사업자 통장)' },
+    { method: '현대카드', name: '현대카드(사업자 신용)', type: 'credit', link: '' }
+  ];
+  function moneyGlance(book, now = new Date()) {
+    const checks = Object.values(book?.meta?.accountChecks || {}).filter(c => c && c.account);
+    const banks = ACCOUNTS.filter(a => a.type === 'bank' || a.type === 'wallet' || a.type === 'cash').map(a => {
+      const chk = checks.find(c => c.account === a.name);
+      const t = accountTotals(book, chk && chk.from ? { from: chk.from } : undefined).find(x => x.account === a.name) || { balance: 0, count: 0 };
+      const opening = chk ? Number(chk.opening) || 0 : 0;
+      return { account: a.name, type: a.type, balance: opening + (t.balance || 0), count: t.count || 0, from: chk && chk.from || '', opening };
+    }).filter(a => a.count || a.from || a.balance);
+    const month = kstDate(now).slice(0, 7);
+    const held = pendingTransferIds(book);
+    const rows = live(Object.values(book?.entries || {}).filter(e => !held.has(e?.id))).filter(e => String(e.date || '').slice(0, 7) === month);
+    const cards = CARD_GLANCE.map(c => {
+      const mine = rows.filter(e => e.method === c.method);
+      const out = mine.filter(e => e.kind === 'out').reduce((s, e) => s + (Number(e.amount) || 0), 0);
+      const back = mine.filter(e => e.kind === 'in').reduce((s, e) => s + (Number(e.amount) || 0), 0);
+      return { ...c, out, back, spent: out - back, count: mine.filter(e => e.kind === 'out').length };
+    });
+    return {
+      month, banks, cards,
+      bankTotal: banks.filter(b => b.type === 'bank').reduce((s, b) => s + b.balance, 0),
+      cardTotal: cards.reduce((s, c) => s + c.spent, 0)
+    };
+  }
   // '사장님 돈': 넣은 돈(자금 충전) · 뺀 돈(사장님 인출) · 차이 — 달마다. "빼가서 따로 쓴 게 아니라는 증명"용. 외주 매출은 따로 한 줄.
   function ownerMoney(book) {
     const held=pendingTransferIds(book),rows = live(Object.values(book?.entries || {}).filter(e=>!held.has(e?.id)));
@@ -447,6 +479,6 @@
   }
 
   const api = { VERSION, METHODS, OFFSET_METHOD, COUPANG_METHOD, ALL_METHODS, OUT_CATEGORIES, IN_CATEGORIES, MOVE_CATEGORY, OWNER_MEAL, OWNER_OUT, OWNER_IN, EVIDENCE, NEEDS,
-    ACCOUNTS, METHOD_ACCOUNT, accountOf, accountType, accountTotals, accountCheck, ownerMoney, kstDate, uid, toWon, maskCard, validDate, normEntry, validateEntry, summarize, flowNote, checkReasons, defaultEvidence, classify, parseCSV, fromLedgerCSV, inPeriod, draftFromAlert, sameMoment, bankOriginal, bankTransferPairs, bankReview, confirmedBankReview, bankReviewCandidates, transferRowStamp, pendingTransferIds, PATTERNS };
+    ACCOUNTS, METHOD_ACCOUNT, accountOf, accountType, accountTotals, accountCheck, moneyGlance, ownerMoney, kstDate, uid, toWon, maskCard, validDate, normEntry, validateEntry, summarize, flowNote, checkReasons, defaultEvidence, classify, parseCSV, fromLedgerCSV, inPeriod, draftFromAlert, sameMoment, bankOriginal, bankTransferPairs, bankReview, confirmedBankReview, bankReviewCandidates, transferRowStamp, pendingTransferIds, PATTERNS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.FinCore = api;
 })(typeof window !== 'undefined' ? window : globalThis);

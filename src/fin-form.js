@@ -258,6 +258,24 @@ export function accountsView(book, { compact = false } = {}) {
   return `<div class="acct-grid">${cards || '<p class="q-empty">아직 계좌별로 볼 줄이 없어요.</p>'}</div>${compact ? '' : owner}`;
 }
 
+// 재무 맨 위 '돈 한눈에' 표(사장님 11/3): 통장마다 지금 잔액 · 이번 달 카드별 쓴 돈. 계산은 FinCore.moneyGlance(장부에서만).
+export function glanceView(book, now = new Date()) {
+  const g = F().moneyGlance(book, now);
+  const md = s => { const m = String(s || '').match(/\d{4}-(\d{2})-(\d{2})/); return m ? `${+m[1]}/${+m[2]}` : ''; };
+  const kind = { bank: '통장', wallet: '쿠팡 정산', cash: '현금' };
+  const note = b => b.type === 'wallet' ? '쿠팡에 쌓인 돈(통장 밖)' : b.from ? `${md(b.from)} 통장 내역 기준 + 장부 계산` : '장부 계산';
+  const bankRows = g.banks.map(b => `<tr><th scope="row">${esc(kind[b.type] || '통장')}</th><td>${esc(b.account)}</td><td class="num${b.balance < 0 ? ' minus' : ''}">${won(b.balance)}원</td><td class="sub">${esc(note(b))}</td></tr>`).join('');
+  const cardRows = g.cards.map(c => `<tr><th scope="row">${c.type === 'credit' ? '신용카드' : '체크카드'}</th><td>${esc(c.name)}</td><td class="num">${won(c.spent)}원</td><td class="sub">${c.count}건${c.back ? ` · 취소 ${won(c.back)}원 뺌` : ''}${c.type === 'credit' ? ' · 카드값은 결제일에 통장에서' : ` · ${esc(c.link.replace(/\(.*\)/, ''))} 통장에서 빠짐`}</td></tr>`).join('');
+  const m = +g.month.slice(5, 7);
+  return `<section class="glance"><h3>돈 한눈에 <small>지금 통장 잔액 · ${m}월 카드로 쓴 돈 — 장부 기준</small></h3>`
+    + `<div class="cc-wrap"><table class="cc-table glance-table"><thead><tr><th scope="col">구분</th><th scope="col">이름</th><th scope="col">금액</th><th scope="col">기준</th></tr></thead>`
+    + `<tbody class="glance-banks"><tr class="glance-group"><th scope="rowgroup" colspan="4">통장 지금 잔액</th></tr>${bankRows || '<tr><td colspan="4">아직 통장 줄이 없어요</td></tr>'}`
+    + `<tr class="glance-total"><th scope="row" colspan="2">통장 합계</th><td class="num${g.bankTotal < 0 ? ' minus' : ''}">${won(g.bankTotal)}원</td><td class="sub">쿠팡 정산 · 현금 빼고</td></tr></tbody>`
+    + `<tbody class="glance-cards"><tr class="glance-group"><th scope="rowgroup" colspan="4">${m}월 카드로 쓴 돈</th></tr>${cardRows}`
+    + `<tr class="glance-total"><th scope="row" colspan="2">카드 합계</th><td class="num">${won(g.cardTotal)}원</td><td class="sub">결제 − 취소</td></tr></tbody></table></div>`
+    + `<small class="glance-foot">은행 · 카드 알림이 장부에 다 들어와야 실제 잔액과 맞아요. 다르면 '계좌별'에서 파일 잔액과 대조해 주세요.</small></section>`;
+}
+
 // 목록 버튼(분류 정하기 · 취소 · 취소 포함 보기 · 확인함 · 더 보기)을 한 곳에서 처리. onError(msg), onRedraw() — 목록을 다시 그리는 화면 함수, onMore() — 더 보기
 export function bindListActions(root, { store, book, onError, onRedraw, onMore }) {
   root.addEventListener('input', ev=>{if(ev.target.dataset.aiNote) aiDrafts.set(ev.target.dataset.aiNote,ev.target.value);});

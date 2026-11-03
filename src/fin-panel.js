@@ -4,7 +4,7 @@ import {mountBankReviewUI} from './fin-review-ui.js?v=bankpairs20261029';
 // ERP 화면은 이 PC 저장(localStorage)으로 그려지고 자주 다시 그려지므로, 패널 자리(#fin-hub-panel)가 새로 생길 때마다 다시 붙인다(장부 연결은 하나로 유지).
 import { onAuth, signIn } from './fbauth.js?v=access20261028';
 import { openFinStore } from './fin-hub.js?v=bankpairs20261029';
-import { mountEntryForm, renderLists, bindListActions, rememberNeeds, coupangCalendar, ledgerFilter, esc, won } from './fin-form.js?v=bankpairs20261029';
+import { mountEntryForm, renderLists, bindListActions, rememberNeeds, coupangCalendar, ledgerFilter, glanceView, esc, won } from './fin-form.js?v=bankpairs20261029';
 
 let store = null, book = { entries: {}, sales: {}, meta: {} }, signedIn = false, host = null, loaded = false, jumped = false;
 let activeUid='',reviewUI=null;
@@ -14,6 +14,7 @@ let ledgerCount = filter.account || filter.method ? 20 : 8;
 
 const SHELL = `<div class="panelhead"><h2>이번 달 장부 · 수기 입력</h2><span class="section-en">공용 장부 · 폰과 같은 칸</span></div>
 <div class="panelbody">
+  <div class="fin-glance" hidden></div>
   <div class="metrics fin-sum" hidden></div>
   <div class="fin-settle" hidden></div>
   <div class="fin-login" hidden><p>공용 장부는 공동 운영 Google 계정으로만 열려요. 휴대폰 입력 · 결제 알림이 같은 장부에 쌓입니다.</p><button type="button" class="q-btn q-primary fin-signin">구글로 로그인</button><p class="q-msg fin-login-msg" role="alert"></p></div>
@@ -58,6 +59,7 @@ function draw() {
   n+=reviewUI?.decorate(host.querySelector('.fin-needs-box'),host.querySelector('.fin-recent'))||0;
   host.querySelector('.fin-needs-box h3 b').textContent = n;
   drawSummary(n);
+  host.querySelector('.fin-glance').innerHTML = glanceView(book);   // 맨 위 '돈 한눈에'(사장님 11/3)
   host.querySelector('.fin-settle').innerHTML = coupangCalendar(book.meta, book.entries);   // 쿠팡 돈 달력(주차표가 없으면 한 줄 칸)
   if (!loaded) return;
   rememberNeeds(n);
@@ -71,6 +73,7 @@ function showState() {
   host.querySelector('.fin-login').hidden = ok;
   host.querySelector('.fin-cols').hidden = !ok;
   host.querySelector('.fin-sum').hidden = !ok;
+  host.querySelector('.fin-glance').hidden = !ok;
   host.querySelector('.fin-settle').hidden = !ok;
 }
 const session=createFinSession({open:openFinStore,processInbox:true,onBook:b=>{book=b||{entries:{},sales:{},meta:{}};loaded=!!b;draw();if(!b&&host){const old=host.querySelector('.fin-form'),fresh=old.cloneNode(false);old.replaceWith(fresh);mountEntryForm(fresh,{store:()=>store,book:()=>book,source:'manual'});}showState();},onState:(state)=>{showState();const m=host?.querySelector('.fin-login-msg');if(m)m.textContent=state==='loading'?'서버 권한을 확인하고 있어요.':state==='denied'?'이 계정의 공용 장부 접근을 확인하지 못했어요.':'';}});

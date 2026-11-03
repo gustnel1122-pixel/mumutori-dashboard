@@ -105,3 +105,17 @@
 .q-match-review{flex-wrap:wrap;gap:8px}.q-match-review small{display:block}.fin-match-summary{padding:10px;border-radius:8px;background:#f1f6ee;line-height:1.5}.fin-match-options{margin:14px 0;padding:0;border:0}.fin-match-options legend{font-weight:700}.fin-review-option{display:flex!important;align-items:center;gap:10px;box-sizing:border-box;min-height:44px;margin:8px 0!important;padding:8px;border:1px solid #d8e2d7;border-radius:8px;font-weight:400!important;overflow-wrap:anywhere}.fin-review-option input{display:inline-block!important;flex:0 0 auto;width:20px!important;min-height:20px!important;height:20px;margin:0!important;padding:0!important}.fin-review-option span{min-width:0}
 .fin-pc-review-dialog{width:min(720px,calc(100vw - 24px))}.fin-pc-values{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.fin-pc-box{min-width:0;padding:12px;border:1px solid #d8e2d7;border-radius:9px}.fin-pc-box h3{margin:0 0 8px;font-size:16px}.fin-pc-row{display:flex;justify-content:space-between;gap:8px;margin:5px 0!important;font-size:13px;overflow-wrap:anywhere}.fin-pc-row strong{text-align:right}.fin-pc-week{padding:8px 0;border-top:1px solid #e3e9e1;font-size:13px}.fin-pc-review-dialog .fin-pc-target{font-weight:700}.q-collector-review{flex-wrap:wrap;gap:8px}@media(max-width:520px){.fin-pc-values{grid-template-columns:1fr}}
 .q-transfer-review{flex-wrap:wrap;gap:8px}.fin-transfer-summary{padding:8px 12px;border-radius:8px;background:#f1f6ee;overflow-wrap:anywhere}.fin-transfer-summary p{margin:5px 0;font-size:13px}
+/* 재무 맨 위 '돈 한눈에'(사장님 11/3) */
+.fin-glance{margin:0 0 14px}
+.glance h3{margin:0 0 8px;font-size:15px}
+.glance h3 small{font-size:11px;font-weight:400;color:var(--fsub);margin-left:6px}
+.glance-table{min-width:520px}
+.glance-table td{text-align:left}
+.glance-table td.num{text-align:right;font-weight:700;color:var(--fink)}
+.glance-table td.num.minus{color:#b4442c}
+.glance-table td.sub{color:var(--fsub);font-size:12px;white-space:normal}
+.glance-table tr.glance-group th{background:#f7f4ec;font-size:11px;color:var(--fsub);text-align:left;padding:6px 8px}
+.glance-table tr.glance-total th,.glance-table tr.glance-total td{border-bottom:2px solid var(--fline);font-weight:700}
+.glance-foot{display:block;font-size:11px;color:var(--fsub);margin-top:2px}
+.glance-table thead th{text-align:left}
+.glance-table thead th:nth-child(3){text-align:right}
