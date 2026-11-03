@@ -200,8 +200,10 @@ td.n{font-family:var(--type);color:var(--brand);width:40px}
 .lt .tw-ln.over{background:#fdecea;color:#9d2222}
 .lt .tw-no{text-align:right;font-family:var(--type);font-size:10px;color:#82766a}
 .lt .tw-row{display:grid;grid-template-columns:repeat(var(--cols),minmax(0,1fr));grid-auto-flow:column;grid-auto-columns:calc(100% / var(--cols));overflow-x:auto;white-space:nowrap}
-.lt .tw-c{text-align:center;font-family:var(--type);font-size:min(15px,calc((100cqw - 28px) / var(--cols) * .92));white-space:pre}
+.lt .tw-c{grid-column:span 2;text-align:center;font-family:var(--type);font-size:min(15px,calc((100cqw - 28px) / var(--cells) * .92));white-space:pre}
+.lt .tw-c.h{grid-column:span 1}
 .lt .tw-cap{margin:4px 0 0;font-size:12px;color:#6e6256}
+.lt .tw-cap .tw-diff{color:#8a5a00}
 .empty{background:var(--paper);border:1px dashed var(--line);border-radius:10px;padding:26px;text-align:center;color:var(--ink-2);font-size:14px}
 .login{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .btn{background:var(--brand);color:#FDF3E6;border:0;border-radius:8px;padding:9px 16px;font-size:14px}
@@ -539,7 +541,7 @@ td.n{font-family:var(--type);color:var(--brand);width:40px}
 <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-auth-compat.js"></script>
 <script src="https://letter.mumutori.com/firebase-config.js"></script>
 <script src="https://letter.mumutori.com/fb.js"></script>
-<script src="https://letter.mumutori.com/spec.js"></script>
+<script src="https://letter.mumutori.com/spec.js?v=20261102-tw29"></script>
 <script src="src/google-login.js?v=access20261028"></script>
 <script src="src/activity-client.js?v=activity20261028"></script>
 <script>
@@ -740,7 +742,7 @@ function boot(){
     var A=appliedSpec();
     if(p==='print') return {title:'일반 타자기 서비스 페이지', file:LETTER_BASE+'print.html', items:[
       ['주문 확인','주문자 이름 · 휴대폰 뒤 4자리로 결제와 편지를 연결한다.'],
-      ['편지 쓰기','받는 분 · 내용 · 보내는 분. 한 줄 '+A.lineChars+'자, 한 장 '+A.maxLines+'줄 제한. 타자기에 없는 글자(이모지 등)는 찾아서 지우게 한다.'],
+      ['편지 쓰기','받는 분 · 내용 · 보내는 분. 편지지 모양 칸에 바로 쓰고, 한 줄 '+(window.LetterTypewriter?window.LetterTypewriter.lineCells()+'칸(띄어쓰기 · 숫자 · 기호 반 칸)':A.lineChars+'자')+', 한 장 '+A.maxLines+'줄 제한. 타자기에 없는 글자(이모지 등)는 찾아서 지우게 한다.'],
       ['타자기 미리보기','타자기로 찍힐 모습을 줄 단위로 바로 보여준다.'],
       ['봉투 고르기','봉투 '+(A.envelopes||[]).filter(function(e){return !e.hidden}).length+'종 중 선택, 봉투 앞면에 받는 분 이름 찍기 여부.'],
       ['확인하고 보내기','요약, 개인정보 수집·이용 동의, 접수. 접수번호 발급.']]};
@@ -783,7 +785,7 @@ function boot(){
       ['훅','"하고 싶은 말은 있는데, 손글씨가 부끄러울 때"','타자기 자판 클로즈업','shoot'],
       ['이런 분께','글씨가 부담돼요 / 예쁘게 꾸밀 자신이 없어요 / 특별한 편지를 주고 싶어요','기존 상세 1·2.jpg 문구 재구성','have'],
       ['무무토리 타자기 편지란','적어주신 글을 수동 타자기로 한 자 한 자 찍고, 무무토리 봉투에 담아 포장해 보내드려요','브랜드 문장','write'],
-      ['편지 쓰기 화면','결제 후 받은 링크에서 편지를 쓰면 타자기로 찍힐 모습을 바로 볼 수 있어요. 한 줄 '+S.lineChars+'자 · 한 장 '+S.maxLines+'줄','일반 타자기 페이지 화면 캡처','cap'],
+      ['편지 쓰기 화면','결제 후 받은 링크에서 편지를 쓰면 타자기로 찍힐 모습을 바로 볼 수 있어요. 한 줄 '+(window.LetterTypewriter?window.LetterTypewriter.lineCells()+'칸':S.lineChars+'자')+' · 한 장 '+S.maxLines+'줄','일반 타자기 페이지 화면 캡처','cap'],
       ['타자기 영상','종이가 한 줄씩 올라오는 장면','타자기 15초 영상','shoot'],
       ['봉투 4종','작성 페이지에서 4종 중 선택','봉투 4종 실물 사진','shoot'],
       ['완성품','편지 + 봉투 + 실링, 선물과 함께 놓은 컷','완성품 사진','shoot'],
@@ -963,14 +965,20 @@ function boot(){
     if(p.memo) out.push('꼭 넣고 싶은 말: '+p.memo);
     return out.join('\n');
   }
-  // Same wrapping and line order as the customer's letter.js preview.
+  // 줄 나눔은 고객 작성 칸과 같은 함수(letter.mumutori.com/spec.js의 LetterTypewriter, 2026-11-02 실제 타자기 기준).
+  // spec.js를 못 불러온 때만 예전 규칙(모든 글자 1칸, 한 줄 33자)으로 보여 준다.
   function letterChars(s){return Array.from(String(s||''));}
   function wrapLetter(text,n){var out=[];String(text||'').replace(/\r/g,'').split('\n').forEach(function(para){if(para===''){out.push('');return;}var line=[];para.split(' ').forEach(function(w){var a=letterChars(w);while(a.length>n){if(line.length){out.push(line.join(''));line=[];}out.push(a.slice(0,n).join(''));a=a.slice(n);}if(!line.length)line=a;else if(line.length+1+a.length<=n)line=line.concat([' '],a);else{out.push(line.join(''));line=a;}});out.push(line.join(''));});return out;}
   function letterSize(value,fallback,defaultValue){var n=Number(value);if(Number.isInteger(n)&&n>0&&n<=200)return n;n=Number(fallback);return Number.isInteger(n)&&n>0&&n<=200?n:defaultValue;}
-  function letterSheet(p){var A=appliedSpec()||{},sp=p.spec||{},n=letterSize(sp.lineChars,A.lineChars,33),max=letterSize(sp.maxLines,A.maxLines,20),L=p.letter||{};
-    var lines=[L.to?L.to+'에게':'',''].concat(wrapLetter(L.body,n),['',L.from?'- '+L.from:'']);
-    return '<div class="tw" style="--cols:'+n+'">'+lines.map(function(t,i){return '<div class="tw-ln'+(i>=max?' over':'')+'"><span class="tw-no" aria-hidden="true">'+(i+1)+'</span><span class="tw-row" aria-label="'+esc(t||'빈 줄')+'">'+letterChars(t).map(function(c){return '<span class="tw-c" aria-hidden="true">'+(c===' '?'&nbsp;':esc(c))+'</span>';}).join('')+'</span></div>';}).join('')+
-      '</div><p class="tw-cap">고객 미리보기와 같은 줄바꿈 · 한 줄 '+n+'자 · '+lines.length+' / '+max+'줄'+(lines.length>max?' · 빨간 줄은 한 장을 넘음':'')+'</p>';}
+  function letterSheet(p){var A=appliedSpec()||{},sp=p.spec||{},n=letterSize(sp.lineChars,A.lineChars,33),max=letterSize(sp.maxLines,A.maxLines,20),L=p.letter||{},TW=window.LetterTypewriter;
+    var lines,cells,half,cap,note='';
+    // 새 편지: 손님이 고른 첫 줄 · 끝 줄이 본문에 들어 있어 본문만 그대로. 규칙 바꾸기 전 편지: 예전처럼 "OO에게" · "- OO"을 붙임.
+    if(TW){cells=TW.lineCells();half=TW.half;var before=TW.beforeRule(p.createdAt);lines=before?TW.letterLines({to:L.to,from:L.from,body:L.body}):TW.wrap(L.body);
+      cap='고객 작성 칸과 같은 줄바꿈 · 실제 타자기 한 줄 '+cells+'칸(한글 1칸 · 띄어쓰기·숫자·기호 반 칸)';
+      if(before){var old=TW.letterLinesOld(L,n);if(old.join('\n')!==lines.join('\n'))note='<br><span class="tw-diff">줄 규칙을 바꾸기 전에 접수된 편지예요. 고객은 '+n+'자 기준 미리보기('+old.length+'줄)를 봤어요. 찍을 때는 이 화면대로.</span>';}}
+    else{cells=n;half=function(){return 2;};lines=[L.to?L.to+'에게':'',''].concat(wrapLetter(L.body,n),['',L.from?'- '+L.from:'']);cap='고객 미리보기와 같은 줄바꿈 · 한 줄 '+n+'자';}
+    return '<div class="tw" style="--cols:'+(cells*2)+';--cells:'+cells+'">'+lines.map(function(t,i){return '<div class="tw-ln'+(i>=max?' over':'')+'"><span class="tw-no" aria-hidden="true">'+(i+1)+'</span><span class="tw-row" aria-label="'+esc(t||'빈 줄')+'">'+letterChars(t).map(function(c){return '<span class="tw-c'+(half(c)===1?' h':'')+'" aria-hidden="true">'+(c===' '?'&nbsp;':esc(c))+'</span>';}).join('')+'</span></div>';}).join('')+
+      '</div><p class="tw-cap">'+cap+' · '+lines.length+' / '+max+'줄'+(lines.length>max?' · 빨간 줄은 한 장을 넘음':'')+note+'</p>';}
   function renderInbox(list, note){
     var A=appliedSpec();
     $('#inbox').innerHTML = (note?'<p class="note">'+note+'</p>':'') + (list.length ? list.map(function(p){
