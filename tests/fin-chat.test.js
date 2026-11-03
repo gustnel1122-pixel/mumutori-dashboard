@@ -68,3 +68,22 @@ test('확인 필요: 채팅으로 분류한 줄은 다시 묻지 않음 · AI가
   assert.ok(F.checkReasons({...base,ai:{status:'applied'}}).includes('AI 확인'));
   assert.ok(F.checkReasons({...base,ai:{status:'review',source:'chat'}}).includes('AI 확인'));
 });
+
+test('바로 답하기: 주소가 있으면 보낸 줄 id + 로그인 토큰을 웹앱으로 한 번 · 주소가 이상하면 안 보냄',async()=>{
+  const EP='https://script.google.com/macros/s/TEST_id-1/exec';
+  const src=hubSrc.replace("const dbUrl=async p=>'https://isolated.test/'+p;","const dbUrl=async p=>'https://isolated.test/'+p+'.json?auth=test.token-123';");
+  const {openFinStore}=await import(url(src+'\n//ping'));
+  const oldFetch=global.fetch,posts=[];let ep=EP;
+  global.fetch=async(u,o={})=>{
+    if(o.method==='POST'){posts.push({u,body:String(o.body)});return {json:async()=>({ok:true,code:'DONE'})};}
+    return {ok:true,status:200,headers:{get:()=>'"e1"'},json:async()=>({entries:{},meta:{aiChat:{on:true,endpoint:ep,msgs:{}}}})};
+  };
+  try{
+    const store=openFinStore();await store.load();
+    assert.deepEqual(await store.chatPing('m1'),{ok:true,code:'DONE'});
+    assert.equal(posts.length,1);assert.equal(posts[0].u,EP);
+    const q=new URLSearchParams(posts[0].body);assert.equal(q.get('type'),'ledgerChat');assert.equal(q.get('id'),'m1');assert.equal(q.get('token'),'test.token-123');
+    assert.equal(await store.chatPing('../x'),null);
+    ep='https://evil.example/exec';await store.load();assert.equal(await store.chatPing('m2'),null);assert.equal(posts.length,1);
+  }finally{global.fetch=oldFetch;}
+});

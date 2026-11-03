@@ -282,7 +282,7 @@ export function chatLog(book) {
   };
   const bubble = m => `<div class="fc-msg ${m.by === 'ai' ? 'fc-ai' : 'fc-me'}"><p>${esc(m.text || '')}</p>${m.by === 'ai' && Array.isArray(m.changes) && m.changes.length ? `<ul>${m.changes.slice(0, 10).map(line).join('')}</ul>` : ''}</div>`;
   return (msgs.length ? msgs.map(bubble).join('') : '<p class="fc-empty">예: "11/2 다이소 12,000원은 포장 상자야" · "어제 쿠팡 두 건은 택배비야"</p>')
-    + (chatBusy(book) ? '<p class="fc-wait">AI가 보는 중… 보통 1분 안에 답해요</p>' : '');
+    + (chatBusy(book) ? '<p class="fc-wait">AI가 보는 중… 보통 10초 안에 답해요</p>' : '');
 }
 
 export function glanceView(book, now = new Date()) {

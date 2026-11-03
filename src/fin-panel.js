@@ -82,15 +82,16 @@ function drawChat() {
   if (chatBusy(book) && !chatTimer) chatPoll();
 }
 // 보낸 뒤 답이 올 때까지 5초마다 대화 칸만 다시 읽음(최대 3분) → 답이 오면 장부 전체를 한 번 새로 읽어 바뀐 분류를 보인다.
+// 바로 답하기 요청이 끝나면(보통 5~10초) 기다리지 않고 바로 한 번 읽는다.
 let chatTimer = 0;
-function chatPoll(n = 0) {
+function chatPoll(n = 0, wait = 5000) {
   clearTimeout(chatTimer); chatTimer = 0;
   if (!store || n > 36) return;
   chatTimer = setTimeout(async () => {
     chatTimer = 0;
     try { await store.chatRefresh(); if (chatBusy(book)) chatPoll(n + 1); else await store.load(); }
     catch { chatPoll(n + 1); }
-  }, 5000);
+  }, wait);
 }
 function showState() {
   if (!host) return;
@@ -116,7 +117,7 @@ function mount(el) {
     const btn = chatForm.querySelector('button'), err = el.querySelector('.fc-err'), text = chatInput.value.trim();
     if (!text || !store) return;
     btn.disabled = true; err.textContent = '';
-    try { await store.chatSend(text); chatInput.value = ''; chatPoll(); }
+    try { const id = await store.chatSend(text); chatInput.value = ''; chatPoll(); store.chatPing(id).then(r => { if (r) chatPoll(0, 0); }).catch(() => {}); }
     catch (e) { err.textContent = e.message; }
     finally { btn.disabled = false; }
   });

@@ -44,6 +44,8 @@ AUTH={page for page,title in pages.values()}   # overview(홈): 공용 장부 �
 EXTRA['finance']=('',' https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.app')
 EXTRA['overview']=EXTRA['finance']
 EXTRA['bank']=EXTRA['finance']
+# 재무 위 채팅창 '바로 답하기'(사장님 11/3): 보내면 Apps Script 웹앱을 바로 부름(주소는 로그인 뒤 장부에서만 받음) — 재무 화면에만
+EXTRA['finance']=(EXTRA['finance'][0],EXTRA['finance'][1]+' https://script.google.com https://script.googleusercontent.com')
 EXTRA['settings']=('',' https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.app https://firebaseinstallations.googleapis.com https://fcmregistrations.googleapis.com')
 PAGE_HEAD={'finance':'<link rel="stylesheet" href="src/fin-form.css?v={v}">','bank':'<link rel="stylesheet" href="src/fin-form.css?v={v}">','overview':'<link rel="stylesheet" href="src/project-progress.css?v={v}">'}
 PAGE_TAGS={'settings':'<script src="assets/vendor/firebase/firebase-messaging-compat.js?sdk=12.19.0"></script><script type="module" src="src/app-push.js?v={v}"></script><script type="module" src="src/ledger-ai-receiver-ui.js?v={v}"></script>', 'finance':'<script src="src/fin-core.js?v={v}"></script><script type="module" src="src/fin-panel.js?v={v}"></script>',

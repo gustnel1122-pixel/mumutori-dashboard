@@ -315,6 +315,16 @@ export function openFinStore({ root = ROOT, onChange, onStatus } = {}) {
       book = { ...book, meta: { ...book.meta, aiChat: { ...chat, msgs: { ...(chat.msgs || {}), [id]: msg } } } }; emit();
       return id;
     },
+    // 바로 답하기(사장님 11/3 "어차피 API인데 바로바로"): 채팅 칸에 서버 주소가 있으면 보낸 줄 id + 로그인 토큰을 웹앱으로 보냄 → 5~10초 안에 답.
+    // 주소가 없거나 실패하면 서버의 5분 확인이 줍는다. 토큰은 이 요청에만 쓰고 어디에도 저장하지 않는다.
+    async chatPing(id) {
+      const ep = book.meta?.aiChat?.endpoint;
+      if (test || !/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(ep || '') || !/^[A-Za-z0-9_-]{1,60}$/.test(id || '')) return null;
+      const token = new URL(await dbUrl(root)).searchParams.get('auth') || '';
+      if (!token) return null;
+      const r = await fetch(ep, { method: 'POST', body: new URLSearchParams({ type: 'ledgerChat', id, token }) });
+      try { return await r.json(); } catch { return null; }
+    },
     async chatRefresh() {
       const chat = await req('GET', 'meta/aiChat');
       book = { ...book, meta: { ...book.meta, aiChat: chat || undefined } }; emit();
