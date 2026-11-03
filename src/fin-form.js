@@ -169,8 +169,9 @@ function bankReviewRow(review) {
 
 // '확인 필요' 목록 + 장부(최근 기록). needsRoot · recentRoot 중 하나는 비워도 된다.
 // filter: {account, method} — 장부 목록만 거른다(계좌별 '이 계좌 줄 보기'). 반환: 확인 필요 건수.
-export function renderLists({ book, needsRoot, recentRoot, recentCount = 10, filter = {} }) {
+export function renderLists({ book, needsRoot, recentRoot, recentCount = 10, filter = {}, chatBox = false }) {
   const F_ = F();
+  aiChatOn = chatBox && book?.meta?.aiChat?.on === true;   // 위 채팅창이 있는 화면(PC 재무)에서 켜졌으면 줄마다 'AI에게 물어보기'는 숨김 · 폰 빠른 장부는 그대로
   [needsRoot,recentRoot].forEach(r=>r?.querySelectorAll?.('details.q-ai-editor[data-ai-open]').forEach(d=>{if(d.open)aiOpen.add(d.dataset.aiOpen);else aiOpen.delete(d.dataset.aiOpen);}));   // 지금 화면의 열림 상태를 먼저 기억(확인 필요 n: · 최근 r: 따로)
   const bankReviews = Object.values(book.bankReviews || {}).filter(r => r && r.status === 'REVIEW').sort((a,b) => (Number(b.ts)||0)-(Number(a.ts)||0));
   // Keep an active note editor alive during timer/onChange redraws.
@@ -217,7 +218,7 @@ function aiControl(e, where='') {
   const vat=capitalIn?'해당 없음':(e.vatTreatment?(VAT_LABEL[e.vatTreatment]||'확인 필요'):'');
   return `<div class="q-ai"><div class="q-ai-state">${status?`<span class="q-ai-badge">${esc(status)}</span>`:''}${vat?`<span>부가세 ${esc(vat)}</span>`:''}${e.ai?.status==='applied'?`<button type="button" class="q-link" data-ai-undo="${esc(e.id)}">한 번에 되돌리기</button>`:''}</div>
     ${decision?`<p class="q-ai-reason">${e.ai.status==='review'?`제안: ${esc(decision.category||'분류 확인')} · 부가세 ${esc(VAT_LABEL[decision.vatTreatment])} — `:''}${esc(decision.reason)}</p>`:''}
-    <details class="q-ai-editor" data-ai-open="${esc(where+e.id)}"${aiOpen.has(where+e.id)?' open':''}><summary>AI에게 물어보기</summary><label>이건 이런 거야<input type="text" maxlength="300" data-ai-note="${esc(e.id)}" value="${esc(note)}" placeholder="예: 포장할 때 쓰는 상자를 샀어" autocomplete="off"></label><small>이름·카드번호·결제 알림 원문은 적지 마세요. 설명만 저장해도 분류를 맡길 수 있어요.</small><button type="button" class="q-btn" data-ai-save="${esc(e.id)}">설명 저장 · AI에게 맡기기</button><p class="q-msg" role="status" data-ai-msg="${esc(e.id)}"></p></details></div>`;
+    ${aiChatOn?'':`<details class="q-ai-editor" data-ai-open="${esc(where+e.id)}"${aiOpen.has(where+e.id)?' open':''}><summary>AI에게 물어보기</summary><label>이건 이런 거야<input type="text" maxlength="300" data-ai-note="${esc(e.id)}" value="${esc(note)}" placeholder="예: 포장할 때 쓰는 상자를 샀어" autocomplete="off"></label><small>이름·카드번호·결제 알림 원문은 적지 마세요. 설명만 저장해도 분류를 맡길 수 있어요.</small><button type="button" class="q-btn" data-ai-save="${esc(e.id)}">설명 저장 · AI에게 맡기기</button><p class="q-msg" role="status" data-ai-msg="${esc(e.id)}"></p></details>`}</div>`;
 }
 
 // 장부 거르기(계좌 · 수단) — PC 재무 '장부' 위. 고른 값은 onChange({account, method})로.
@@ -259,6 +260,31 @@ export function accountsView(book, { compact = false } = {}) {
 }
 
 // 재무 맨 위 '돈 한눈에' 표(사장님 11/3): 통장마다 지금 잔액 · 이번 달 카드별 쓴 돈. 계산은 FinCore.moneyGlance(장부에서만).
+// 위 채팅창(사장님 11/3 "항목마다 AI한테 물어보기가 아니라 위에 채팅방 하나 넣어서 '이거는 요런 거야 분류해 줘'").
+// 칸(입력창)은 fin-panel이 한 번만 그리고, 여기서는 대화 줄만 다시 그린다(쓰던 글이 새로고침에 안 지워지게).
+let aiChatOn = false;
+const CHAT_WHY = { unsure: '확실하지 않아 그대로 뒀어요', changed: '그사이 바뀐 거래라 그대로 뒀어요', kind: '들어온/나간 돈과 안 맞아 그대로 뒀어요', rule: '규칙상 바꾸지 않았어요' };
+export function chatOn(book) { return book?.meta?.aiChat?.on === true; }
+export function chatBusy(book) { return Object.values(book?.meta?.aiChat?.msgs || {}).some(m => m?.by === 'owner' && (m.state === 'new' || m.state === 'working')); }
+export function chatLog(book) {
+  if (!chatOn(book)) return '';
+  const entries = book.entries || {};
+  const msgs = Object.values(book.meta.aiChat.msgs || {}).filter(m => m && m.id && (m.by === 'owner' || m.by === 'ai'))
+    .sort((a, b) => String(a.at).localeCompare(String(b.at))).slice(-8);
+  const what = e => e ? `${esc(String(e.date || '').slice(5).replace('-', '/'))} · ${won(e.amount)}원${e.vendor ? ' · ' + esc(e.vendor) : ''}` : '지금은 없는 거래';
+  const line = c => {
+    const e = entries[c.id];
+    if (c.action === 'applied') {
+      const undo = e?.ai?.status === 'applied' && e.ai.source === 'chat' && e.category === c.category ? ` <button type="button" class="q-link" data-ai-undo="${esc(c.id)}">되돌리기</button>` : e?.ai?.status === 'undone' ? ' <small>(되돌림)</small>' : '';
+      return `<li class="fc-ok">✓ ${what(e)} → <b>${esc(c.category)}</b>${undo}</li>`;
+    }
+    return `<li class="fc-skip">· ${what(e)} → ${esc(c.category)}? <small>${esc(CHAT_WHY[c.why] || CHAT_WHY.rule)}</small></li>`;
+  };
+  const bubble = m => `<div class="fc-msg ${m.by === 'ai' ? 'fc-ai' : 'fc-me'}"><p>${esc(m.text || '')}</p>${m.by === 'ai' && Array.isArray(m.changes) && m.changes.length ? `<ul>${m.changes.slice(0, 10).map(line).join('')}</ul>` : ''}</div>`;
+  return (msgs.length ? msgs.map(bubble).join('') : '<p class="fc-empty">예: "11/2 다이소 12,000원은 포장 상자야" · "어제 쿠팡 두 건은 택배비야"</p>')
+    + (chatBusy(book) ? '<p class="fc-wait">AI가 보는 중… 보통 1분 안에 답해요</p>' : '');
+}
+
 export function glanceView(book, now = new Date()) {
   const g = F().moneyGlance(book, now);
   const md = s => { const m = String(s || '').match(/\d{4}-(\d{2})-(\d{2})/); return m ? `${+m[1]}/${+m[2]}` : ''; };

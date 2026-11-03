@@ -4,7 +4,7 @@ import {mountBankReviewUI} from './fin-review-ui.js?v=bankpairs20261029';
 // ERP 화면은 이 PC 저장(localStorage)으로 그려지고 자주 다시 그려지므로, 패널 자리(#fin-hub-panel)가 새로 생길 때마다 다시 붙인다(장부 연결은 하나로 유지).
 import { onAuth, signIn } from './fbauth.js?v=access20261028';
 import { openFinStore } from './fin-hub.js?v=bankpairs20261029';
-import { mountEntryForm, renderLists, bindListActions, rememberNeeds, coupangCalendar, ledgerFilter, glanceView, esc, won } from './fin-form.js?v=bankpairs20261029';
+import { mountEntryForm, renderLists, bindListActions, rememberNeeds, coupangCalendar, ledgerFilter, glanceView, chatLog, chatOn, chatBusy, esc, won } from './fin-form.js?v=chat20261103';
 
 let store = null, book = { entries: {}, sales: {}, meta: {} }, signedIn = false, host = null, loaded = false, jumped = false;
 let activeUid='',reviewUI=null;
@@ -15,6 +15,11 @@ let ledgerCount = filter.account || filter.method ? 20 : 8;
 const SHELL = `<div class="panelhead"><h2>이번 달 장부 · 수기 입력</h2><span class="section-en">공용 장부 · 폰과 같은 칸</span></div>
 <div class="panelbody">
   <div class="fin-glance" hidden></div>
+  <section class="fin-chat" hidden aria-label="AI에게 말하기"><h3>AI에게 말하기 <small>"이건 이런 거야" 하면 맞는 거래를 찾아 분류해요</small></h3>
+    <div class="fc-log" aria-live="polite"></div>
+    <form class="fc-form" autocomplete="off"><textarea rows="2" maxlength="300" placeholder="예: 11/2 다이소 12,000원은 포장 상자야 (날짜 · 금액 · 가게를 같이 적으면 잘 찾아요)"></textarea><button type="submit" class="q-btn q-primary">보내기</button></form>
+    <p class="fc-note">Claude에는 보낸 말과 후보 거래의 날짜 · 금액만 가요(카드번호 · 이름은 지우고) · 확실한 것만 바로 분류하고, 애매하면 되물어요 · 줄마다 되돌리기 가능</p><p class="q-msg fc-err" role="alert"></p>
+  </section>
   <div class="metrics fin-sum" hidden></div>
   <div class="fin-settle" hidden></div>
   <div class="fin-login" hidden><p>공용 장부는 공동 운영 Google 계정으로만 열려요. 휴대폰 입력 · 결제 알림이 같은 장부에 쌓입니다.</p><button type="button" class="q-btn q-primary fin-signin">구글로 로그인</button><p class="q-msg fin-login-msg" role="alert"></p></div>
@@ -55,17 +60,37 @@ function draw() {
   if (!host) return;
   const fb = host.querySelector('.fin-filter-box');
   if (!fb.firstChild) fb.innerHTML = ledgerFilter(filter);
-  let n = renderLists({ book, needsRoot: host.querySelector('.fin-needs-box'), recentRoot: host.querySelector('.fin-recent'), recentCount: ledgerCount, filter });
+  let n = renderLists({ book, needsRoot: host.querySelector('.fin-needs-box'), recentRoot: host.querySelector('.fin-recent'), recentCount: ledgerCount, filter, chatBox: true });
   n+=reviewUI?.decorate(host.querySelector('.fin-needs-box'),host.querySelector('.fin-recent'))||0;
   host.querySelector('.fin-needs-box h3 b').textContent = n;
   drawSummary(n);
   host.querySelector('.fin-glance').innerHTML = glanceView(book);   // 맨 위 '돈 한눈에'(사장님 11/3)
+  drawChat();
   host.querySelector('.fin-settle').innerHTML = coupangCalendar(book.meta, book.entries);   // 쿠팡 돈 달력(주차표가 없으면 한 줄 칸)
   if (!loaded) return;
   rememberNeeds(n);
   // 홈 '챙길 일'에서 finance.html#fin-needs로 왔으면, 장부를 읽은 뒤 그 줄로 한 번 내려간다
   if (!jumped && location.hash === '#fin-needs' && n) { jumped = true; host.querySelector('#fin-needs')?.scrollIntoView({ block: 'center' }); }
   if (!jumped && location.hash === '#fin-ledger') { jumped = true; host.querySelector('#fin-ledger')?.scrollIntoView({ block: 'start' }); }
+}
+// 위 채팅창: 켜졌을 때만(Apps Script가 meta/aiChat.on 을 켬) 보이고, 대화 줄만 다시 그린다 — 쓰던 글은 그대로.
+function drawChat() {
+  if (!host) return;
+  const box = host.querySelector('.fin-chat'), log = box.querySelector('.fc-log'), html = chatLog(book);
+  box.hidden = !session.allowed || !chatOn(book);
+  if (log.dataset.html !== html) { log.dataset.html = html; log.innerHTML = html; log.scrollTop = log.scrollHeight; }
+  if (chatBusy(book) && !chatTimer) chatPoll();
+}
+// 보낸 뒤 답이 올 때까지 5초마다 대화 칸만 다시 읽음(최대 3분) → 답이 오면 장부 전체를 한 번 새로 읽어 바뀐 분류를 보인다.
+let chatTimer = 0;
+function chatPoll(n = 0) {
+  clearTimeout(chatTimer); chatTimer = 0;
+  if (!store || n > 36) return;
+  chatTimer = setTimeout(async () => {
+    chatTimer = 0;
+    try { await store.chatRefresh(); if (chatBusy(book)) chatPoll(n + 1); else await store.load(); }
+    catch { chatPoll(n + 1); }
+  }, 5000);
 }
 function showState() {
   if (!host) return;
@@ -74,6 +99,7 @@ function showState() {
   host.querySelector('.fin-cols').hidden = !ok;
   host.querySelector('.fin-sum').hidden = !ok;
   host.querySelector('.fin-glance').hidden = !ok;
+  host.querySelector('.fin-chat').hidden = !ok || !chatOn(book);
   host.querySelector('.fin-settle').hidden = !ok;
 }
 const session=createFinSession({open:openFinStore,processInbox:true,onBook:b=>{book=b||{entries:{},sales:{},meta:{}};loaded=!!b;draw();if(!b&&host){const old=host.querySelector('.fin-form'),fresh=old.cloneNode(false);old.replaceWith(fresh);mountEntryForm(fresh,{store:()=>store,book:()=>book,source:'manual'});}showState();},onState:(state)=>{showState();const m=host?.querySelector('.fin-login-msg');if(m)m.textContent=state==='loading'?'서버 권한을 확인하고 있어요.':state==='denied'?'이 계정의 공용 장부 접근을 확인하지 못했어요.':'';}});
@@ -84,6 +110,18 @@ function mount(el) {
   mountEntryForm(el.querySelector('.fin-form'), { store: () => store, book: () => book, source: 'manual' });
   bindListActions(el, { store: () => store, book: () => book, onError: m => { el.querySelector('.fin-list-msg').textContent = m; }, onRedraw: draw, onMore: () => { ledgerCount += 20; draw(); } });
   el.addEventListener('change', ev => { const k = ev.target.dataset?.ledger; if (!k) return; filter[k] = ev.target.value; ledgerCount = filter.account || filter.method ? 20 : 8; draw(); });
+  const chatForm = el.querySelector('.fc-form'), chatInput = chatForm.querySelector('textarea');
+  chatForm.addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const btn = chatForm.querySelector('button'), err = el.querySelector('.fc-err'), text = chatInput.value.trim();
+    if (!text || !store) return;
+    btn.disabled = true; err.textContent = '';
+    try { await store.chatSend(text); chatInput.value = ''; chatPoll(); }
+    catch (e) { err.textContent = e.message; }
+    finally { btn.disabled = false; }
+  });
+  // Enter = 보내기 · Shift+Enter = 줄 바꿈(한글 조합 중 Enter는 무시)
+  chatInput.addEventListener('keydown', ev => { if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); chatForm.requestSubmit(); } });
   el.querySelector('.fin-signin').addEventListener('click', async () => { try { await signIn(); } catch (err) { el.querySelector('.fin-login-msg').textContent = err.message; } });
   showState(); draw();
 }

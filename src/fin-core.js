@@ -125,7 +125,8 @@
     // A confirmed capital inflow is not a taxable sale or an input-VAT item.
     // Keep an explicit AI review, but do not request VAT review for this case.
     const capitalIn=e.kind === 'in' && e.category === OWNER_IN;
-    if (e.ai?.status === 'review' || (e.ai?.status === 'applied' && e.vatTreatment === 'review' && !capitalIn)) r.push('AI 확인');
+    // 위 채팅창에서 사장님이 직접 말해 분류한 줄(ai.source 'chat')은 직접 분류와 같게 본다 — 다시 '확인'을 받지 않음(사장님 11/3).
+    if (e.ai?.status === 'review' || (e.ai?.status === 'applied' && e.vatTreatment === 'review' && !capitalIn && e.ai?.source !== 'chat')) r.push('AI 확인');
     if (e.check) r.push('확인');   // 가져올 때 적어 둔 '확인할 것'(받는 통장 등) — '확인함'을 누르면 빠짐
     return r;
   }

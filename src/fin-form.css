@@ -119,3 +119,20 @@
 .glance-foot{display:block;font-size:11px;color:var(--fsub);margin-top:2px}
 .glance-table thead th{text-align:left}
 .glance-table thead th:nth-child(3){text-align:right}
+/* 위 채팅창 — AI에게 말하기(사장님 11/3) */
+.fin-chat{margin:0 0 14px;padding:12px 14px;border:1px solid var(--fline);border-radius:12px;background:#fffdf7}
+.fin-chat h3{margin:0 0 8px;font-size:15px}
+.fin-chat h3 small{font-size:11px;font-weight:400;color:var(--fsub);margin-left:6px}
+.fc-log{max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
+.fc-msg{max-width:85%;padding:8px 10px;border-radius:10px;font-size:13px;line-height:1.5}
+.fc-msg p{margin:0;white-space:pre-wrap;word-break:break-word;color:inherit;font-size:13px}
+.fc-me{align-self:flex-end;background:#174d3c;color:#fff}
+.fc-ai{align-self:flex-start;background:#f3efe3;color:var(--fink)}
+.fc-ai ul{margin:6px 0 0;padding-left:0;list-style:none;font-size:12px}
+.fc-ai li{margin:2px 0}
+.fc-ai li.fc-skip{color:var(--fsub)}
+.fc-empty,.fc-wait{margin:0;font-size:12px;color:var(--fsub)}
+.fc-form{display:flex;gap:8px;align-items:flex-end}
+.fc-form textarea{flex:1 1 auto;width:auto;min-width:0;min-height:44px;resize:vertical;font:inherit;font-size:14px;padding:8px 10px;border:1px solid var(--fline);border-radius:8px}
+.fin-chat .fc-form button{flex:0 0 auto;width:auto;min-width:76px;margin:0;font-size:14px;padding:10px 16px}
+.fc-note{margin:6px 0 0;font-size:11px;color:var(--fsub)}

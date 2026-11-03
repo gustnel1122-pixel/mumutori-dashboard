@@ -2,7 +2,7 @@
 // SDK 없이 REST + ID 토큰(fbauth.dbUrl). 쓰기는 '한 줄' 단위(PUT entries/<id>) — 칸 전체를 덮어쓰지 않는다.
 // 시험: window.__MMT_TEST_FIN__ = {entries:{}, sales:{}, meta:{}} 가 있으면 네트워크 없이 메모리에서만 읽고 쓴다.
 import { dbUrl } from './fbauth.js?v=access20261028';
-import { requestAi, manualCategory, undoAi } from './fin-classify.js?v=undo-20261027';
+import { requestAi, manualCategory, undoAi, cleanNote } from './fin-classify.js?v=undo-20261027';
 
 export const ROOT = 'hub/financeV1';
 // 칸 자리(1단계에서 쓰는 것: entries · receipts · meta, 2단계 · 알림 입구가 채울 것: sales · inboxSeen · imports · recon · legacy)
@@ -304,6 +304,22 @@ export function openFinStore({ root = ROOT, onChange, onStatus } = {}) {
     requestAi(id, note) { return changeEntry(id, (e,now) => requestAi(e,note,'req_'+(globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)),now)); },
     setCategory(id, category) { return changeEntry(id,(e,now) => manualCategory(e,category,now)); },
     undoAi(id) { return changeEntry(id,(e,now) => undoAi(e,now)); },
+    // 위 채팅창(사장님 11/3 '항목마다가 아니라 채팅으로'): 보낸 말 한 줄 = meta/aiChat/msgs/<id>. Apps Script가 1분마다 읽고 답 · 분류를 같은 칸에 적는다.
+    async chatSend(text) {
+      const clean = cleanNote(text);
+      if (!clean) throw Error('무엇인지 한 줄 적어 주세요.');
+      const id = 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      const msg = { id, by: 'owner', at: new Date().toISOString(), text: clean, state: 'new' };
+      await req('PUT', `meta/aiChat/msgs/${id}`, msg);
+      const chat = book.meta?.aiChat || {};
+      book = { ...book, meta: { ...book.meta, aiChat: { ...chat, msgs: { ...(chat.msgs || {}), [id]: msg } } } }; emit();
+      return id;
+    },
+    async chatRefresh() {
+      const chat = await req('GET', 'meta/aiChat');
+      book = { ...book, meta: { ...book.meta, aiChat: chat || undefined } }; emit();
+      return chat;
+    },
     book: () => clone(book),
     async listPcCollectorReview(key){
       const {data}=await readFinance(),checked=await validatePcReview(data,key);
