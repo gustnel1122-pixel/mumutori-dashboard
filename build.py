@@ -74,7 +74,7 @@ preview=(R/'src/products-v4-shell.html').read_text(encoding='utf-8').replace('{{
 quick=(R/'src/quick-shell.html').read_text(encoding='utf-8').replace('{{PWA_HEAD}}',PWA_HEAD).replace('{{VERSION}}',version).replace('</head>',NOTICE_TAGS+'</head>')
 (R/'quick.html').write_text(quick,encoding='utf-8',newline=chr(10))
 # Public operations pages share versioned source templates; keep their source in src.
-operations_pages={'store-opening':'store-opening-shell.html','project-hub':'project-hub-shell.html'}
+operations_pages={'store-opening':'store-opening-shell.html','project-hub':'project-hub-shell.html','qr':'qr-shell.html'}   # qr: QR 현황(11/4 사장님) — 레터 사이트 go/ 넘김 페이지만 읽음
 # Keep old bookmarks as network-only redirects; checklist code lives in the project repo.
 redirect_pages={'palsibo-shopping':'shopping-redirect-shell.html'}
 for name,template in {**operations_pages,**redirect_pages}.items():

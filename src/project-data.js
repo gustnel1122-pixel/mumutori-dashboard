@@ -7,7 +7,7 @@ export const PROJECT_UPDATED_AT=PROJECT_FEED?.checkedAt||'2026-10-27';
 export const PROJECT_CHECK_NOTE='큰 프로젝트 11개 · '+PROJECT_UPDATED_AT.slice(5).replace('-','/')+' 점검';
 export const PALSIBO_SHOPPING={href:'https://gustnel1122-pixel.github.io/mumutori-offline-pages/'};
 const links={
-offline:[['공동 매장 작업판','https://gustnel1122-pixel.github.io/mumutori-offline-pages/']],
+offline:[['공동 매장 작업판','https://gustnel1122-pixel.github.io/mumutori-offline-pages/'],['QR 현황','qr.html']],
 letter:[['레터 운영 허브','letter-hub.html'],['인쇄 편지 작성','https://letter.mumutori.com/print.html'],['대필 편지 작성','https://letter.mumutori.com/ghost.html']],
 mall:[['자사몰','https://mumutori.com']],smartstore:[['스마트스토어','https://smartstore.naver.com/mumutori_market']],
 coupang:[['판매·정산','sales.html'],['물류·재고','stock.html']],

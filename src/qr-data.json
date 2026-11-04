@@ -1,0 +1,61 @@
+{
+  "checkedAt": "2026-11-04",
+  "rule": "인쇄된 QR은 못 바꿔요. letter.mumutori.com/go/… 주소로 찍은 QR만 '가는 곳'을 나중에 바꿀 수 있어요 — 새 QR은 꼭 go/ 주소로 만들어요.",
+  "howToChange": "가는 곳 바꾸기: 레터 사이트 go/이름/index.html 의 주소 한 곳만 바꿔서 배포 담당이 올려요(총괄에게 '○○ QR을 어디로 바꿔'라고 하면 됨). 이 화면은 그 파일을 직접 읽어 '지금 실제로 가는 곳'을 보여 줘요.",
+  "items": [
+    {
+      "id": "table",
+      "place": "매장 테이블 판 6장 — 밤 칸 오른쪽 위",
+      "caption": "QR 아래 글: 무무토리 알아보기",
+      "qr": "https://letter.mumutori.com/go/table/",
+      "go": "go/table/",
+      "dest": "https://pf.kakao.com/_lqpZX",
+      "destName": "카카오톡 채널 '무무토리 상점'",
+      "kind": "printed",
+      "status": "인쇄 주문함 (11/3 인터프로 · 포맥스 2T)",
+      "plan": "나중에 무무토리 소개 랜딩페이지로 바꾸기 — QR은 그대로, 가는 곳만 (11/2 사장님 '같은 QR인데 랜딩페이지만 나중에 교체')",
+      "history": [["11/2", "인스타그램 → 카카오톡 채널로 (인쇄 전에 바꿈)"]]
+    },
+    {
+      "id": "counter-letter",
+      "place": "카운터 판 2 '무무토리 레터' — 오른쪽 위",
+      "caption": "레터 서비스 설명 판 (76.8 × 63.4cm)",
+      "qr": "https://letter.mumutori.com/",
+      "dest": "https://letter.mumutori.com/",
+      "destName": "무무토리 레터서비스 첫 화면",
+      "kind": "draft",
+      "status": "시안 · 아직 발주 전",
+      "plan": "발주 전에 QR 주소를 letter.mumutori.com/go/letter 로 바꾸는 걸 추천 — 그래야 나중에 가는 곳만 바꿀 수 있어요"
+    },
+    {
+      "id": "toss-bg",
+      "place": "토스 POS 손님 화면 배경 2 '무무토리 레터'",
+      "caption": "800 × 1280 화면 그림",
+      "qr": "https://letter.mumutori.com/",
+      "dest": "https://letter.mumutori.com/",
+      "destName": "무무토리 레터서비스 첫 화면",
+      "kind": "screen",
+      "status": "화면 그림 — 바꾸면 그림만 다시 넣으면 돼요",
+      "plan": "다음에 그림을 바꿀 때 go/letter 주소로 맞추기"
+    },
+    {
+      "id": "receipt",
+      "place": "영수증 아래 한 줄 (QR 아님)",
+      "caption": "'무무토리 레터 letter.mumutori.com' 글자",
+      "qr": "",
+      "dest": "https://letter.mumutori.com/",
+      "destName": "무무토리 레터서비스 첫 화면",
+      "kind": "text",
+      "status": "글자 주소 — 손님이 직접 쳐서 들어옴"
+    },
+    {
+      "id": "photo-video",
+      "place": "진격 영상 '영상 받기' · 사진 부스 QR",
+      "caption": "창문 영상 · 사진 찍고 카카오 채널로 받기",
+      "qr": "",
+      "kind": "plan",
+      "status": "기획 중 — 주소 아직 없음",
+      "plan": "정해지면 go/ 주소로 만들기 (예: go/photo)"
+    }
+  ]
+}

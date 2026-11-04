@@ -1,0 +1,36 @@
+/* QR 현황 (11/4) — 운영 페이지(ops-*) 위에 카드만 더함 */
+.qr-rule{background:#fffdf7;border:1px solid #dddccf;border-left:4px solid #8fb064;border-radius:12px;padding:16px 18px;margin-bottom:22px;display:grid;gap:6px}
+.qr-rule b{font-size:11px;letter-spacing:.3px;color:#6d7b4e}
+.qr-rule p{margin:0;font-size:14px;line-height:1.7;color:#3d5d35;word-break:keep-all}
+.qr-rule .qr-how{font-size:12.5px;color:#75816a}
+.qr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.qr-card{min-width:0;background:#fffdf7;border:1px solid #dddccf;border-radius:15px;padding:20px 20px 16px;display:grid;gap:10px;align-content:start}
+.qr-card.is-plan,.qr-card.is-text{background:#faf8f0}
+.qr-top{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.qr-kind{font-size:11px;font-weight:700;border-radius:999px;padding:2px 10px;background:#e9eee0;color:#3d5d35}
+.is-printed .qr-kind{background:#174d3c;color:#fff}
+.is-draft .qr-kind{background:#f6e6bf;color:#7a4b12}
+.is-plan .qr-kind{background:#ece9df;color:#7b7666}
+.qr-tag{font-size:11px;border-radius:6px;padding:1px 8px}
+.qr-tag.ok{background:#e1ead8;color:#3f5c2f}
+.qr-tag.warn{background:#f7e0d5;color:#9a3b1b}
+.qr-card h2{font-size:17px;letter-spacing:-.4px;line-height:1.45;color:#294f3c;margin:0;word-break:keep-all}
+.qr-cap{margin:-4px 0 0;font-size:12.5px;color:#7b8771;line-height:1.6}
+.qr-dl{margin:0;display:grid;gap:8px}
+.qr-dl>div{display:grid;grid-template-columns:5.5em minmax(0,1fr);gap:10px;align-items:baseline}
+.qr-dl dt{font-size:11.5px;font-weight:650;color:#87917c}
+.qr-dl dd{margin:0;font-size:14px;color:#3d5133;line-height:1.55;min-width:0;overflow-wrap:anywhere;word-break:keep-all}
+.qr-dl dd a{color:#2f6a4c;font-weight:600;text-decoration:underline;text-underline-offset:3px}
+.qr-dl dd small{display:block;font-size:11.5px;color:#93a183;font-family:ui-monospace,Consolas,monospace}
+.qr-none{color:#a0a493}
+.qr-live{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;line-height:1.6;border-radius:9px;padding:9px 11px;background:#f1f3e8;color:#5c6b51}
+.qr-live-dot{width:9px;height:9px;border-radius:50%;background:#c9cdb8;flex:none;margin-top:5px}
+.qr-live.is-same{background:#e7f0dc;color:#3f5c2f}.qr-live.is-same .qr-live-dot{background:#5b9a3c}
+.qr-live.is-diff{background:#f7e0d5;color:#9a3b1b}.qr-live.is-diff .qr-live-dot{background:#c2410c}
+.qr-live.is-unknown .qr-live-dot{background:#b9a35a}
+.qr-plan{background:#eef0de;border-radius:9px;padding:11px 13px}
+.qr-plan span{font-size:10px;font-weight:750;letter-spacing:.3px;color:#6d7b4e}
+.qr-plan p{margin:4px 0 0;font-size:13px;line-height:1.65;color:#3d5d35;word-break:keep-all}
+.qr-hist summary{cursor:pointer;font-size:12px;color:#75816a}
+.qr-hist ul{margin:6px 0 0;padding-left:18px;font-size:12.5px;color:#5c6b51;line-height:1.7}
+@media(max-width:720px){.qr-grid{grid-template-columns:1fr;gap:12px}.qr-card{padding:18px 16px 14px;border-radius:12px}.qr-card h2{font-size:16px}}
