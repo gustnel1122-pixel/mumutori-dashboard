@@ -24,7 +24,7 @@ try{S.showHidden=sessionStorage.getItem(HIDDEN_KEY)==='1';}catch(e){}
 const negative=r=>!!(r.mark?.design||r.mark?.price);
 let ctx=null,started=false,source=null,pollTimer=null,searchTimer=null,rendering=false;
 const committing=new Map();   // 저장 중인 수량(줄 → 수량) — 같은 값을 두 번 보내지 않는다
-if(['items','reorder','orders','cart'].includes(new URLSearchParams(location.search).get('tab')))S.tab=new URLSearchParams(location.search).get('tab');   // 구매·원가 화면의 '재발주 준비' 링크로 들어온 경우
+if(['items','reorder','orders','cart','archive'].includes(new URLSearchParams(location.search).get('tab')))S.tab=new URLSearchParams(location.search).get('tab');   // 구매·원가 화면의 '재발주 준비' 링크로 들어온 경우
 const STATUS={connecting:['연결 중','',''],ok:['실시간 연결됨 · 다른 기기·Claude와 같이 봅니다','ok',''],retry:['연결이 끊겨 다시 잇는 중','bad',''],poll:['실시간 연결이 안 돼 20초마다 새로 읽는 중','bad',''],denied:['Firebase 규칙이 아직 열리지 않았습니다','bad','']};
 const FILTERS=['전체','안 본 것','💗 좋아요','👎 디자인 별로','💸 가격 별로'];
 
@@ -167,6 +167,14 @@ function chosenVisual(l,it={},cls='sx-cart-img',linked=true){
  return `<div class="sx-chosen-photo">${photoLink(url,img(f.url,120,cls),cap)}${zoom(f.url,'확대',{cap,spec:l.spec,rep:f.rep,cls:'sx-photo-expand'})}<small>${esc(f.label)}</small></div>`;
 }
 const isAdmitted=r=>recommendable(r.id,r,S.tree?.marks||{});
+// 보관(2026-11-03 사장님: "후보에 있는 건 언제까지 후보에 둘 거야?"): 후보에 올린 지 7일 안에 💗/👎/💸·한마디가 없으면 소싱 담당이 marks/<상품>/archive에 적는다. 지우지 않고, '보관' 탭에서 꺼내면 후보로 돌아온다.
+const archived=r=>!!r.mark?.archive?.active;
+function archiveTab(){
+ const rows=itemRows().filter(archived).sort((a,b)=>String(b.mark.archive.at||'').localeCompare(String(a.mark.archive.at||'')));
+ const day=v=>{const d=new Date(v);return isNaN(d)?'':d.toLocaleDateString('ko-KR',{timeZone:'Asia/Seoul',month:'numeric',day:'numeric'});};
+ return `<div class="note">후보에 올린 지 7일 안에 💗·👎·💸·한마디가 없으면 여기로 옮겨요. 지우지 않았고, '후보로 꺼내기'를 누르면 다시 후보에 나와요(꺼낸 날부터 7일 다시 셉니다).</div>
+ <div class="sx-review-list">${rows.map(r=>{const a=r.mark.archive;return `<article class="sx-review-card">${zoom(r.img,img(r.img,120,'sx-cart-img'),{cap:r.name})}<b>${esc(r.name)}</b><small>${esc(r.cat||'')}</small><small>${esc(day(a.at))} 보관 · ${esc(a.reason||'')}</small><button type="button" data-sx="unarchive" data-id="${esc(r.id)}">후보로 꺼내기</button></article>`;}).join('')||'<div class="empty"><b>보관한 상품이 없습니다.</b></div>'}</div>`;
+}
 function excludedTab(){
  const t=S.tree||{},rows=Object.entries(t.marks||{}).filter(([,m])=>m.exclusion).sort((a,b)=>String(b[1].exclusion.at||'').localeCompare(String(a[1].exclusion.at||'')));
  return `<div class="note">추천에서만 제외합니다. 기존 상품·표시·장바구니·신청 이력은 보존합니다. 복구해도 검수 요건은 다시 확인하며, 기존 👎 표시는 그대로입니다.</div><div class="sx-review-list">${rows.map(([mid,m])=>{const x=m.exclusion,it=t.items?.[mid]||Object.values(t.items||{}).find(it=>identity('',it.url)===x.identity)||{};return `<article class="sx-review-card"><b>${esc(it.name||x.name||mid)}</b><span class="badge ${x.active?'red':'green'}">${x.active?'추천 제외':'복구됨'}</span><p>${esc(x.memo||x.reason||'사유 미기록 · 상품만 제외')}</p><p>${list(x.reasons).map(r=>esc(r.label||r.dimension)).join(' · ')}</p><small>${x.active&&x.applyNext?'구체 선호를 다음 후보에도 적용':'상품만 제외 · 선호 자동 확대 없음'}</small><button type="button" data-sx="exclude" data-id="${esc(mid)}">사유·범위 수정</button><small>${x.restoredAt?'복구 '+esc(x.restoredAt)+' · ':''}${esc(x.at||'')} · ${esc(x.by||'')} · ${esc(x.identity||'')}</small><p>${list(m.exclusionEvents).map(e=>esc((e.action==='restore'?'복구':'제외')+' · '+e.at+' · '+e.by)).join('<br>')}</p><a href="${esc(x.sourceUrl||originalUrl(mid,it.url))}" target="_blank" rel="noopener">원본 상품</a>${x.active?`<button type="button" data-sx="restore" data-id="${esc(mid)}">추천 제외 복구</button>`:''}</article>`;}).join('')||'<p>추천 제외 내역이 없습니다.</p>'}</div>`;
@@ -229,7 +237,7 @@ function setCard(id,s,items){
     <input class="sx-note" id="sx-sn-${esc(id)}" data-sx-setnote="${esc(id)}" maxlength="300" placeholder="세트에 한마디" value="${esc(mk.note||'')}"></article>`;
 }
 function itemsTab(){
-  const t=S.tree||{},all=itemRows().filter(isAdmitted),{hidden,cartIds}=hiddenRows(all),wantNeg=S.filter==='👎 디자인 별로'||S.filter==='💸 가격 별로';
+  const t=S.tree||{},all=itemRows().filter(isAdmitted).filter(r=>!archived(r)),{hidden,cartIds}=hiddenRows(all),wantNeg=S.filter==='👎 디자인 별로'||S.filter==='💸 가격 별로';
   const rows=filtered(wantNeg?all:all.filter(r=>!hidden.includes(r))),hiddenShown=S.showHidden&&!wantNeg?filtered(hidden):[],rounds=Object.entries(t.rounds||{}).sort((a,b)=>String(b[1].date||'').localeCompare(String(a[1].date||'')));
   const cats=[...new Set(all.map(r=>r.cat).filter(Boolean))];
   const count=f=>all.filter(f).length;
@@ -377,7 +385,7 @@ function quoteBar(){
     <button type="button" class="sx-q-cart" data-sx="tab" data-id="cart">장바구니에서 수량 바꾸기</button></div>`:'';
   return `<div class="sx-quote" role="region" aria-label="실시간 예상 견적">${head}${warns?`<div class="sx-q-warns">${warns}</div>`:''}${detail}</div>`;
 }
-function visibleCount(){const all=itemRows().filter(isAdmitted);return all.length-(S.showHidden?0:hiddenRows(all).hidden.length);}
+function visibleCount(){const all=itemRows().filter(isAdmitted).filter(r=>!archived(r));return all.length-(S.showHidden?0:hiddenRows(all).hidden.length);}
 function view(){
   const [label,tone]=STATUS[S.status]||STATUS.connecting,t=S.tree||{};
   const who=S.user?`<span class="sx-who">검수 요청 계정 ${esc(S.user.email)} · <button type="button" class="text" data-sx="logout">로그아웃</button></span>`:`<span class="sx-who"><button type="button" class="text" data-sx="login">구글 로그인(검수 요청용)</button></span>`;
@@ -385,8 +393,8 @@ function view(){
   if(S.status==='denied')return status+`<div class="note error">소싱 자료를 읽을 권한이 없습니다. Firebase 규칙에 <code>sourcing</code> 칸이 열려 있어야 합니다.</div>`;
   if(!S.tree)return status+`<div class="note">소싱 자료를 불러오는 중입니다.</div>`;
   const nCart=openLines().length,nSent=sentLines().length,nRule=Object.values(t.taste||{}).filter(r=>r.active!==false).length;
-  const tabs=`<div class="chips">${[['items','후보 '+visibleCount()],['cart','장바구니 '+nCart],['orders','발주 진행 '+nSent],['reorder','재발주 준비 '+reorderCount(t)],['taste','취향 규칙 '+nRule],['review','검토 대기 '+itemRows().filter(r=>!exclusion(r.id,r,t.marks||{})&&!isAdmitted(r)).length],['excluded','삭제 내역 '+Object.values(t.marks||{}).filter(m=>m.exclusion?.active).length]].map(([id,l])=>`<button type="button" class="chip ${S.tab===id?'active':''}" data-sx="tab" data-id="${id}">${esc(l)}</button>`).join('')}</div>`;
-  return status+tabs+(S.tab==='cart'?cartTab():S.tab==='orders'?ordersTab():S.tab==='taste'?tasteTab():S.tab==='review'?reviewTab():S.tab==='excluded'?excludedTab():S.tab==='reorder'?reorderTab(t,{img,yuan}):itemsTab())+quoteBar();
+  const tabs=`<div class="chips">${[['items','후보 '+visibleCount()],['cart','장바구니 '+nCart],['orders','발주 진행 '+nSent],['archive','보관 '+itemRows().filter(archived).length],['reorder','재발주 준비 '+reorderCount(t)],['taste','취향 규칙 '+nRule],['review','검토 대기 '+itemRows().filter(r=>!exclusion(r.id,r,t.marks||{})&&!isAdmitted(r)).length],['excluded','삭제 내역 '+Object.values(t.marks||{}).filter(m=>m.exclusion?.active).length]].map(([id,l])=>`<button type="button" class="chip ${S.tab===id?'active':''}" data-sx="tab" data-id="${id}">${esc(l)}</button>`).join('')}</div>`;
+  return status+tabs+(S.tab==='cart'?cartTab():S.tab==='orders'?ordersTab():S.tab==='taste'?tasteTab():S.tab==='review'?reviewTab():S.tab==='excluded'?excludedTab():S.tab==='archive'?archiveTab():S.tab==='reorder'?reorderTab(t,{img,yuan}):itemsTab())+quoteBar();
 }
 function refresh(){
   const root=document.getElementById('sx-root');if(!root)return;
@@ -442,6 +450,11 @@ async function onClick(e){
     if(sx==='copy'){const ok=await copyText(el.dataset.text||'');notify(ok?'1688 옵션명을 복사했습니다 — 1688 페이지에서 Ctrl+F(휴대폰은 페이지 내 찾기)로 붙여 넣어 찾으세요.':'복사하지 못했습니다 — 회색 글자를 길게 눌러 직접 복사해 주세요.',!ok);return;}
     if(sx==='sku-review'){await requestSku(id);return;}
     if(sx==='exclude'){openReasons(id,el);return;}
+    if(sx==='unarchive'){
+      const old=S.tree.marks?.[id]?.archive;if(!old||pendingActions.has('unarchive:'+id))return;pendingActions.add('unarchive:'+id);
+      try{await send('PATCH','marks/'+id,{archive:{...old,active:false,restoredAt:now(),restoredBy:'사장님 보드'}});}finally{pendingActions.delete('unarchive:'+id);}
+      notify('후보로 꺼냈습니다. 오늘부터 7일 다시 셉니다.');return;
+    }
     if(sx==='restore'){
       const old=S.tree.marks?.[id]?.exclusion;if(!old)return;
       if(pendingActions.has('restore:'+id))return;pendingActions.add('restore:'+id);
