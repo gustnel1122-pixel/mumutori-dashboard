@@ -20,12 +20,25 @@
       "id": "counter-letter",
       "place": "카운터 판 2 '무무토리 레터' — 오른쪽 위",
       "caption": "레터 서비스 설명 판 (76.8 × 63.4cm)",
-      "qr": "https://letter.mumutori.com/",
+      "qr": "https://letter.mumutori.com/go/letter/",
+      "go": "go/letter/",
       "dest": "https://letter.mumutori.com/",
       "destName": "무무토리 레터서비스 첫 화면",
       "kind": "draft",
-      "status": "시안 · 아직 발주 전",
-      "plan": "발주 전에 QR 주소를 letter.mumutori.com/go/letter 로 바꾸는 걸 추천 — 그래야 나중에 가는 곳만 바꿀 수 있어요"
+      "status": "발주 파일 QR을 go/letter로 바꾸는 중 · 인터프로 주문 전",
+      "plan": "QR은 go/letter — 나중에 가는 곳만 바꿀 수 있어요 (11/4 사장님 '큐알 규칙대로 바꿔')"
+    },
+    {
+      "id": "standee",
+      "place": "매장 앞 A형 입간판 600×900 — 레터 판",
+      "caption": "입간판 레터 판의 작은 QR",
+      "qr": "https://letter.mumutori.com/go/standee/",
+      "go": "go/standee/",
+      "dest": "https://letter.mumutori.com/",
+      "destName": "무무토리 레터서비스 첫 화면",
+      "kind": "draft",
+      "status": "시안 · 아직 발주 전 (포맥스 5T 2장)",
+      "plan": "QR은 go/standee — 나중에 가는 곳만 바꿀 수 있어요"
     },
     {
       "id": "toss-bg",
