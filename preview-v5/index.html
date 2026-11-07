@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ko" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>상품 관리 미리보기</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="band"><div class="wrap">
+    <h1>상품 관리</h1>
+    <div class="sub"><span class="pill demo">v5 미리보기</span><span class="pill note">상품과 숫자는 모두 가상의 예시입니다. 바꾼 내용은 저장되지 않아요.</span></div>
+    <div class="tabs" role="tablist" aria-label="상품 관리 구분">
+      <button class="tab" role="tab" id="tab-p" data-tab="p" aria-selected="true" aria-controls="view-p">상품<span class="n" id="cnt-p"></span></button>
+      <button class="tab" role="tab" id="tab-s" data-tab="s" aria-selected="false" aria-controls="view-s">세트<span class="n" id="cnt-s"></span></button>
+      <button class="tab" role="tab" id="tab-m" data-tab="m" aria-selected="false" aria-controls="view-m">부자재<span class="n" id="cnt-m"></span></button>
+    </div>
+  </div></header>
+  <main class="main"><div class="wrap layout"><div class="preview-content">
+    <section id="view-p" role="tabpanel" aria-labelledby="tab-p">
+      <div class="filters" id="filters"></div><div class="summary" id="sum-p"></div><p id="product-error" role="alert"></p><div class="grid" id="grid-p"></div>
+    </section>
+    <section id="view-s" role="tabpanel" aria-labelledby="tab-s" hidden>
+      <div class="summary" id="sum-s"></div><div class="grid" id="grid-s"></div>
+      <div class="box form-box"><h3>세트 만들기</h3>
+        <form class="form" id="setform">
+          <label>세트 이름 <input type="text" id="sf-name" required maxlength="80" placeholder="세트 이름"></label>
+          <fieldset id="sf-items"><legend>구성품 고르기</legend></fieldset>
+          <fieldset id="sf-pack"><legend>포장 부자재 고르기</legend></fieldset>
+          <label>세트 판매가 <input type="number" id="sf-price" min="0" step="1" required> 원</label>
+          <div class="calc" id="sf-calc" aria-live="polite"></div>
+          <div class="hint">구성품의 재고를 기준으로 만들 수 있는 수량을 계산합니다. 실제 재고는 바뀌지 않아요.</div>
+          <div><button class="btn pri" type="submit">세트 추가</button></div>
+        </form>
+      </div>
+    </section>
+    <section id="view-m" role="tabpanel" aria-labelledby="tab-m" hidden>
+      <div class="summary" id="sum-m"></div><div class="tablewrap"><table id="tbl-m"></table></div>
+      <form class="box form form-box" id="mform"><h3>새 부자재 등록</h3>
+        <div class="material-fields">
+          <label>이름 <input type="text" id="mf-name" maxlength="80" required></label>
+          <label>종류 <select id="mf-kind"><option value="item">상품에 붙음</option><option value="pack">포장</option></select></label>
+          <label>단가 <input type="number" id="mf-price" min="0" step="1" required> 원</label>
+          <label>재고 <input type="number" id="mf-stock" min="0" step="1" required></label>
+          <label>부족 기준 <input type="number" id="mf-min" min="0" step="1" required></label>
+          <button class="btn pri" type="submit">등록</button>
+        </div><p id="material-error" role="alert"></p><div class="hint">여기 등록한 것만 상품의 부자재 연결 칸에 나와요.</div>
+      </form>
+    </section>
+  </div><aside class="side">
+    <div class="box"><h3>미리보기 안내</h3><p class="empty">이 화면의 자료와 편집 내용은 실제 장부에 반영되지 않아요.</p></div>
+    <div class="box"><h3>색 읽는 법</h3><div class="legend">
+      <span><i class="sw good-dot"></i>최소 ROAS 250% 이하</span>
+      <span><i class="sw warn-dot"></i>250~400%</span>
+      <span><i class="sw bad-dot"></i>400% 넘음 또는 확인 필요</span>
+      <span>소진율 = (입고 수량 − 지금 재고) ÷ 입고 수량</span></div>
+      <p class="hint">최소 ROAS = 판매가 ÷ (정산금 − 원가). 스마트스토어 수수료 6.62% · 자사몰 3.63%로 계산합니다.</p>
+    </div>
+  </aside></div></main>
+  <script type="module" src="./app.js"></script>
+</body></html>
