@@ -41,6 +41,18 @@
       "plan": "QR은 go/standee — 나중에 가는 곳만 바꿀 수 있어요"
     },
     {
+      "id": "bcard",
+      "place": "무무토리 컴퍼니 명함 90×50 리넨 하드 — 뒷면",
+      "caption": "명함 뒤 연락처 옆 QR",
+      "qr": "https://letter.mumutori.com/go/bcard/",
+      "go": "go/bcard/",
+      "dest": "https://mumutori.com/",
+      "destName": "무무토리 상점 첫 화면",
+      "kind": "draft",
+      "status": "오프린트미 주문 중(사장님)",
+      "plan": "QR은 go/bcard — 나중에 QR 이벤트 페이지로 가는 곳만 바꿔요 (11/7 사장님 '변경가능한 큐알')"
+    },
+    {
       "id": "toss-bg",
       "place": "토스 POS 손님 화면 배경 2 '무무토리 레터'",
       "caption": "800 × 1280 화면 그림",
