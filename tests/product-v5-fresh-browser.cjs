@@ -49,6 +49,37 @@ async function main(){
       process.stdout.write(`fresh synthetic ${width}px PASS\n`);
     }
     {
+      const page=await browser.newPage(); let saved=null, value=structuredClone(data), puts=0;
+      Object.assign(value.products[0].receipts[1],{status:'확인 필요',memo:'가상 오류입고 — 확인 필요'});
+      await page.route('**/*',async route=>{
+        const req=route.request(),url=req.url();
+        if(url.startsWith(base+'/src/fbauth.js')) return route.fulfill({status:200,contentType:'text/javascript',body:`const u={uid:'fake'};export const current=()=>u;export const onAuth=f=>{queueMicrotask(()=>f(u));return()=>{}};export const signIn=async()=>{};export const dbUrl=async p=>location.origin+'/mock/'+p;`});
+        if(url.startsWith(base+'/mock/')) {
+          assert.ok(url.endsWith('/productCatalogPrivate/products_v5'));
+          if(req.method()==='PUT'){puts++;saved=JSON.parse(req.postData());value=saved;}
+          return route.fulfill({status:200,contentType:'application/json',headers:{ETag:'"fake"'},body:JSON.stringify(value)});
+        }
+        if(url.startsWith(base+'/')) return route.continue(); return route.abort();
+      });
+      await page.goto(base+'/preview-v5/fresh.html');
+      await page.locator('#grid-p .card').first().waitFor();
+      assert.equal(await page.getByText('입고 확인 필요',{exact:true}).count(),1);
+      await page.locator('button[data-group="status"][data-value="확인 필요"]').click();
+      assert.equal(await page.locator('#grid-p .card').count(),1);
+      await page.getByRole('button',{name:'자세히 (입고 기록)'}).click();
+      assert.match(await page.locator('.record').nth(1).innerText(),/입고일 확인 필요 · 확인 필요/);
+      await page.locator('[data-receipt-edit="1"]').click();
+      const form=page.locator('[data-receipt-form="fake-p1"]');
+      assert.equal(await form.locator('[name=status]').inputValue(),'확인 필요');
+      assert.equal(await form.locator('[name=date]').inputValue(),'');
+      await form.getByRole('button',{name:'기록 저장'}).click();
+      await page.waitForFunction(()=>!document.querySelector('[data-receipt-form="fake-p1"]'));
+      assert.equal(puts,1);assert.equal(saved.products[0].receipts[1].status,'확인 필요');
+      assert.equal(saved.products[0].receipts[1].orderedQuantity,3);assert.equal(saved.products[0].receipts[1].quantity,0);
+      assert.equal(saved.products[0].receipts[1].memo,'가상 오류입고 — 확인 필요');
+      await page.close(); process.stdout.write('fresh synthetic review status filter and save PASS\n');
+    }
+    {
       const page=await browser.newPage(); let oldPaths=0;
       await page.route('**/*',async route=>{
         const url=route.request().url();

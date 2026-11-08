@@ -61,6 +61,21 @@ test('unreceived quantities cannot be mistaken for received inventory',async()=>
   assert.equal(receiptAllocation({...row,quantity:7,saleQuantity:7}),null);
   assert.equal(calcProduct(fixture().products[0],[]).received,10);
 });
+test('확인 필요 입고는 0개 미입고로 보존하며 상태·메모 수정도 안전하게 저장한다', async()=>{
+  const [{createAuthenticatedStore},{freshSchema},{receiptAllocation,calcProduct}]=await modules;
+  const m=mock(); m.serverChange(data=>Object.assign(data.products[0].receipts[1],{status:'확인 필요',memo:'가상 오류입고 — 확인 필요'}));
+  const store=createAuthenticatedStore({auth:m.auth,fetchImpl:m.fetchImpl,schema:freshSchema,allowWrites:true});
+  const before=await store.load(), row=before.products[0].receipts[1];
+  assert.equal(row.date,''); assert.equal(row.status,'확인 필요'); assert.equal(row.orderedQuantity,7);
+  assert.equal(calcProduct(before.products[0],[]).received,10);
+  assert.equal(receiptAllocation({...row,quantity:7,saleQuantity:7}),null);
+  await assert.rejects(store.saveReceipt('new-p1',1,{...row,quantity:7,saleQuantity:7}),/합/);
+  assert.equal(m.writes(),0);
+  await store.saveReceipt('new-p1',1,{...row,memo:row.memo});
+  const after=m.value().products[0].receipts[1];
+  assert.equal(after.status,'확인 필요'); assert.equal(after.date,''); assert.equal(after.memo,row.memo);
+  assert.equal(after.quantity,0); assert.equal(after.orderedQuantity,7); store.stop();
+});
 test('an uninitialized root is never accepted as a catalog',async()=>{
   const [{createAuthenticatedStore},{freshSchema}]=await modules;
   const m=mock(), store=createAuthenticatedStore({auth:m.auth,fetchImpl:async()=>response(null),schema:freshSchema});

@@ -50,7 +50,7 @@ export function createMemoryStore(initial) {
         } catch { throw new Error('1688의 https 링크를 입력해 주세요.'); }
       }
       const status = String(merged.status || '');
-      if (!['', '입고 완료', '배송 중', '배대지 창고', '구매취소'].includes(status)) throw Error('입고 상태를 확인해 주세요.');
+      if (!['', '입고 완료', '배송 중', '배대지 창고', '구매취소', '확인 필요'].includes(status)) throw Error('입고 상태를 확인해 주세요.');
       const entry = {...previous,batch:receipt.batch,date:merged.date || '',orderDate:merged.orderDate || '',status,currency,supplier:String(receipt.supplier || '').trim(),url,unitCost:receipt.unitCost,settlementKrw:receipt.settlementKrw??null,...allocation,memo:String(receipt.memo || '')};
       if ('unitCostCurrency' in previous) entry.unitCostCurrency = currency;
       if (index === null) product.receipts.push(entry); else product.receipts[index] = entry;

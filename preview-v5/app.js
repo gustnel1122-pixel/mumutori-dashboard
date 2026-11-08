@@ -34,7 +34,7 @@ const groups = [
   {key:'batch',label:'입고',values:['1차','2차']},
   {key:'channel',label:'판매처',values:['자사몰','스마트스토어','쿠팡']},
   {key:'kind',label:'종류',values:['인형','생활','소품','기타']},
-  {key:'status',label:'상태',values:['판매 중','판매 준비','구매취소','확인 필요']},
+  {key:'status',label:'상태',values:['판매 중','판매 준비','배송 중','배대지 창고','구매취소','확인 필요']},
 ];
 function roasClass(v) { return v === null || v === undefined ? 'b' : v <= 250 ? 'g' : v <= 400 ? 'w' : 'b'; }
 function renderFilters(){
@@ -44,7 +44,7 @@ function renderFilters(){
       <label><input type="checkbox" id="material-cost" ${state.includeMaterials?'checked':''}> 부자재 원가 포함</label><button type="button" class="btn" id="clear-filters">초기화</button></div>`;
   $('sort').value=state.sort;
 }
-function matching(p){return groups.every(g=>{const selected=state.filters[g.key];if(!selected.size)return true;const value=g.key==='channel'?p.channels:p[g.key];return Array.isArray(value)?value.some(v=>selected.has(v)):selected.has(value);});}
+function matching(p){return groups.every(g=>{const selected=state.filters[g.key];if(!selected.size)return true;if(g.key==='status')return selected.has(p.status)||(p.receipts||[]).some(r=>selected.has(r.status));const value=g.key==='channel'?p.channels:p[g.key];return Array.isArray(value)?value.some(v=>selected.has(v)):selected.has(value);});}
 function ordered(list){
   return [...list].sort((a,b)=>{
     if(state.sort==='name')return a.name.localeCompare(b.name,'ko');
@@ -68,7 +68,7 @@ function receiptPanel(p){
   const form=current?`<form class="receipt-form" data-receipt-form="${esc(p.id)}" data-index="${edit==='new'?'new':edit}"><h4>${edit==='new'?'입고 기록 추가':'입고 기록 수정'}</h4>
     <label>차수 <input type="number" name="batch" min="1" max="999" step="1" required value="${esc(current.batch??'')}"></label>
     <label>입고일 <input type="date" name="date" value="${esc(current.date??'')}"></label><label>발주일 <input type="date" name="orderDate" value="${esc(current.orderDate??'')}"></label>
-    <label>상태 <select name="status">${['','입고 완료','배송 중','배대지 창고','구매취소'].map(s=>`<option value="${esc(s)}" ${s===(current.status||'')?'selected':''}>${esc(s||'확인 필요')}</option>`).join('')}</select></label>
+    <label>상태 <select name="status">${['','입고 완료','배송 중','배대지 창고','구매취소','확인 필요'].map(s=>`<option value="${esc(s)}" ${s===(current.status||'')?'selected':''}>${esc(s||'선택 안 함')}</option>`).join('')}</select></label>
     <label>판매처 <input type="text" name="supplier" maxlength="100" value="${esc(current.supplier??'')}"></label>
     <label>1688 링크 <input type="url" name="url" placeholder="https://...1688.com/..." value="${esc(current.url??'')}"></label>
     <label>단가 통화 <select name="currency" required>${receiptCurrency(current)===null?'<option value="" selected disabled>통화 확인 필요</option>':''}<option value="KRW" ${receiptCurrency(current)==='KRW'?'selected':''}>원 (KRW)</option><option value="CNY" ${receiptCurrency(current)==='CNY'?'selected':''}>위안 (CNY)</option></select></label><label>개당 단가 <input type="number" name="unitCost" min="0" step="0.01" value="${esc(current.unitCost??'')}"></label>
@@ -96,7 +96,7 @@ function linksPanel(p){
 function card(p){
   const c=calculate(p),rate=c.sellRate,bar=rate==null?0:Math.max(0,Math.min(100,rate));
   const attached=(p.links||[]).filter(x=>x.always).map(l=>{const m=materials.find(x=>x.id===l.materialId);return m?`${m.name} ×${l.quantity}`:'연결 확인 필요';});
-  return `<article class="card" data-product="${esc(p.id)}"><div class="ctop"><div class="cname">${picture(p)}<span>${esc(p.name)}</span></div><div class="tags"><span class="pill t-batch">${esc(Array.isArray(p.batch)?p.batch.join(' · '):p.batch)}</span><span class="pill st-on">${esc(p.status)}</span></div></div>
+  return `<article class="card" data-product="${esc(p.id)}"><div class="ctop"><div class="cname">${picture(p)}<span>${esc(p.name)}</span></div><div class="tags"><span class="pill t-batch">${esc(Array.isArray(p.batch)?p.batch.join(' · '):p.batch)}</span><span class="pill st-on">${esc(p.status)}</span>${(p.receipts||[]).some(r=>r.status==='확인 필요')?'<span class="pill st-hold">입고 확인 필요</span>':''}</div></div>
     <div class="chs">${esc((p.channels||[]).join(' · ')||'판매처 확인 필요')}</div>
     <div class="nums"><div class="num"><div class="k">원가</div><div class="v">${money(c.cost)}</div><div class="s">${state.includeMaterials?'부자재 포함':'부자재 제외'}</div></div>
     <div class="num"><div class="k">판매가 <span class="ps ${p.priceStatus==='확정'?'확정':'제안'}">${esc(p.priceStatus||'제안')}</span></div><div class="v">${money(c.price)}</div></div>
