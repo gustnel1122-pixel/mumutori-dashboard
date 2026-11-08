@@ -25,7 +25,7 @@ const goPage = (url) => `<!doctype html><meta http-equiv="refresh" content="0; u
       await page.route(/^https?:\/\/(?!127\.0\.0\.1)(?!letter\.mumutori\.com)/, (r) => r.abort());
       await page.goto(`http://127.0.0.1:${server.address().port}/qr.html`);
       await page.locator('.qr-card').first().waitFor({ timeout: 8000 });
-      assert.equal(await page.locator('.qr-card').count(), 5);
+      assert.equal(await page.locator('.qr-card').count(), 7);
       assert.ok((await page.locator('#qr-table').textContent()).includes('go/table'));
       const live = page.locator('#qr-table .qr-live');
       await page.waitForFunction(() => /is-(same|diff|unknown)/.test(document.querySelector('#qr-table .qr-live').className), null, { timeout: 8000 });
@@ -36,7 +36,7 @@ const goPage = (url) => `<!doctype html><meta http-equiv="refresh" content="0; u
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, 'no overflow');
       if (process.env.QA_OUTPUT) await page.screenshot({ path: path.join(process.env.QA_OUTPUT, `qr-${width}-${name === '기록대로' ? 'same' : name === '기록과 다름' ? 'diff' : 'unknown'}.png`), fullPage: true });
       assert.deepEqual(errs, []);
-      report.push(`${width}px ${name}: 카드 5개 · 테이블 QR go/table 실제 가는 곳 확인 → ${cls.match(/is-\w+/)[0]} · 가로 넘침 없음`);
+      report.push(`${width}px ${name}: 카드 7개 · 테이블 QR go/table 실제 가는 곳 확인 → ${cls.match(/is-\w+/)[0]} · 가로 넘침 없음`);
       await page.close();
     }
   } finally { await browser.close(); server.close(); }
