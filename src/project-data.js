@@ -1,8 +1,10 @@
 // Graph and cards share one AI-maintained public JSON feed.
 const {PROJECT_FEED,resolveProjectId}=await import(`./project-feed.js?v=${document.body.dataset.build||'project-groups-20261027'}`);
 export {resolveProjectId};
-export const OPENING_DATE=PROJECT_FEED?.openingDate||'2026-11-10';
-export const OPENING_LABEL='11/10(화)';
+export const OPENING_DATE=PROJECT_FEED?.openingDate||'2026-11-14';
+const [openingYear,openingMonth,openingDay]=OPENING_DATE.split('-').map(Number);
+const openingWeekday=['일','월','화','수','목','금','토'][new Date(Date.UTC(openingYear,openingMonth-1,openingDay)).getUTCDay()];
+export const OPENING_LABEL=`${openingMonth}/${openingDay}(${openingWeekday})`;
 export const PROJECT_UPDATED_AT=PROJECT_FEED?.checkedAt||'2026-10-27';
 export const PROJECT_CHECK_NOTE='큰 프로젝트 11개 · '+PROJECT_UPDATED_AT.slice(5).replace('-','/')+' 점검';
 export const PALSIBO_SHOPPING={href:'https://gustnel1122-pixel.github.io/mumutori-offline-pages/'};
