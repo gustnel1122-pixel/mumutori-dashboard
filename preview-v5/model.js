@@ -65,25 +65,70 @@ function sumMaterialCost(links, materials, issues) {
   const catalog = catalogById(materials);
   let total = 0;
   for (const link of links) {
-    const cost = numberOrNull(catalog.get(link.materialId).unitCost);
+    const material = catalog.get(link.materialId);
+    if (receiptCurrency(material) !== 'KRW') { issues.push('부자재 원화 단가 확인 필요'); return null; }
+    const cost = numberOrNull(material.unitCost);
     if (cost === null) { issues.push('부자재 단가 확인 필요'); return null; }
     total += cost * positiveInteger(link.quantity);
   }
   return Number.isFinite(total) ? total : null;
 }
 
+export function receiptAllocation(row) {
+  const quantity = positiveInteger(row?.quantity);
+  const saleQuantity = nonnegativeInteger(row?.saleQuantity);
+  const eventQuantity = nonnegativeInteger(row?.eventQuantity);
+  if (quantity === null || saleQuantity === null || eventQuantity === null ||
+      !Number.isSafeInteger(saleQuantity + eventQuantity) || saleQuantity + eventQuantity !== quantity) return null;
+  return {quantity, saleQuantity, eventQuantity};
+}
+
+// Legacy entries were entered in KRW. Unsupported explicit currencies are
+// never guessed or converted into KRW.
+export function receiptCurrency(row) {
+  const primary = row?.currency;
+  const secondary = row?.unitCostCurrency;
+  if (primary !== undefined && primary !== null && primary !== '' &&
+      secondary !== undefined && secondary !== null && secondary !== '' && primary !== secondary) return null;
+  const value = primary === undefined || primary === null || primary === '' ? row?.unitCostCurrency : primary;
+  if (value === undefined || value === null || value === '') return 'KRW';
+  return value === 'KRW' || value === 'CNY' ? value : null;
+}
+
+export function validOptionalDate(value) {
+  if (value === undefined || value === null || value === '') return true;
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(value + 'T00:00:00Z');
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
 export function receiptTotals(receipts) {
-  if (!Array.isArray(receipts) || receipts.length === 0) return {received: null, unitCost: null};
-  let quantity = 0, amount = 0, costsComplete = true;
+  if (!Array.isArray(receipts) || receipts.length === 0) return {received: null, saleReceived: null, eventReceived: null, eventCost: null, unitCost: null};
+  let quantity = 0, saleQuantity = 0, eventQuantity = 0, saleAmount = 0, eventAmount = 0;
+  let allocationsComplete = true, saleCostsComplete = true, eventCostsComplete = true;
   for (const row of receipts) {
     const q = positiveInteger(row?.quantity), c = numberOrNull(row?.unitCost);
-    if (q === null) return {received: null, unitCost: null};
+    if (q === null) return {received: null, saleReceived: null, eventReceived: null, eventCost: null, unitCost: null};
     quantity += q;
-    if (c === null) costsComplete = false;
-    else amount += q * c;
-    if (!Number.isSafeInteger(quantity) || !Number.isFinite(amount)) return {received: null, unitCost: null};
+    const allocation = receiptAllocation(row);
+    if (!allocation) { allocationsComplete = false; continue; }
+    saleQuantity += allocation.saleQuantity;
+    eventQuantity += allocation.eventQuantity;
+    if (c === null || receiptCurrency(row) !== 'KRW') {
+      if (allocation.saleQuantity) saleCostsComplete = false;
+      if (allocation.eventQuantity) eventCostsComplete = false;
+    } else {
+      saleAmount += allocation.saleQuantity * c;
+      eventAmount += allocation.eventQuantity * c;
+    }
+    if (!Number.isSafeInteger(quantity) || !Number.isSafeInteger(saleQuantity) || !Number.isSafeInteger(eventQuantity) ||
+        !Number.isFinite(saleAmount) || !Number.isFinite(eventAmount)) return {received: null, saleReceived: null, eventReceived: null, eventCost: null, unitCost: null};
   }
-  return {received: quantity, unitCost: costsComplete ? amount / quantity : null};
+  if (!Number.isSafeInteger(quantity)) return {received: null, saleReceived: null, eventReceived: null, eventCost: null, unitCost: null};
+  return {received: quantity, saleReceived: allocationsComplete ? saleQuantity : null,
+    eventReceived: allocationsComplete ? eventQuantity : null,
+    eventCost: allocationsComplete && eventCostsComplete ? eventAmount : null,
+    unitCost: allocationsComplete && saleCostsComplete && saleQuantity > 0 ? saleAmount / saleQuantity : null};
 }
 
 export function calcProduct(product, materials, options = {}) {
@@ -91,20 +136,26 @@ export function calcProduct(product, materials, options = {}) {
   const includeMaterials = options.includeMaterials !== false;
   const channel = Object.hasOwn(FEES, options.channel) ? options.channel : 'smart';
   const receipts = receiptTotals(p.receipts);
-  const explicitCost = numberOrNull(p.unitCost);
-  const unitCost = explicitCost === null ? receipts.unitCost : explicitCost;
+  const explicitCost = receiptCurrency({currency:p.unitCostCurrency}) === 'KRW' ? numberOrNull(p.unitCost) : null;
+  // A legacy or manual KRW cost has no verified relation to foreign-currency
+  // sales receipts. Do not silently present it as their converted cost.
+  const hasForeignSales = Array.isArray(p.receipts) && p.receipts.some(row => {
+    const allocation = receiptAllocation(row);
+    return receiptCurrency(row) !== 'KRW' && (!allocation || allocation.saleQuantity > 0);
+  });
+  const unitCost = hasForeignSales ? null : explicitCost === null ? receipts.unitCost : explicitCost;
   if (unitCost === null) issues.push('상품 원가 확인 필요');
   const activeLinks = Array.isArray(p.links) ? p.links.filter(x => x?.always === true) : [];
   const materialCost = sumMaterialCost(activeLinks, materials, issues);
   const cost = unitCost === null || (includeMaterials && materialCost === null) ? null : unitCost + (includeMaterials ? materialCost : 0);
   const price = numberOrNull(p.salePrice);
   if (price === null) issues.push('판매가 확인 필요');
-  const stock = nonnegativeInteger(p.stock), received = receipts.received;
-  const sold = stock === null || received === null || stock > received ? null : received - stock;
-  const sellRate = sold === null || received <= 0 ? null : sold / received * 100;
+  const stock = nonnegativeInteger(p.stock), received = receipts.received, saleReceived = receipts.saleReceived;
+  const sold = stock === null || saleReceived === null || stock > saleReceived ? null : saleReceived - stock;
+  const sellRate = sold === null || saleReceived <= 0 ? null : sold / saleReceived * 100;
   const profitPerUnit = price === null || cost === null ? null : price * (1 - FEES[channel]) - cost;
   const earned = sold === null || profitPerUnit === null ? null : sold * profitPerUnit;
-  return {unitCost, materialCost, cost, price, roas: {smart: minimumRoas(price, cost, FEES.smart), own: minimumRoas(price, cost, FEES.own)}, received, stock, sold, sellRate, profitPerUnit, earned, issues};
+  return {unitCost, materialCost, cost, price, roas: {smart: minimumRoas(price, cost, FEES.smart), own: minimumRoas(price, cost, FEES.own)}, received, saleReceived, eventReceived: receipts.eventReceived, eventCost: receipts.eventCost, stock, sold, sellRate, profitPerUnit, earned, issues};
 }
 
 export function calcSet(set, products, materials, options = {}) {

@@ -11,7 +11,7 @@ const materials = [
 ];
 const product = {
   id: 'p', kind: 'single', salePrice: 1000, stock: 6,
-  receipts: [{quantity: 4, unitCost: 200}, {quantity: 6, unitCost: 400}],
+  receipts: [{quantity: 4, saleQuantity: 4, eventQuantity: 0, unitCost: 200}, {quantity: 6, saleQuantity: 6, eventQuantity: 0, unitCost: 400}],
   links: [{materialId: 'tag', quantity: 2, always: true}],
 };
 
@@ -36,7 +36,7 @@ test('부자재 원가 제외 선택과 자사몰 수수료', async () => {
 
 test('미입력 단가가 있어도 입고 수량과 소진율은 독립 계산', async () => {
   const {calcProduct} = await modelPromise;
-  const x = calcProduct({...product, receipts: [{quantity: 10, unitCost: ''}]}, materials);
+  const x = calcProduct({...product, receipts: [{quantity: 10, saleQuantity: 10, eventQuantity: 0, unitCost: ''}]}, materials);
   assert.equal(x.unitCost, null); assert.equal(x.cost, null);
   assert.equal(x.received, 10); assert.equal(x.sellRate, 40);
   assert.equal(x.earned, null); assert.equal(x.roas.smart, null);
@@ -93,7 +93,7 @@ test('세트 구성에는 상품 택만 포함하고 개별 포장은 빼고 세
 
 test('원가 누락은 세트 재고를 가리지 않고 재고 누락은 원가를 가리지 않음', async () => {
   const {calcSet} = await modelPromise;
-  const noCost = {...product, receipts: [{quantity: 10, unitCost: ''}]};
+  const noCost = {...product, receipts: [{quantity: 10, saleQuantity: 10, eventQuantity: 0, unitCost: ''}]};
   const set = {salePrice: 1000, components: [{id: 'p', quantity: 2}], materials: []};
   const a = calcSet(set, [noCost], materials);
   assert.equal(a.stock, 3); assert.equal(a.cost, null);
@@ -108,4 +108,83 @@ test('등록되지 않은 구성 상품이나 잘못된 수량은 안전하게 �
     assert.equal(x.cost, null); assert.equal(x.stock, null);
     assert.ok(x.issues.length);
   }
+});
+
+test('이벤트/불량 입고는 판매 소진과 번 돈에서 빼고 원가를 따로 계산', async () => {
+  const {calcProduct} = await modelPromise;
+  const input = {...product, stock: 6, receipts: [
+    {quantity: 5, saleQuantity: 0, eventQuantity: 5, unitCost: 200},
+    {quantity: 10, saleQuantity: 10, eventQuantity: 0, unitCost: 400},
+  ]};
+  const x = calcProduct(input, materials, {channel: 'smart'});
+  assert.equal(x.received, 15); assert.equal(x.saleReceived, 10); assert.equal(x.eventReceived, 5);
+  assert.equal(x.eventCost, 1000); assert.equal(x.unitCost, 400);
+  assert.equal(x.sold, 4); assert.equal(x.sellRate, 40);
+  near(x.earned, 4 * (1000 * (1 - 0.0662) - 460));
+});
+
+test('미분류 기존 입고 및 불일치는 판매량을 추정하지 않음', async () => {
+  const {calcProduct, receiptAllocation} = await modelPromise;
+  assert.equal(receiptAllocation({quantity: 10, saleQuantity: 7, eventQuantity: 4}), null);
+  assert.equal(receiptAllocation({quantity: 10, saleQuantity: 9, eventQuantity: -1}), null);
+  assert.equal(receiptAllocation({quantity: 10, saleQuantity: 9.5, eventQuantity: 0.5}), null);
+  for (const receipt of [{quantity: 10, unitCost: 200}, {quantity: 10, saleQuantity: 7, eventQuantity: 4, unitCost: 200}]) {
+    const x = calcProduct({...product, receipts: [receipt]}, materials);
+    assert.equal(x.received, 10); assert.equal(x.saleReceived, null); assert.equal(x.eventCost, null);
+    assert.equal(x.sold, null); assert.equal(x.sellRate, null); assert.equal(x.earned, null);
+  }
+});
+
+test('단가 미확인은 이벤트 원가와 가중 판매 원가를 0으로 처리하지 않음', async () => {
+  const {calcProduct} = await modelPromise;
+  const x = calcProduct({...product, receipts: [{quantity:10,saleQuantity:8,eventQuantity:2,unitCost:null}]}, materials);
+  assert.equal(x.saleReceived,8); assert.equal(x.eventReceived,2);
+  assert.equal(x.eventCost,null); assert.equal(x.unitCost,null); assert.equal(x.earned,null);
+});
+
+test('위안·혼합 통화 입고는 환산 없이 원화 원가와 ROAS·번 돈으로 쓰지 않음', async () => {
+  const {calcProduct, receiptCurrency} = await modelPromise;
+  const cny={quantity:10,saleQuantity:8,eventQuantity:2,unitCost:12.5,currency:'CNY'};
+  const krw={quantity:5,saleQuantity:5,eventQuantity:0,unitCost:500,currency:'KRW'};
+  for(const receipts of [[cny],[cny,krw],[{...cny,currency:undefined,unitCostCurrency:'CNY'}]]){
+    const x=calcProduct({...product,unitCost:null,stock:3,receipts},materials);
+    assert.equal(x.unitCost,null); assert.equal(x.cost,null); assert.equal(x.roas.smart,null); assert.equal(x.earned,null);
+    assert.equal(x.eventCost,null);
+  }
+  assert.equal(receiptCurrency({unitCostCurrency:'CNY'}),'CNY');
+  assert.equal(receiptCurrency({}),'KRW');
+  assert.equal(receiptCurrency({currency:'USD'}),null);
+});
+
+test('기존 원가가 있어도 위안 판매용 입고는 환산 근거 없이 원화로 계산하지 않음', async () => {
+  const {calcProduct, receiptCurrency} = await modelPromise;
+  const cnySale={quantity:10,saleQuantity:8,eventQuantity:2,unitCost:12.5,currency:'CNY'};
+  const cnyEvent={quantity:4,saleQuantity:0,eventQuantity:4,unitCost:12.5,currency:'CNY'};
+  const krwSale={quantity:10,saleQuantity:10,eventQuantity:0,unitCost:400,currency:'KRW'};
+  for (const receipt of [cnySale,{...cnySale,currency:'',unitCostCurrency:'CNY'}, {...cnySale,currency:'USD'}]) {
+    const x=calcProduct({...product,unitCost:500,stock:3,receipts:[receipt]},materials);
+    assert.equal(x.unitCost,null); assert.equal(x.cost,null); assert.equal(x.roas.smart,null); assert.equal(x.earned,null);
+  }
+  const eventOnly=calcProduct({...product,unitCost:500,stock:6,receipts:[cnyEvent,krwSale]},materials);
+  assert.equal(eventOnly.unitCost,500); assert.equal(eventOnly.cost,560); assert.notEqual(eventOnly.earned,null);
+  assert.equal(receiptCurrency({currency:'',unitCostCurrency:'CNY'}),'CNY');
+  assert.equal(receiptCurrency({currency:'',unitCostCurrency:'USD'}),null);
+  assert.equal(receiptCurrency({currency:'KRW',unitCostCurrency:'CNY'}),null);
+});
+
+test('위안 부자재와 세트 포장을 환산 없이 원화 원가에 더하지 않음', async () => {
+  const {calcProduct, calcSet} = await modelPromise;
+  for(const currency of ['CNY','USD']){
+    const tag={id:'foreign-tag',kind:'item',unitCost:6,currency};
+    const pack={id:'foreign-pack',kind:'pack',unitCost:8,currency};
+    const item={...product,links:[{materialId:'foreign-tag',quantity:1,always:true}]};
+    const set={salePrice:3000,components:[{id:'p',quantity:1}],materials:[{materialId:'foreign-pack',quantity:1}]};
+    const itemCalc=calcProduct(item,[tag,pack]);
+    assert.equal(itemCalc.materialCost,null); assert.equal(itemCalc.cost,null); assert.equal(itemCalc.roas.smart,null); assert.equal(itemCalc.earned,null);
+    assert.equal(calcProduct(item,[tag,pack],{includeMaterials:false}).cost,320);
+    const packSet=calcSet(set,[{...item,links:[]}],[tag,pack]);
+    assert.equal(packSet.cost,null); assert.equal(packSet.roas.smart,null);
+  }
+  const oldTag={id:'legacy',kind:'item',unitCost:6};
+  assert.equal(calcProduct({...product,links:[{materialId:'legacy',quantity:1,always:true}]},[oldTag]).cost,326);
 });

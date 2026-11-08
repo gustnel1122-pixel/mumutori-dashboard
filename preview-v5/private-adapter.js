@@ -1,4 +1,4 @@
-import {validateMaterialLinks} from './model.js';
+import {validateMaterialLinks, receiptAllocation, receiptCurrency, validOptionalDate} from './model.js';
 
 // Operational integration draft. No connection starts until a caller invokes
 // load or a mutation. The public demo must keep using its memory store.
@@ -133,12 +133,25 @@ export function createAuthenticatedStore({auth, fetchImpl, schema = null, onChan
     async createMaterial(material) {
       if (!object(material) || !validId(material.id) || !String(material.name || '').trim() ||
           !['item','pack'].includes(material.kind) || box(material.name) ||
-          !number(material.unitCost) || !integer(material.stock) || !integer(material.minStock)) {
+          !number(material.unitCost) || !receiptCurrency(material) || !integer(material.stock) || !integer(material.minStock)) {
         throw Error('부자재 정보를 확인해 주세요.');
       }
       return transact((raw, data) => {
         if (data.materials.some(existing => existing.id === material.id)) throw Error('이미 등록됐거나 자료를 확인할 수 없어요.');
         schema.apply(raw, {type:'createMaterial', material:clone(material)});
+      });
+    },
+    async saveMaterial(id, fields) {
+      if (!validId(id) || !object(fields)) throw Error('부자재 정보를 확인해 주세요.');
+      return transact((raw, data) => {
+        const previous = data.materials.find(existing => existing.id === id);
+        if (!previous) throw Error('부자재 정보를 확인해 주세요.');
+        const material = {...previous,...clone(fields),id};
+        if ('unitCostCurrency' in previous && fields.currency != null) material.unitCostCurrency = fields.currency;
+        if (!String(material.name || '').trim() || !['item','pack'].includes(material.kind) || box(material.name) ||
+            !number(material.unitCost) || !receiptCurrency(material) || !integer(material.stock) || !integer(material.minStock)) throw Error('부자재 정보를 확인해 주세요.');
+        if (material.kind !== 'pack' && data.sets.some(set => (set.materials || []).some(link => link.materialId === id))) throw Error('세트에 연결된 포장은 종류를 바꿀 수 없어요.');
+        schema.apply(raw, {type:'saveMaterial', material:clone(material)});
       });
     },
     async createSet(set) {
@@ -162,22 +175,29 @@ export function createAuthenticatedStore({auth, fetchImpl, schema = null, onChan
     },
     async saveReceipt(productId, index, receipt) {
       if (!validId(productId) || !object(receipt) || !Number.isSafeInteger(receipt.batch) || receipt.batch < 1 || receipt.batch > 999 ||
-          typeof receipt.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(receipt.date) ||
-          !String(receipt.supplier || '').trim() || String(receipt.supplier).length > 100 ||
-          !number(receipt.unitCost) || !positive(receipt.quantity) || String(receipt.memo || '').length > 500) throw Error('입고 기록을 확인해 주세요.');
-      const date = new Date(receipt.date + 'T00:00:00Z');
-      if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0,10) !== receipt.date) throw Error('입고 날짜를 확인해 주세요.');
+          String(receipt.supplier || '').length > 100 ||
+          (receipt.unitCost !== null && !number(receipt.unitCost)) || String(receipt.memo || '').length > 500) throw Error('입고 기록을 확인해 주세요.');
+      const allocation = receiptAllocation(receipt);
+      if (!allocation) throw Error('판매용과 이벤트/불량용의 합이 들어온 수와 같아야 해요.');
+      if (!validOptionalDate(receipt.date)) throw Error('입고 날짜를 확인해 주세요.');
+      if (!validOptionalDate(receipt.orderDate)) throw Error('발주 날짜를 확인해 주세요.');
       let url = '';
       if (receipt.url) {
         try { const parsed = new URL(receipt.url); if (parsed.protocol !== 'https:' || !(parsed.hostname === '1688.com' || parsed.hostname.endsWith('.1688.com')) || parsed.username || parsed.password || parsed.port) throw Error(); url = parsed.href; }
         catch { throw Error('1688의 https 링크를 입력해 주세요.'); }
       }
-      const entry = {batch:receipt.batch,date:receipt.date,supplier:String(receipt.supplier).trim(),url,unitCost:receipt.unitCost,quantity:receipt.quantity,memo:String(receipt.memo || '')};
       return transact((raw, data) => {
         const product = data.products.find(row => row.id === productId);
         if (!product) throw Error('상품을 찾을 수 없어요.');
         const receipts = Array.isArray(product.receipts) ? product.receipts : [];
         if (index !== null && (!Number.isSafeInteger(index) || index < 0 || index >= receipts.length)) throw Error('입고 기록을 찾을 수 없어요.');
+        const previous = index === null ? {} : receipts[index];
+        const merged = {...previous, ...receipt};
+        const currency = receiptCurrency(merged);
+        if (!currency) throw Error('단가 통화를 확인해 주세요.');
+        if (!validOptionalDate(merged.date) || !validOptionalDate(merged.orderDate)) throw Error('날짜를 확인해 주세요.');
+        const entry = {...previous,batch:receipt.batch,date:merged.date || '',orderDate:merged.orderDate || '',currency,supplier:String(receipt.supplier || '').trim(),url,unitCost:receipt.unitCost,...allocation,memo:String(receipt.memo || '')};
+        if ('unitCostCurrency' in previous) entry.unitCostCurrency = currency;
         schema.apply(raw, {type:'saveReceipt', id:productId, index, receipt:entry});
       });
     },

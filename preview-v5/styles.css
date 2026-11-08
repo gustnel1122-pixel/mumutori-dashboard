@@ -153,6 +153,6 @@ button,input,select{min-height:36px}
 .file-control input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
 .file-control:focus-within{outline:2px solid var(--focus);outline-offset:2px}
 .receipt-form{display:grid;gap:8px;padding:10px;background:var(--bg);border:1px solid var(--line);border-radius:10px}
-.receipt-form label{display:grid;gap:3px;font-size:12px}.receipt-form input,.receipt-form textarea{font:inherit;color:var(--bark);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 8px;width:100%;max-width:100%}
+.receipt-form label{display:grid;gap:3px;font-size:12px}.receipt-form input,.receipt-form select,.receipt-form textarea{font:inherit;color:var(--bark);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 8px;width:100%;max-width:100%}
 .receipt-form textarea{resize:vertical}.receipt-error,#material-error,#product-error{color:var(--bad);font-size:13px;margin:0}
 
