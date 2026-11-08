@@ -37,6 +37,7 @@ export function createMemoryStore(initial) {
       if (!currency) throw new Error('단가 통화를 확인해 주세요.');
       if (String(receipt.supplier || '').length > 100) throw new Error('판매처를 확인해 주세요.');
       if (receipt.unitCost !== null && (!Number.isFinite(receipt.unitCost) || receipt.unitCost < 0)) throw new Error('단가를 확인해 주세요.');
+      if (receipt.settlementKrw != null && (!Number.isSafeInteger(receipt.settlementKrw) || receipt.settlementKrw < 0)) throw new Error('원화 결제액을 확인해 주세요.');
       const allocation = receiptAllocation(receipt);
       if (!allocation) throw new Error('판매용과 이벤트/불량용의 합이 들어온 수와 같아야 해요.');
       if (String(receipt.memo || '').length > 500) throw new Error('메모는 500자까지 입력해 주세요.');
@@ -48,7 +49,9 @@ export function createMemoryStore(initial) {
           url = u.href;
         } catch { throw new Error('1688의 https 링크를 입력해 주세요.'); }
       }
-      const entry = {...previous,batch:receipt.batch,date:merged.date || '',orderDate:merged.orderDate || '',currency,supplier:String(receipt.supplier || '').trim(),url,unitCost:receipt.unitCost,...allocation,memo:String(receipt.memo || '')};
+      const status = String(merged.status || '');
+      if (!['', '입고 완료', '배송 중', '배대지 창고', '구매취소'].includes(status)) throw Error('입고 상태를 확인해 주세요.');
+      const entry = {...previous,batch:receipt.batch,date:merged.date || '',orderDate:merged.orderDate || '',status,currency,supplier:String(receipt.supplier || '').trim(),url,unitCost:receipt.unitCost,settlementKrw:receipt.settlementKrw??null,...allocation,memo:String(receipt.memo || '')};
       if ('unitCostCurrency' in previous) entry.unitCostCurrency = currency;
       if (index === null) product.receipts.push(entry); else product.receipts[index] = entry;
     },

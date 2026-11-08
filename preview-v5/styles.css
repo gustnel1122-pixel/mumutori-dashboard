@@ -156,3 +156,4 @@ button,input,select{min-height:36px}
 .receipt-form label{display:grid;gap:3px;font-size:12px}.receipt-form input,.receipt-form select,.receipt-form textarea{font:inherit;color:var(--bark);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 8px;width:100%;max-width:100%}
 .receipt-form textarea{resize:vertical}.receipt-error,#material-error,#product-error{color:var(--bad);font-size:13px;margin:0}
 
+#fresh-protected[hidden] { display: none !important; }

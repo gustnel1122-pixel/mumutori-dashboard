@@ -45,8 +45,8 @@ export function planSettledReceipts(source, bindings = [], evidence = []) {
   const byRef = new Map(rows.map(row => [receiptReference(row), row]));
   if (byRef.size !== rows.length) throw new Error('입고 기록이 중복되었어요.');
   for (const row of rows) {
-    row.date = RECEIPT_DATE;
-    row.receivedDate = RECEIPT_DATE;
+    row.date = row.batch === 1 ? RECEIPT_DATE : '';
+    row.receivedDate = row.date;
     row.settlementStatus = '청구액 없음';
   }
 
@@ -111,7 +111,7 @@ export function planSettledReceipts(source, bindings = [], evidence = []) {
   }
   return {
     ...output,
-    receiptDate: RECEIPT_DATE,
+    firstBatchReceiptDate: RECEIPT_DATE,
     summary: {
       receiptCount: rows.length,
       converted: rows.filter(row => row.settlementStatus === '청구액 확인').length,

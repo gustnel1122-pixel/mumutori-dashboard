@@ -23,7 +23,7 @@ async function prepared() {
   return {planSettledReceipts,receiptReference,input,ref,binding,evidence};
 }
 
-test('모든 입고일을 승인한 날짜로 기록하고 원본을 보존, 청구액 없으면 환산하지 않음', async()=>{
+test('1차 입고일을 승인한 날짜로 기록하고 원본을 보존, 청구액 없으면 환산하지 않음', async()=>{
   const {planSettledReceipts}=await planModule, input=source(), original=structuredClone(input);
   const out=planSettledReceipts(input), row=out.cards[0].receipts[0];
   assert.deepEqual(input,original); assert.equal(row.date,'2026-10-24'); assert.equal(row.receivedDate,'2026-10-24');
@@ -31,6 +31,15 @@ test('모든 입고일을 승인한 날짜로 기록하고 원본을 보존, 청
   assert.equal(row.currency,'CNY'); assert.equal(row.unitCost,2); assert.equal(row.settlementStatus,'청구액 없음');
   assert.deepEqual(out.summary,{receiptCount:1,converted:0,missing:1,review:0});
   assert.equal(out.unresolved[0].status,'청구액 없음');
+});
+
+test('2차 입고일은 발주일 및 이전 준비 날짜에 관계없이 비워 둠', async()=>{
+  const {planSettledReceipts}=await planModule, input=source();
+  input.cards[0].receipts[0].batch='2차';
+  input.cards[0].receipts[0].receivedDate='2026-10-24';
+  const row=planSettledReceipts(input).cards[0].receipts[0];
+  assert.equal(row.date,''); assert.equal(row.receivedDate,'');
+  assert.equal(row.stagingOriginal.receivedDate,'2026-10-24');
 });
 
 test('확정된 전체 주문 청구액과 위안 총액이 맞으면 결제일 환산만 적용', async()=>{

@@ -75,7 +75,9 @@ function sumMaterialCost(links, materials, issues) {
 }
 
 export function receiptAllocation(row) {
-  const quantity = positiveInteger(row?.quantity);
+  const pending = ['배송 중','배대지 창고','구매취소'].includes(row?.status);
+  if (pending && row?.quantity !== 0) return null;
+  const quantity = pending && row?.quantity === 0 ? 0 : positiveInteger(row?.quantity);
   const saleQuantity = nonnegativeInteger(row?.saleQuantity);
   const eventQuantity = nonnegativeInteger(row?.eventQuantity);
   if (quantity === null || saleQuantity === null || eventQuantity === null ||
@@ -107,6 +109,10 @@ export function receiptTotals(receipts) {
   let quantity = 0, saleQuantity = 0, eventQuantity = 0, saleAmount = 0, eventAmount = 0;
   let allocationsComplete = true, saleCostsComplete = true, eventCostsComplete = true;
   for (const row of receipts) {
+    // Orders still in transit, at the forwarder or cancelled are not stock.
+    // Their orderedQuantity is separate; zero received does not erase older
+    // already-received batches from totals.
+    if (['배송 중','배대지 창고','구매취소'].includes(row?.status)) continue;
     const q = positiveInteger(row?.quantity), c = numberOrNull(row?.unitCost);
     if (q === null) return {received: null, saleReceived: null, eventReceived: null, eventCost: null, unitCost: null};
     quantity += q;

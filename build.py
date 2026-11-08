@@ -26,10 +26,10 @@ seed=R/'data/seed.json'
 if seed.exists(): (R/'data/seed.json.gz').write_bytes(gzip.compress(seed.read_bytes(),mtime=0))
 pages={'index':('overview','운영 홈'),'finance':('finance','재무'),'bank':('bank','재무 · 계좌별'),'products':('products','상품'),'purchases':('purchases','구매·원가'),'sourcing':('sourcing','소싱'),'sales':('sales','판매·정산'),'stock':('stock','물류·재고'),'partners':('partners','거래처'),'audit':('audit','변경 이력'),'settings':('settings','설정·백업'),'branding':('branding','브랜딩'),'characters':('characters','캐릭터'),'agents':('agents','AI 조직도')}
 private_documents=['letter-hub.html']
-network_only_documents=['products-preview.html']
+network_only_documents=['products-preview.html','preview-v5/fresh.html']
 version_files=[R/'build.py',R/'manifest.webmanifest',R/'offline.html',R/'firebase-messaging-sw.js']
 version_files += [R/name for name in private_documents]
-version_files += [p for folder in ['src','assets','_tools','preview-v4'] for p in (R/folder).rglob('*') if p.is_file() and '__pycache__' not in p.parts and p.suffix!='.pyc']
+version_files += [p for folder in ['src','assets','_tools','preview-v4','preview-v5'] for p in (R/folder).rglob('*') if p.is_file() and '__pycache__' not in p.parts and p.suffix!='.pyc']
 # Include paths as well as bytes: renaming/removing a resource must change the worker.
 version=hashlib.sha256(b''.join(p.relative_to(R).as_posix().encode()+b'\0'+content_bytes(p)+b'\0' for p in sorted(version_files))).hexdigest()[:12]
 PWA_HEAD='''<link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="assets/apple-touch-icon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="무무토리"><meta name="mobile-web-app-capable" content="yes"><link rel="stylesheet" href="src/pwa.css?v={v}"><script src="src/pwa.js?v={v}" defer></script>'''.replace('{v}',version)
