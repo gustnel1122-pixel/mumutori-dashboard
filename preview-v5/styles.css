@@ -203,7 +203,7 @@ button,input,select{min-height:36px}
 /* 상품마다 한 줄로 훑고, 필요한 항목만 바로 아래에서 펼친다. */
 #grid-p{grid-template-columns:minmax(0,1fr);gap:6px}
 .product-row.card{display:block;padding:0;overflow:hidden;border-radius:10px}
-.product-row-toggle{display:grid;grid-template-columns:40px minmax(35px,1fr) auto auto minmax(0,88px) auto 12px;align-items:center;gap:7px;width:100%;min-height:56px;padding:7px 10px;border:0;background:var(--card);text-align:left;cursor:pointer}
+.product-row-toggle{display:grid;grid-template-columns:40px minmax(35px,1fr) auto auto minmax(0,82px) minmax(0,88px) 10px auto 12px;align-items:center;gap:7px;width:100%;min-height:56px;padding:7px 10px;border:0;background:var(--card);text-align:left;cursor:pointer}
 .product-row-toggle:hover{background:var(--butter-soft)}
 .product-row-toggle:focus-visible{outline:2px solid var(--focus);outline-offset:-3px}
 .product-row-photo{display:grid;place-items:center;width:40px;height:40px;border-radius:7px;background:#e7e6e2;overflow:hidden}
@@ -215,14 +215,16 @@ button,input,select{min-height:36px}
 .product-row-decision.sell{background:#dceedd;color:#285c35}
 .product-row-decision.hold{background:#fff0bf;color:#795600}
 .product-row-decision.no-sale{background:#f8dedb;color:#983a30}
-.product-row-price{display:grid;min-width:0;text-align:right;font-size:12px;font-variant-numeric:tabular-nums;line-height:1.15}
-.product-row-price small{font-size:10px;color:var(--muted)}
-.product-row-price span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.product-row-price,.product-row-cost{display:grid;min-width:0;text-align:right;font-size:12px;font-variant-numeric:tabular-nums;line-height:1.15}
+.product-row-price small,.product-row-cost small{font-size:10px;color:var(--muted);white-space:nowrap}
+.product-row-price span,.product-row-cost span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.product-row-roas{width:8px;height:8px;border-radius:50%;display:block}
+.product-row-roas.g{background:var(--good)} .product-row-roas.w{background:var(--warn)} .product-row-roas.b{background:var(--bad)}
 .product-row-market{display:flex;gap:2px;white-space:nowrap}
 .market-mark{width:17px;height:19px;display:grid;place-items:center;border-radius:4px;background:#efefed;color:#a6a7a1;font-size:10px}
 .market-mark.is-on{background:#3b6744;color:#fff;font-weight:700}
 .product-row-arrow{color:var(--muted);text-align:center;font-size:19px;line-height:1;transition:transform .15s}
 .product-row-toggle[aria-expanded="true"] .product-row-arrow{transform:rotate(180deg)}
 .product-detail{display:flex;flex-direction:column;gap:10px;min-width:0;padding:14px;border-top:1px solid var(--line)}
-@media(max-width:480px){.product-row-toggle{min-height:64px;grid-template-columns:40px minmax(26px,1fr) auto auto minmax(0,72px) auto 10px;gap:4px;padding:10px 6px}.product-row-name{font-size:13px}.product-row-batch{font-size:10px}.product-row-decision{padding:3px 5px;font-size:10px}.product-row-price{font-size:11px}.market-mark{width:14px;height:18px;font-size:10px}.product-detail{padding:10px}}
+@media(max-width:480px){.product-row-toggle{min-height:56px;grid-template-columns:24px minmax(45px,1fr) auto auto 55px 58px 7px auto 7px;gap:2px;padding:8px 5px}.product-row-photo{width:24px;height:24px}.product-row-name{font-size:12px}.product-row-batch{font-size:10px}.product-row-decision{padding:3px 3px;font-size:10px}.product-row-price,.product-row-cost{font-size:10px}.product-row-price small,.product-row-cost small{font-size:9px}.product-row-roas{width:7px;height:7px}.market-mark{width:10px;height:17px;font-size:9px}.product-detail{padding:10px}}
 @media(prefers-reduced-motion:reduce){.product-row-arrow{transition:none}}

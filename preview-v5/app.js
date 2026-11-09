@@ -1,6 +1,6 @@
 const buildVersion = new URL(import.meta.url).searchParams.get('v');
 const buildQuery = buildVersion ? `?v=${encodeURIComponent(buildVersion)}` : '';
-const {calcProduct, calcSet, validateMaterialLinks, receiptAllocation, receiptCurrency} = await import('./model.js' + buildQuery);
+const {calcProduct, calcSet, validateMaterialLinks, receiptAllocation, receiptCurrency, minimumRoas, FEES} = await import('./model.js' + buildQuery);
 const {createMemoryStore} = await import('./store.js' + buildQuery);
 const {normalizeSale, saleStatus, saleMargin} = await import('./sale-model.js' + buildQuery);
 
@@ -33,6 +33,7 @@ const receiptMoney = (v,currency) => typeof v === 'number' && Number.isFinite(v)
 const pct = v => typeof v === 'number' && Number.isFinite(v) ? Math.round(v)+'%' : '확인 필요';
 const options = () => ({includeMaterials:state.includeMaterials,channel:state.channel});
 const calculate = p => calcProduct(p,materials,options());
+const canViewCost = () => typeof store.canViewMargin==='function' && store.canViewMargin();
 const byId = id => products.find(p=>p.id===id);
 const groups = [
   {key:'batch',label:'입고',values:['1차','2차']},
@@ -51,7 +52,7 @@ function renderSaleFilters(){
 }
 function renderFilters(){
   $('filters').innerHTML = groups.map(g=>`<div class="frow"><span class="flabel">${esc(g.label)}</span>${g.values.map(v=>`<button type="button" class="chip" data-group="${g.key}" data-value="${esc(v)}" aria-pressed="${state.filters[g.key].has(v)}">${esc(v)}</button>`).join('')}</div>`).join('')+
-    `<div class="opts"><label>정렬 <select id="sort"><option value="name">이름</option><option value="roas">최소 ROAS</option><option value="sell">소진율</option><option value="earned">번 돈</option></select></label>
+    `<div class="opts"><label>정렬 <select id="sort"><option value="name">이름</option>${canViewCost()?'<option value="roas">최소 ROAS</option>':''}<option value="sell">소진율</option>${canViewCost()?'<option value="earned">번 돈</option>':''}</select></label>
       <span>수수료 기준 <span class="seg"><button type="button" data-channel="smart" aria-pressed="${state.channel==='smart'}">스마트스토어</button><button type="button" data-channel="own" aria-pressed="${state.channel==='own'}">자사몰</button></span></span>
       <label><input type="checkbox" id="material-cost" ${state.includeMaterials?'checked':''}> 부자재 원가 포함</label><button type="button" class="btn" id="clear-filters">초기화</button></div>`;
   $('sort').value=state.sort;
@@ -106,7 +107,7 @@ function linksPanel(p){
   }).join(''):'<p class="empty">먼저 부자재를 등록해 주세요.</p>'}</section>`;
 }
 function saleMarginRows(p,sale){
-  if (typeof store.canViewMargin !== 'function' || !store.canViewMargin()) return '<p class="sale-margin-note">마진 표시 설정 확인 필요</p>';
+  if (!canViewCost()) return '<p class="sale-margin-note">마진 표시 설정 확인 필요</p>';
   const cost=calculate(p).cost;
   return `<div class="sale-margins"><strong>마진 보기</strong><small>판매가 − 확인된 원가 · 수수료 제외</small>${saleChannels.map(([key,label])=>{
     const result=saleMargin(sale,key,cost,true);
@@ -131,12 +132,21 @@ function rowSummary(p){
   const img=typeof p.imageData==='string' && /^data:image\/(png|jpeg|webp);base64,[a-z0-9+/=]+$/i.test(p.imageData)
     ? `<img src="${esc(p.imageData)}" alt="">` : '';
   const batch=Array.isArray(p.batch)?p.batch.join(' · '):p.batch||'';
-  const price=sale.prices.own===null?'–':money(sale.prices.own);
+  const shortBatch=Array.isArray(p.batch)&&p.batch.length>1&&p.batch.every(x=>/^\d+차$/.test(x))?p.batch.map(x=>x.slice(0,-1)).join('·')+'차':batch;
+  const channel=sale.prices.own!==null?'own':sale.prices.smart!==null?'smart':null;
+  const price=channel===null?null:sale.prices[channel];
+  const showCost=canViewCost();
+  const calc=showCost?calculate(p):null;
+  const cost=calc?.unitCost ?? null;
+  const roas=showCost && channel!==null?minimumRoas(price,calc.cost,FEES[channel]):null;
+  const colour=roasClass(roas), colourLabel=roas===null?'확인 필요':colour==='g'?'초록':colour==='w'?'주황':'빨강';
   const marks=[['own','자','자사몰'],['smart','스','스마트스토어'],['coupang','쿠','쿠팡']].map(([key,short,label])=>{
     const on=sale.listings[key].registered;
     return `<span class="market-mark ${on?'is-on':''}" data-market="${key}" role="img" aria-label="${label} ${on?'등록됨':'등록 표시 없음'}">${short}</span>`;
   }).join('');
-  return `<span class="product-row-photo" aria-hidden="true">${img}</span><span class="product-row-name" title="${esc(p.name)}">${esc(p.name)}</span><span class="product-row-batch">${esc(batch||'차수 미확인')}</span><span class="product-row-decision ${decisionClass(sale.decision)}">${esc(sale.decision)}</span><span class="product-row-price" aria-label="자사몰가 ${esc(price)}"><small>자사몰</small><span>${esc(price)}</span></span><span class="product-row-market">${marks}</span><span class="product-row-arrow" aria-hidden="true">⌄</span>`;
+  const costCell=showCost?`<span class="product-row-cost" aria-label="개당 원가 ${esc(money(cost))}"><small>원가</small><span>${esc(money(cost))}</span></span>`:'<span class="product-row-cost-placeholder" aria-hidden="true"></span>';
+  const roasCell=showCost?`<span class="product-row-roas ${colour}" role="img" aria-label="최소 ROAS ${colourLabel}" title="최소 ROAS ${colourLabel}"></span>`:'<span class="product-row-roas-placeholder" aria-hidden="true"></span>';
+  return `<span class="product-row-photo" aria-hidden="true">${img}</span><span class="product-row-name" title="${esc(p.name)}">${esc(p.name)}</span><span class="product-row-batch" aria-label="${esc(batch||'차수 미확인')}">${esc(shortBatch||'–')}</span><span class="product-row-decision ${decisionClass(sale.decision)}">${esc(sale.decision)}</span>${costCell}<span class="product-row-price" aria-label="${channel==='own'?'자사몰':channel==='smart'?'스마트스토어':''} 판매가 ${esc(price===null?'없음':money(price))}"><small>${channel==='own'?'자사몰':channel==='smart'?'스스':'판매가'}</small><span>${esc(price===null?'판매가 없음':money(price))}</span></span>${roasCell}<span class="product-row-market">${marks}</span><span class="product-row-arrow" aria-hidden="true">⌄</span>`;
 }
 function updateRowSummary(card,p){
   const button=card?.querySelector('[data-product-toggle]');
@@ -144,17 +154,18 @@ function updateRowSummary(card,p){
 }
 function card(p){
   const c=calculate(p),rate=c.sellRate,bar=rate==null?0:Math.max(0,Math.min(100,rate));
+  const showCost=canViewCost();
   const attached=(p.links||[]).filter(x=>x.always).map(l=>{const m=materials.find(x=>x.id===l.materialId);return m?`${m.name} ×${l.quantity}`:'연결 확인 필요';});
   const open=state.openProduct===p.id, detailId=`product-detail-${p.id}`;
   return `<article class="card product-row" data-product="${esc(p.id)}"><button type="button" class="product-row-toggle" data-product-toggle aria-expanded="${open}" aria-controls="${esc(detailId)}">${rowSummary(p)}</button><div class="product-detail" id="${esc(detailId)}" ${open?'':'hidden'}><div class="ctop"><div class="cname">${picture(p)}<span>${esc(p.name)}</span></div><div class="tags"><span class="pill t-batch">${esc(Array.isArray(p.batch)?p.batch.join(' · '):p.batch)}</span><span class="pill st-on">${esc(p.status)}</span>${(p.receipts||[]).some(r=>r.status==='확인 필요')?'<span class="pill st-hold">입고 확인 필요</span>':''}</div></div>
     <div class="chs">${esc((p.channels||[]).join(' · ')||'판매처 확인 필요')}</div>
-    <div class="nums"><div class="num"><div class="k">원가</div><div class="v">${money(c.cost)}</div><div class="s">${state.includeMaterials?'부자재 포함':'부자재 제외'}</div></div>
+    <div class="nums">${showCost?`<div class="num"><div class="k">원가</div><div class="v">${money(c.cost)}</div><div class="s">${state.includeMaterials?'부자재 포함':'부자재 제외'}</div></div>`:''}
     <div class="num"><div class="k">기존 계산 기준가 <span class="ps ${p.priceStatus==='확정'?'확정':'제안'}">${esc(p.priceStatus||'제안')}</span></div><div class="v">${money(c.price)}</div></div>
-    <div class="num"><div class="k">기존 기준 최소 ROAS</div><div class="roas"><div><span class="c">스스</span><span class="${roasClass(c.roas.smart)}">${pct(c.roas.smart)}</span></div><div><span class="c">자사몰</span><span class="${roasClass(c.roas.own)}">${pct(c.roas.own)}</span></div></div></div></div><p class="sale-legacy-note">기존 계산 기준가는 아래 판매 준비 가격과 별도예요.</p>
+    ${showCost?`<div class="num"><div class="k">기존 기준 최소 ROAS</div><div class="roas"><div><span class="c">스스</span><span class="${roasClass(c.roas.smart)}">${pct(c.roas.smart)}</span></div><div><span class="c">자사몰</span><span class="${roasClass(c.roas.own)}">${pct(c.roas.own)}</span></div></div></div>`:''}</div><p class="sale-legacy-note">기존 계산 기준가는 아래 판매 준비 가격과 별도예요.</p>
     <div class="sell"><div class="row"><span>소진율 ${pct(rate)}</span><span>판매용 ${fmt(c.saleReceived)} · 재고 ${fmt(c.stock)}</span></div><div class="bar"><i class="g" style="width:${bar}%"></i></div></div>
-    <div class="earn"><span>기존 기준 번 돈</span><b>${money(c.earned)}</b><small>판매용과 현재 재고 차이 · ${state.channel==='smart'?'스마트스토어':'자사몰'} 수수료 기준</small></div>
+    ${showCost?`<div class="earn"><span>기존 기준 번 돈</span><b>${money(c.earned)}</b><small>판매용과 현재 재고 차이 · ${state.channel==='smart'?'스마트스토어':'자사몰'} 수수료 기준</small></div>`:''}
     ${salePanel(p)}<div class="mats">${attached.length?attached.map(x=>`<span class="mtag">${esc(x)}</span>`).join(''):'<span class="example-note">연결된 부자재 없음</span>'}</div>
-    <div class="acts"><button type="button" class="btn" data-action="details" aria-expanded="${state.openDetails.has(p.id)}">자세히 (입고 기록)</button><button type="button" class="btn" data-action="links" aria-expanded="${state.openLinks.has(p.id)}">부자재 연결</button><label class="btn file-control">누끼 사진 선택<input type="file" data-photo-product="${esc(p.id)}" accept="image/png,image/jpeg,image/webp" aria-label="${esc(p.name)} 누끼 사진 선택"></label></div>${receiptPanel(p)}${linksPanel(p)}</div></article>`;
+    <div class="acts">${showCost?`<button type="button" class="btn" data-action="details" aria-expanded="${state.openDetails.has(p.id)}">자세히 (입고 기록)</button>`:''}<button type="button" class="btn" data-action="links" aria-expanded="${state.openLinks.has(p.id)}">부자재 연결</button><label class="btn file-control">누끼 사진 선택<input type="file" data-photo-product="${esc(p.id)}" accept="image/png,image/jpeg,image/webp" aria-label="${esc(p.name)} 누끼 사진 선택"></label></div>${showCost?receiptPanel(p):''}${linksPanel(p)}</div></article>`;
 }
 function renderProducts(){
   const shown=ordered(products.filter(matching));
@@ -164,9 +175,10 @@ function renderProducts(){
 }
 function setCard(s){
   const c=calcSet(s,products,materials,options());
+  const showCost=canViewCost();
   const names=(s.components||[]).map(x=>`${byId(x.id)?.name||'구성품 확인 필요'} ×${x.quantity}`).join(' · ');
   const packaging=(s.materials||[]).map(x=>`${materials.find(m=>m.id===x.materialId)?.name||'부자재 확인 필요'} ×${x.quantity}`).join(' · ');
-  return `<article class="card"><div class="ctop"><div class="cname">${esc(s.name)}</div><div class="tags"><span class="pill st-set">세트</span></div></div><div class="chs">${esc(names)}</div><div class="nums"><div class="num"><div class="k">세트 원가</div><div class="v">${money(c.cost)}</div></div><div class="num"><div class="k">판매가</div><div class="v">${money(c.price)}</div></div><div class="num"><div class="k">세트 재고</div><div class="v">${fmt(c.stock)}</div></div></div><div class="chs">포장: ${esc(packaging||'연결 없음')}</div><div class="chs">최소 ROAS · 스스 ${pct(c.roas.smart)} · 자사몰 ${pct(c.roas.own)}</div></article>`;
+  return `<article class="card"><div class="ctop"><div class="cname">${esc(s.name)}</div><div class="tags"><span class="pill st-set">세트</span></div></div><div class="chs">${esc(names)}</div><div class="nums">${showCost?`<div class="num"><div class="k">세트 원가</div><div class="v">${money(c.cost)}</div></div>`:''}<div class="num"><div class="k">판매가</div><div class="v">${money(c.price)}</div></div><div class="num"><div class="k">세트 재고</div><div class="v">${fmt(c.stock)}</div></div></div><div class="chs">포장: ${esc(packaging||'연결 없음')}</div>${showCost?`<div class="chs">최소 ROAS · 스스 ${pct(c.roas.smart)} · 자사몰 ${pct(c.roas.own)}</div>`:''}</article>`;
 }
 function renderSetForm(){
   $('sf-items').innerHTML='<legend>구성품 고르기</legend>'+products.map(p=>`<div class="pickrow"><label><input type="checkbox" data-pick-product="${esc(p.id)}" ${state.draft.items[p.id]?'checked':''}> ${esc(p.name)}</label>${state.draft.items[p.id]?`<input type="number" min="1" max="999" value="${state.draft.items[p.id]}" data-quantity-product="${esc(p.id)}" aria-label="${esc(p.name)} 개수">`:''}</div>`).join('');
@@ -178,18 +190,25 @@ function draftSet(){return {name:$('sf-name').value.trim(),salePrice:$('sf-price
 function updateSetCalculation(){
   const draft=draftSet(); if(!draft.components.length){$('sf-calc').innerHTML='<span class="empty">구성품을 1개 이상 골라 주세요.</span>';return;}
   const c=calcSet(draft,products,materials,options());
-  $('sf-calc').innerHTML=`<div class="num"><div class="k">세트 원가</div><div class="v">${money(c.cost)}</div></div><div class="num"><div class="k">최소 ROAS(스스)</div><div class="v">${pct(c.roas.smart)}</div></div><div class="num"><div class="k">만들 수 있는 수</div><div class="v">${fmt(c.stock)}</div></div>`;
+  $('sf-calc').innerHTML=`${canViewCost()?`<div class="num"><div class="k">세트 원가</div><div class="v">${money(c.cost)}</div></div><div class="num"><div class="k">최소 ROAS(스스)</div><div class="v">${pct(c.roas.smart)}</div></div>`:''}<div class="num"><div class="k">만들 수 있는 수</div><div class="v">${fmt(c.stock)}</div></div>`;
 }
 function renderSets(){ $('sum-s').innerHTML=`<span>세트 <b>${sets.length}</b>개</span><span>세트 재고는 구성품 중 가장 적게 만들 수 있는 수량이에요.</span>`; $('grid-s').innerHTML=sets.map(setCard).join('');renderSetForm(); }
+function materialPurchaseLink(value){
+  let url='';
+  try{const u=new URL(value);if(u.protocol==='https:'&&(u.hostname==='1688.com'||u.hostname.endsWith('.1688.com'))&&!u.username&&!u.password&&!u.port)url=u.href;}catch{}
+  return url?` · <a href="${esc(url)}" target="_blank" rel="noopener noreferrer">1688 상품 보기</a>`:'';
+}
 function renderMaterials(){
+  const showCost=canViewCost();
   const isLow=m=>Number.isFinite(m.stock)&&Number.isFinite(m.minStock)&&m.stock<m.minStock;
   const low=materials.filter(isLow);
+  $('mform').hidden=!showCost;
   $('sum-m').innerHTML=`<span>부자재 <b>${materials.length}</b>종</span><span>부족 <b>${low.length}</b>종</span>`;
   $('tbl-m').innerHTML='<thead><tr><th>부자재</th><th>종류</th><th>단가</th><th>남은 수량</th><th>부족 기준</th><th>연결된 곳</th></tr></thead><tbody>'+materials.map(m=>{
     const used=products.filter(p=>(p.links||[]).some(l=>l.materialId===m.id)).length+sets.filter(s=>(s.materials||[]).some(l=>l.materialId===m.id)).length;
     const entries=Array.isArray(m.receipts)?m.receipts:[];
-    const history=entries.length?`<details><summary>입고 기록 ${entries.length}건</summary>${entries.map(r=>`<p>${esc(r.batch)}차 · ${esc(r.status||'상태 확인 필요')} · 입고일 ${esc(r.date||'확인 필요')} · 원화 결제액 ${money(r.settlementKrw)}${r.orderedQuantity==null?'':` · 주문 ${fmt(r.orderedQuantity)}개`} ${esc(r.memo||'')}</p>`).join('')}</details>`:'';
-    return `<tr class="${isLow(m)?'low':''}"><td>${esc(m.name)} ${isLow(m)?'<span class="pill st-hold">부족</span>':''}${history}</td><td>${m.kind==='item'?'상품에 붙음':m.kind==='pack'?'포장':'확인 필요'}</td><td class="n">${receiptMoney(m.unitCost,receiptCurrency(m))}</td><td class="n">${m.stock==null?'확인 필요':fmt(m.stock)+'개'}</td><td class="n">${m.minStock==null?'확인 필요':fmt(m.minStock)+'개'}</td><td class="n">${used}곳 <button type="button" class="btn" data-edit-material="${esc(m.id)}" aria-label="${esc(m.name)} 수정">수정</button></td></tr>`;
+    const history=entries.length?`<details><summary>입고 기록 ${entries.length}건</summary>${entries.map(r=>`<p>${esc(r.batch)}차 · ${esc(r.status||'상태 확인 필요')} · 입고일 ${esc(r.date||'확인 필요')}${showCost?` · 원화 결제액 ${money(r.settlementKrw)}`:''}${r.orderedQuantity==null?'':` · 주문 ${fmt(r.orderedQuantity)}개`} ${showCost?esc(r.memo||''):''}${materialPurchaseLink(r.url)}</p>`).join('')}</details>`:'';
+    return `<tr class="${isLow(m)?'low':''}"><td>${esc(m.name)} ${isLow(m)?'<span class="pill st-hold">부족</span>':''}${history}</td><td>${m.kind==='item'?'상품에 붙음':m.kind==='pack'?'포장':'확인 필요'}</td><td class="n">${showCost?receiptMoney(m.unitCost,receiptCurrency(m)):'–'}</td><td class="n">${m.stock==null?'확인 필요':fmt(m.stock)+'개'}</td><td class="n">${m.minStock==null?'확인 필요':fmt(m.minStock)+'개'}</td><td class="n">${used}곳 ${showCost?`<button type="button" class="btn" data-edit-material="${esc(m.id)}" aria-label="${esc(m.name)} 수정">수정</button>`:''}</td></tr>`;
   }).join('')+'</tbody>';
 }
 function render(){
