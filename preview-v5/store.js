@@ -1,4 +1,6 @@
-import {validateMaterialLinks, receiptAllocation, receiptCurrency, validOptionalDate} from './model.js';
+const buildVersion = new URL(import.meta.url).searchParams.get('v');
+const buildQuery = buildVersion ? `?v=${encodeURIComponent(buildVersion)}` : '';
+const {validateMaterialLinks, receiptAllocation, receiptCurrency, validOptionalDate} = await import('./model.js' + buildQuery);
 
 // UI data boundary: methods are asynchronous so a future authenticated store
 // can implement the same contract. This preview adapter never uses the network.

@@ -69,6 +69,16 @@ for filename,(page,title) in pages.items():
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#174d3c"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'{extra_script}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:{extra_img}; font-src 'self'; connect-src 'self'{extra_connect}; worker-src 'self'; manifest-src 'self'; object-src 'none'; frame-src {frame}; form-action 'none'; base-uri 'self'"><title>{title} — 무무토리 스튜디오</title><link rel="icon" href="assets/mark.svg" type="image/svg+xml"><link rel="stylesheet" href="src/erp.css?v={version}">{page_head}{PWA_HEAD}</head>
 <body data-page="{page}" data-build="{version}"><a class="skip-link" href="#main-content">본문으로 이동</a><div id="root"><div class="loading-state" role="status"><span class="loading-flower">✳</span><b>mumutori studio.</b><p>오늘의 기록을 불러오는 중이에요.</p></div></div><div id="modal-root"></div><div id="toast" class="toast" role="status" hidden></div><noscript>이 ERP는 JavaScript가 필요합니다. 브라우저 설정에서 허용해 주세요.</noscript><script src="src/demo.js?v={version}"></script>{auth_tags}<script src="src/legacy-route.js?v={version}"></script><script src="src/erp-core.js?v={version}"></script><script type="module" src="src/erp-app.js?v={version}"></script></body></html>'''
     (R/f'{filename}.html').write_text(html,encoding='utf-8',newline=chr(10))
+# The regular product address is the authenticated v5 screen. Keep the
+# previous v4 gate at products-preview.html for the explicit legacy link.
+product_v5=(R/'preview-v5/fresh.html').read_text(encoding='utf-8')
+product_v5=product_v5.replace('href="./styles.css"',f'href="preview-v5/styles.css?v={version}"')
+product_v5=product_v5.replace('href="../products-preview.html"','href="products-preview.html"')
+product_v5=product_v5.replace('src="../assets/', 'src="assets/')
+product_v5=product_v5.replace('src="./fresh-entry.js"',f'src="preview-v5/fresh-entry.js?v={version}"')
+product_v5=product_v5.replace('</head>',PWA_HEAD+'</head>')
+product_v5=product_v5.replace('<body>',f'<body data-build="{version}">')
+(R/'products.html').write_text(product_v5,encoding='utf-8',newline=chr(10))
 preview=(R/'src/products-v4-shell.html').read_text(encoding='utf-8').replace('{{VERSION}}',version)
 (R/'products-preview.html').write_text(preview,encoding='utf-8',newline=chr(10))
 quick=(R/'src/quick-shell.html').read_text(encoding='utf-8').replace('{{PWA_HEAD}}',PWA_HEAD).replace('{{VERSION}}',version).replace('</head>',NOTICE_TAGS+'</head>')
@@ -95,7 +105,7 @@ assets['offline.html']=hashlib.sha256(content_bytes(R/'offline.html')).hexdigest
 assets['manifest.webmanifest']=hashlib.sha256(content_bytes(R/'manifest.webmanifest')).hexdigest()
 # Network-backed/private screens fall back to the neutral offline screen, never cached HTML.
 cached_pages={f'{name}.html':hashlib.sha256(content_bytes(R/f'{name}.html')).hexdigest()
-              for name in pages if name not in {'index','finance','bank','sourcing','characters','branding','settings'}}
+              for name in pages if name not in {'index','finance','bank','products','sourcing','characters','branding','settings'}}
 cached_pages.update({f'{name}.html':hashlib.sha256(content_bytes(R/f'{name}.html')).hexdigest() for name in operations_pages})
 worker=(R/'_tools/sw-template.js').read_text(encoding='utf-8').replace('__PWA_VERSION__',version).replace('__PWA_ASSETS__',json.dumps(assets,ensure_ascii=False,sort_keys=True)).replace('__PWA_PAGES__',json.dumps(cached_pages,sort_keys=True)).replace('__PWA_DOCUMENTS__',json.dumps([name+'.html' for name in pages]+[name+'.html' for name in operations_pages]+[name+'.html' for name in redirect_pages]+['quick.html','offline.html']+private_documents+network_only_documents))
 (R/'sw.js').write_text(worker,encoding='utf-8',newline=chr(10))

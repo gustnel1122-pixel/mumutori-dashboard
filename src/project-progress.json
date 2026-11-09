@@ -189,7 +189,7 @@
       "lastActivity": "2026-11-08",
       "automation": "배송 상태·입고표·옵션 검수 모으기 · SKU별 사진·구성·표시 누락 검사 · 처리목록으로 중복 방지·새 사진만 누끼 · 확정 템플릿의 규격·문구·이미지 검사",
       "evidence": "11/8 출고·창고 대조 기록과 상품 관리 미리보기 가상 시험 결과, 실제 입고·운영 이관은 미확인",
-      "href": "products-preview.html"
+      "href": "products.html"
     },
     {
       "id": "marketing",

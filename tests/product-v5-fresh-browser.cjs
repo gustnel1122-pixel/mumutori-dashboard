@@ -19,7 +19,7 @@ async function main(){
   ]}],materials:[{id:'fake-m1',name:'가상 부자재',kind:'unknown',stock:null,minStock:null,unitCost:null,receipts:[{batch:2,date:'',status:'배대지 창고',orderedQuantity:1}]}],sets:[]};
   try {
     for(const width of [390,1280]) {
-      const page=await browser.newPage({viewport:{width,height:900}}); let accesses=[]; const errors=[];
+      const page=await browser.newPage({viewport:{width,height:900}}); let accesses=[],modules=[]; const errors=[];
       page.on('pageerror',e=>errors.push(e.message));
       await page.route('**/*',async route=>{
         const req=route.request(), url=req.url();
@@ -28,12 +28,19 @@ async function main(){
           accesses.push(url.slice((base+'/mock/').length));
           return route.fulfill({status:200,contentType:'application/json',headers:{ETag:'"fake"'},body:JSON.stringify(data)});
         }
+        if(url.startsWith(base+'/preview-v5/') && /\/(?:fresh-entry|fresh-adapter|fresh-schema|app|model|store)\.js/.test(url)) {
+          modules.push(url);
+          // Simulate stale HTTP cache content for unversioned module requests.
+          if(!new URL(url).searchParams.has('v')) return route.fulfill({status:200,contentType:'text/javascript',body:'throw Error("stale module loaded")'});
+        }
         if(url.startsWith(base+'/')) return route.continue();
         return route.abort();
       });
-      await page.goto(base+'/preview-v5/fresh.html',{waitUntil:'domcontentloaded'});
+      await page.goto(base+'/products.html',{waitUntil:'domcontentloaded'});
       await page.locator('#grid-p .card').first().waitFor();
       assert.equal(await page.locator('#grid-p .card').count(),1);
+      assert.equal(await page.getByRole('link',{name:'옛 상품 화면'}).getAttribute('href'),'products-preview.html');
+      assert.ok(modules.length>=5 && modules.every(url=>new URL(url).searchParams.has('v')));
       await page.getByRole('button',{name:'자세히 (입고 기록)'}).click();
       assert.match(await page.locator('.record').nth(1).innerText(),/입고일 확인 필요 · 배송 중/);
       assert.match(await page.locator('.record').nth(1).innerText(),/주문 수 3/);

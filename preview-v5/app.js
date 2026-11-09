@@ -1,5 +1,7 @@
-import {calcProduct, calcSet, validateMaterialLinks, receiptAllocation, receiptCurrency} from './model.js';
-import {createMemoryStore} from './store.js';
+const buildVersion = new URL(import.meta.url).searchParams.get('v');
+const buildQuery = buildVersion ? `?v=${encodeURIComponent(buildVersion)}` : '';
+const {calcProduct, calcSet, validateMaterialLinks, receiptAllocation, receiptCurrency} = await import('./model.js' + buildQuery);
+const {createMemoryStore} = await import('./store.js' + buildQuery);
 
 // This isolated preview deliberately contains fictional examples only.
 // It never fetches or writes an operations ledger.

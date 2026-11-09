@@ -1,3 +1,67 @@
 <!doctype html>
-<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#174d3c"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://apis.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com wss://*.asia-southeast1.firebasedatabase.app https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.app; worker-src 'self'; manifest-src 'self'; object-src 'none'; frame-src https://mumutori-letter.firebaseapp.com https://accounts.google.com; form-action 'none'; base-uri 'self'"><title>상품 — 무무토리 스튜디오</title><link rel="icon" href="assets/mark.svg" type="image/svg+xml"><link rel="stylesheet" href="src/erp.css?v=a43ee3f0c597"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="assets/apple-touch-icon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="무무토리"><meta name="mobile-web-app-capable" content="yes"><link rel="stylesheet" href="src/pwa.css?v=a43ee3f0c597"><script src="src/pwa.js?v=a43ee3f0c597" defer></script></head>
-<body data-page="products" data-build="a43ee3f0c597"><a class="skip-link" href="#main-content">본문으로 이동</a><div id="root"><div class="loading-state" role="status"><span class="loading-flower">✳</span><b>mumutori studio.</b><p>오늘의 기록을 불러오는 중이에요.</p></div></div><div id="modal-root"></div><div id="toast" class="toast" role="status" hidden></div><noscript>이 ERP는 JavaScript가 필요합니다. 브라우저 설정에서 허용해 주세요.</noscript><script src="src/demo.js?v=a43ee3f0c597"></script><script src="assets/vendor/firebase/firebase-app-compat.js?sdk=12.19.0"></script><script src="assets/vendor/firebase/firebase-auth-compat.js?sdk=12.19.0"></script><script src="assets/vendor/firebase/firebase-database-compat.js?sdk=12.19.0"></script><script src="src/activity-client.js?v=a43ee3f0c597"></script><link rel="stylesheet" href="src/notification-center.css?v=a43ee3f0c597"><script src="src/notification-routes.js?v=a43ee3f0c597"></script><script type="module" src="src/notification-center.js?v=a43ee3f0c597"></script><script src="src/legacy-route.js?v=a43ee3f0c597"></script><script src="src/erp-core.js?v=a43ee3f0c597"></script><script type="module" src="src/erp-app.js?v=a43ee3f0c597"></script></body></html>
+<html lang="ko" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://apis.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.app https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com wss://*.asia-southeast1.firebasedatabase.app; frame-src 'self' https://mumutori-letter.firebaseapp.com https://accounts.google.com; object-src 'none'; form-action 'none'; base-uri 'self'"><title>상품 관리 v5</title>
+  <link rel="stylesheet" href="preview-v5/styles.css?v=2afe3fff8185">
+<link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="assets/apple-touch-icon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="무무토리"><meta name="mobile-web-app-capable" content="yes"><link rel="stylesheet" href="src/pwa.css?v=2afe3fff8185"><script src="src/pwa.js?v=2afe3fff8185" defer></script></head>
+<body data-build="2afe3fff8185">
+<div id="fresh-status" role="status">접근 권한을 확인하고 있어요.</div><div id="fresh-protected" hidden>
+  <header class="band"><div class="wrap">
+    <h1>상품 관리</h1>
+    <div class="sub"><span class="pill demo">상품 관리 v5</span><span class="pill note">새 상품 장부</span><a href="products-preview.html">옛 상품 화면</a></div>
+    <div class="tabs" role="tablist" aria-label="상품 관리 구분">
+      <button class="tab" role="tab" id="tab-p" data-tab="p" aria-selected="true" aria-controls="view-p">상품<span class="n" id="cnt-p"></span></button>
+      <button class="tab" role="tab" id="tab-s" data-tab="s" aria-selected="false" aria-controls="view-s">세트<span class="n" id="cnt-s"></span></button>
+      <button class="tab" role="tab" id="tab-m" data-tab="m" aria-selected="false" aria-controls="view-m">부자재<span class="n" id="cnt-m"></span></button>
+    </div>
+  </div></header>
+  <main class="main"><div class="wrap layout"><div class="preview-content">
+    <section id="view-p" role="tabpanel" aria-labelledby="tab-p">
+      <div class="filters" id="filters"></div><div class="summary" id="sum-p"></div><p id="product-error" role="alert"></p><div class="grid" id="grid-p"></div>
+    </section>
+    <section id="view-s" role="tabpanel" aria-labelledby="tab-s" hidden>
+      <div class="summary" id="sum-s"></div><div class="grid" id="grid-s"></div>
+      <div class="box form-box"><h3>세트 만들기</h3>
+        <form class="form" id="setform">
+          <label>세트 이름 <input type="text" id="sf-name" required maxlength="80" placeholder="세트 이름"></label>
+          <fieldset id="sf-items"><legend>구성품 고르기</legend></fieldset>
+          <fieldset id="sf-pack"><legend>포장 부자재 고르기</legend></fieldset>
+          <label>세트 판매가 <input type="number" id="sf-price" min="0" step="1" required> 원</label>
+          <div class="calc" id="sf-calc" aria-live="polite"></div>
+          <div class="hint">구성품의 재고를 기준으로 만들 수 있는 수량을 계산합니다. 실제 재고는 바뀌지 않아요.</div>
+          <div><button class="btn pri" type="submit">세트 추가</button></div>
+        </form>
+      </div>
+    </section>
+    <section id="view-m" role="tabpanel" aria-labelledby="tab-m" hidden>
+      <div class="summary" id="sum-m"></div><div class="tablewrap"><table id="tbl-m"></table></div>
+      <form class="box form form-box" id="mform"><h3 id="material-title">새 부자재 등록</h3>
+        <div class="material-fields">
+          <label>이름 <input type="text" id="mf-name" maxlength="80" required></label>
+          <label>종류 <select id="mf-kind"><option value="unknown" disabled>확인 필요</option><option value="item">상품에 붙음</option><option value="pack">포장</option></select></label>
+          <label>단가 <input type="number" id="mf-price" min="0" step="0.01" required></label>
+          <label>단가 통화 <select id="mf-currency" required><option value="" disabled>통화 확인 필요</option><option value="KRW" selected>원 (KRW)</option><option value="CNY">위안 (CNY)</option></select></label>
+          <label>재고 <input type="number" id="mf-stock" min="0" step="1" required></label>
+          <label>부족 기준 <input type="number" id="mf-min" min="0" step="1" required></label>
+          <button class="btn pri" id="material-submit" type="submit">등록</button>
+          <button class="btn" id="material-cancel" type="button" hidden>수정 취소</button>
+        </div><p id="material-error" role="alert"></p><div class="hint">여기 등록한 것만 상품의 부자재 연결 칸에 나와요.</div>
+      </form>
+    </section>
+  </div><aside class="side">
+    <div class="box"><h3>상품 장부 안내</h3><p class="empty">이 화면은 새 상품 자료를 사용합니다.</p></div>
+    <div class="box"><h3>색 읽는 법</h3><div class="legend">
+      <span><i class="sw good-dot"></i>최소 ROAS 250% 이하</span>
+      <span><i class="sw warn-dot"></i>250~400%</span>
+      <span><i class="sw bad-dot"></i>400% 넘음 또는 확인 필요</span>
+      <span>소진율 = (판매용 수량 − 지금 재고) ÷ 판매용 수량</span></div>
+      <p class="hint">최소 ROAS = 판매가 ÷ (정산금 − 원가). 스마트스토어 수수료 6.62% · 자사몰 3.63%로 계산합니다.</p>
+    </div>
+  </aside></div></main>
+</div>
+<script src="assets/vendor/firebase/firebase-app-compat.js?sdk=12.19.0"></script><script src="assets/vendor/firebase/firebase-auth-compat.js?sdk=12.19.0"></script><script src="assets/vendor/firebase/firebase-database-compat.js?sdk=12.19.0"></script>
+<script type="module" src="preview-v5/fresh-entry.js?v=2afe3fff8185"></script>
+</body></html>

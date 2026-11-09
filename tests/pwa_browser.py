@@ -178,6 +178,9 @@ def mobile_checks(browser, server, evidence, report):
     observe(page, errors)
     pages = []
     for name in PAGES:
+        # Authenticated product v5 gets its own isolated fake-auth 390/1280 test.
+        if name == 'products':
+            continue
         page.goto(server.base + name + '.html?demo=1', wait_until='load')
         if name == 'quick':
             page.locator('#q-app').wait_for(state='visible')
@@ -213,7 +216,7 @@ def sw_checks(context, server, evidence, report):
     isolate(context, server.origin, external)
     page = context.new_page()
     observe(page, errors)
-    page.goto(server.base + 'products.html')
+    page.goto(server.base + 'stock.html')
     page.locator('h1').wait_for()
     wait_js(page, '() => !!navigator.serviceWorker.controller')
     registration = page.evaluate("""async () => {const r=await navigator.serviceWorker.ready;return {scope:r.scope,updateViaCache:r.updateViaCache,script:r.active.scriptURL};}""")
@@ -222,7 +225,7 @@ def sw_checks(context, server, evidence, report):
     assert page.locator('#pwa-update').is_hidden(), 'First installation falsely reported as update'
     page.reload()
     page.locator('h1').wait_for()
-    wait_js(page, """async () => (await caches.keys()).some(n=>n.startsWith('mumutori-pwa:')) && (await (await caches.open((await caches.keys()).find(n=>n.startsWith('mumutori-pwa:')))).keys()).some(r=>r.url.endsWith('/products.html'))""")
+    wait_js(page, """async () => (await caches.keys()).some(n=>n.startsWith('mumutori-pwa:')) && (await (await caches.open((await caches.keys()).find(n=>n.startsWith('mumutori-pwa:')))).keys()).some(r=>r.url.endsWith('/stock.html'))""")
     page.wait_for_timeout(350)
     cdp = context.new_cdp_session(page)
     manifest = cdp.send('Page.getAppManifest')
@@ -242,7 +245,7 @@ def sw_checks(context, server, evidence, report):
     }""")
     page.wait_for_timeout(300)
     urls = cache_urls(page)
-    forbidden = ['seed', 'api/', 'login', 'unknown', 'fbauth', 'fin-core', 'quick.html', 'finance.html', 'bank.html', 'index.html', '?auth=', '?token=']
+    forbidden = ['seed', 'api/', 'login', 'unknown', 'fbauth', 'fin-core', 'quick.html', 'finance.html', 'bank.html', 'index.html', 'products.html', '?auth=', '?token=']
     assert not [url for url in urls if any(token in url for token in forbidden)], urls
     assert any(url.endswith('/assets/icon-192.png') for url in urls)
     # Cache-Control/private prevents storing an otherwise allowlisted digest.
@@ -266,19 +269,19 @@ def sw_checks(context, server, evidence, report):
         if "wasn't found" not in str(err): raise
         cdp.send('Network.emulateNetworkConditions', {'offline':True,'latency':0,'downloadThroughput':0,'uploadThroughput':0})
     page.reload(wait_until='load')
-    page.locator('body[data-page=products] h1').wait_for()
+    page.locator('body[data-page=stock] h1').wait_for()
     report['offline_probe'] = page.evaluate("""() => ({online:navigator.onLine,connection:document.querySelector('.pwa-connection')?.outerHTML,pwaScripts:[...document.scripts].filter(s=>s.src.includes('/pwa.js')).map(s=>s.src),h1:document.querySelector('h1')?.textContent})""")
     page.screenshot(path=str(evidence / 'offline-probe-390.png'), full_page=True)
     page.locator('.pwa-connection').wait_for(state='visible', timeout=5000)
     assert page.get_by_text('시연 상품', exact=True).first.is_visible()
-    page.screenshot(path=str(evidence / 'offline-cached-products-390.png'), full_page=True)
-    report['offline_cached'] = 'products.html rendered synthetic browser ledger; offline notice visible'
-    for name in ['finance.html', 'quick.html', 'index.html', 'settings.html?filter=synthetic']:
+    page.screenshot(path=str(evidence / 'offline-cached-stock-390.png'), full_page=True)
+    report['offline_cached'] = 'stock.html rendered synthetic browser ledger; offline notice visible'
+    for name in ['products.html', 'finance.html', 'quick.html', 'index.html', 'settings.html?filter=synthetic']:
         page.goto(server.base + name, wait_until='load')
         page.get_by_role('heading', name='연결 안 됨').wait_for()
         assert page.locator('#pwa-retry').is_visible()
     page.screenshot(path=str(evidence / 'offline-neutral-390.png'), full_page=True)
-    report['offline_neutral'] = ['finance.html', 'quick.html', 'index.html', 'query navigation without cached shell']
+    report['offline_neutral'] = ['products.html', 'finance.html', 'quick.html', 'index.html', 'query navigation without cached shell']
     server.http.offline = False
     context.set_offline(False)
     try:
@@ -318,7 +321,7 @@ def update_checks(browser, root, evidence, report):
             first, second = context.new_page(), context.new_page()
             for page in [first, second]:
                 observe(page, errors)
-                page.goto(server.base + 'products.html')
+                page.goto(server.base + 'stock.html')
                 page.locator('h1').wait_for()
                 wait_js(page, '() => !!navigator.serviceWorker.controller')
             before = first.locator('body').get_attribute('data-build')

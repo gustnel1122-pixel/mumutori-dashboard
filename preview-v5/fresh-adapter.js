@@ -1,4 +1,6 @@
-import {validateMaterialLinks, receiptAllocation, receiptCurrency, validOptionalDate} from './model.js';
+const buildVersion = new URL(import.meta.url).searchParams.get('v');
+const buildQuery = buildVersion ? `?v=${encodeURIComponent(buildVersion)}` : '';
+const {validateMaterialLinks, receiptAllocation, receiptCurrency, validOptionalDate} = await import('./model.js' + buildQuery);
 
 // Operational integration draft. No connection starts until a caller invokes
 // load or a mutation. The public demo must keep using its memory store.

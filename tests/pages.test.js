@@ -1,33 +1,36 @@
 // Integration checks use an isolated origin and synthetic records only.
 const {chromium}=require('playwright');
-const fs=require('fs'),path=require('path'),assert=require('node:assert/strict');
+const fs=require('fs'),path=require('path'),os=require('os'),assert=require('node:assert/strict');
 const C=require('../src/erp-core.js'),ROOT=path.resolve(__dirname,'..');
+const evidence=process.env.ERP_EVIDENCE||os.tmpdir();
 const ORIGIN='https://mumutori.test/mumutori-dashboard/';
 const fixture=()=>C.migrate({products:[{id:'CHECK-01',name:'연결 검증 상품',salesStatus:'판매 중',price:5000},{id:'CHECK-02',name:'준비 중 상품',salesStatus:'판매 준비'}],bankTransactions:[],finance:{},erp:{accounts:[{id:'main',name:'검증 통장'}],warehouses:['기본 창고']},preserveMe:{source:'old-browser-ledger'}});
 (async()=>{
  const browser=await chromium.launch({headless:true,executablePath:process.env.ERP_CHROME,args:['--no-sandbox']});
  const context=await browser.newContext({viewport:{width:1440,height:1080}});const errors=[];
- await context.route('https://mumutori.test/**',route=>{const name=new URL(route.request().url()).pathname.replace('/mumutori-dashboard/','')||'index.html';const file=path.join(ROOT,name);const ext=path.extname(file);return route.fulfill({status:fs.existsSync(file)?200:404,contentType:({'.html':'text/html','.js':'application/javascript','.json':'application/json','.css':'text/css','.svg':'image/svg+xml'})[ext]||'text/plain',body:fs.existsSync(file)?fs.readFileSync(file):'Not found'});});
+ await context.route('https://mumutori.test/**',route=>{const name=new URL(route.request().url()).pathname.replace('/mumutori-dashboard/','')||'index.html';if(name==='test-legacy-products.html'){const shell=fs.readFileSync(path.join(ROOT,'stock.html'),'utf8').replace('data-page="stock"','data-page="products"');return route.fulfill({contentType:'text/html',body:shell});}const file=path.join(ROOT,name);const ext=path.extname(file);return route.fulfill({status:fs.existsSync(file)?200:404,contentType:({'.html':'text/html','.js':'application/javascript','.json':'application/json','.css':'text/css','.svg':'image/svg+xml'})[ext]||'text/plain',body:fs.existsSync(file)?fs.readFileSync(file):'Not found'});});
  const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>d.accept());
  const go=async url=>{await page.goto(ORIGIN+url);await page.locator('h1').waitFor();};
- await go('index.html');await page.screenshot({path:'/tmp/mumutori-studio-home.png',fullPage:true,animations:'disabled'});
+ await go('index.html');await page.screenshot({path:path.join(evidence,'mumutori-studio-home.png'),fullPage:true,animations:'disabled'});
  let modules=[];page.on('request',r=>{if(r.url().includes('/src/pages/'))modules.push(new URL(r.url()).pathname);});
- for(const id of ['finance','bank','products','purchases','sales','stock','partners','audit','settings','agents','branding','characters']){
+ // products.html is the authenticated v5 screen, covered by product-v5-fresh-browser.cjs.
+ for(const id of ['finance','bank','purchases','sales','stock','partners','audit','settings','agents','branding','characters']){
   modules=[];await go(id+'.html');assert.equal(await page.locator('body').getAttribute('data-page'),id);/* 큰 메뉴만 본다(재무 안 작은 탭도 aria-current) · 통장은 재무 안의 탭이라 큰 메뉴는 재무 */assert.equal(await page.locator('nav [aria-current="page"][data-view]').getAttribute('data-view'),id==='bank'?'finance':id);assert.equal(modules.length,1);assert(modules[0].endsWith('/'+id+'.js'));
   assert.equal(await page.locator('iframe').count(),0);assert(await page.locator('h1').isVisible());
-  if(['finance','products','stock'].includes(id))await page.screenshot({path:'/tmp/mumutori-studio-'+id+'.png',fullPage:true,animations:'disabled'});
+  if(['finance','products','stock'].includes(id))await page.screenshot({path:path.join(evidence,'mumutori-studio-'+id+'.png'),fullPage:true,animations:'disabled'});
  }
- console.log('PASS all 10 direct pages; only selected page module loads; correct active navigation');
+ console.log('PASS direct ERP pages; only selected page module loads; correct active navigation');
  // New pages must retain the previous storage key and unknown fields.
  await page.evaluate(d=>localStorage.setItem('mumutori-private-finance-v3',JSON.stringify(d)),fixture());
- await go('products.html?q=CHECK-01');assert.equal(await page.locator('.table tbody tr').count(),1);
+ // Keep legacy ERP data and handoff regression coverage on an isolated synthetic shell.
+ await go('test-legacy-products.html?q=CHECK-01');assert.equal(await page.locator('.table tbody tr').count(),1);
  await page.locator('[data-action="edit"][data-id="CHECK-01"]').click();await page.locator('#f-name').fill('부서 공통 상품');await page.locator('#submit-record').click();await page.locator('[role="dialog"]').waitFor({state:'hidden'});
  await page.locator('.table-link').filter({hasText:'재고'}).click();await page.locator('h1').waitFor();assert(new URL(page.url()).pathname.endsWith('stock.html'));assert.equal(new URL(page.url()).searchParams.get('q'),'CHECK-01');assert((await page.locator('.table tbody').textContent()).includes('부서 공통 상품'));
- await page.goBack();await page.locator('h1').waitFor();assert(new URL(page.url()).pathname.endsWith('products.html'));assert((await page.locator('.table tbody').textContent()).includes('부서 공통 상품'));
+ await page.goBack();await page.locator('h1').waitFor();assert(new URL(page.url()).pathname.endsWith('test-legacy-products.html'));assert((await page.locator('.table tbody').textContent()).includes('부서 공통 상품'));
  const stored=await page.evaluate(()=>JSON.parse(localStorage.getItem('mumutori-private-finance-v3')));assert.equal(stored.preserveMe.source,'old-browser-ledger');
  console.log('PASS existing browser data preservation, product handoff query and browser back');
  // Two departments in different tabs see saves; an open draft cannot overwrite newer state.
- const second=await context.newPage();second.on('dialog',d=>d.accept());second.on('pageerror',e=>errors.push(e.message));await second.goto(ORIGIN+'products.html');await second.locator('h1').waitFor();
+ const second=await context.newPage();second.on('dialog',d=>d.accept());second.on('pageerror',e=>errors.push(e.message));await second.goto(ORIGIN+'test-legacy-products.html');await second.locator('h1').waitFor();
  await second.locator('[data-action="edit"][data-id="CHECK-01"]').click();await second.locator('#f-name').fill('보존할 초안');
  await page.locator('[data-action="edit"][data-id="CHECK-01"]').click();await page.locator('#f-price').fill('7700');await page.locator('#submit-record').click();await page.locator('[role="dialog"]').waitFor({state:'hidden'});
  await second.locator('#submit-record').click();assert.match(await second.locator('#form-error').textContent(),/다른 창/);assert.equal(await second.locator('#f-name').inputValue(),'보존할 초안');
@@ -39,15 +42,15 @@ const fixture=()=>C.migrate({products:[{id:'CHECK-01',name:'연결 검증 상품
  await go('index.html#stock');await page.waitForURL('**/stock.html');await page.locator('h1').waitFor();console.log('PASS legacy hash bookmark redirects to real page');
  // Filtered tasks are reversible, and table rendering stays bounded at scale.
  const big=fixture();big.products=Array.from({length:1200},(_,i)=>({id:'PERF-'+String(i).padStart(4,'0'),name:'상품 '+i,salesStatus:'판매 중',active:true}));
- await page.evaluate(d=>localStorage.setItem('mumutori-private-finance-v3',JSON.stringify(d)),big);await go('products.html');assert.equal(await page.locator('.table tbody tr').count(),25);await page.locator('[data-action="page"][data-value="1"]').click();assert((await page.locator('.pager').textContent()).includes('26–50'));
+ await page.evaluate(d=>localStorage.setItem('mumutori-private-finance-v3',JSON.stringify(d)),big);await go('test-legacy-products.html');assert.equal(await page.locator('.table tbody tr').count(),25);await page.locator('[data-action="page"][data-value="1"]').click();assert((await page.locator('.pager').textContent()).includes('26–50'));
  await go('stock.html?attention=uncounted');assert(await page.locator('.attention-note').isVisible());await page.locator('[data-action="attention-clear"]').click();assert(!new URL(page.url()).searchParams.has('attention'));
  console.log('PASS 1,200 products remain paginated at 25 rows and task filter can be cleared');
  await page.evaluate(()=>localStorage.clear());
  for(const width of [390,768]){
   await page.setViewportSize({width,height:844});
-  for(const name of ['index','finance','products','purchases','sales','stock','bank','partners','audit','settings','agents','branding','characters']){
+  for(const name of ['index','finance','purchases','sales','stock','bank','partners','audit','settings','agents','branding','characters']){
    await go(name+'.html');const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1);assert(!overflow,`Page overflow at ${width}: ${name}`);
-   if(width===390&&['index','products','finance'].includes(name))await page.screenshot({path:'/tmp/mumutori-studio-mobile-'+name+'.png',fullPage:true,animations:'disabled'});
+   if(width===390&&['index','products','finance'].includes(name))await page.screenshot({path:path.join(evidence,'mumutori-studio-mobile-'+name+'.png'),fullPage:true,animations:'disabled'});
   }
  }
  await page.emulateMedia({reducedMotion:'reduce'});await go('index.html');assert.equal(await page.locator('#progress').evaluate(el=>getComputedStyle(el).animationDuration),'0s');

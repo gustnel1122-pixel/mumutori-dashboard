@@ -1,6 +1,8 @@
 import {current, onAuth, signIn, dbUrl} from '../src/fbauth.js?v=access20261028';
-import {createAuthenticatedStore} from './fresh-adapter.js';
-import {freshSchema} from './fresh-schema.js';
+const buildVersion = new URL(import.meta.url).searchParams.get('v');
+const buildQuery = buildVersion ? `?v=${encodeURIComponent(buildVersion)}` : '';
+const {createAuthenticatedStore} = await import('./fresh-adapter.js' + buildQuery);
+const {freshSchema} = await import('./fresh-schema.js' + buildQuery);
 
 // Only this page's new, private root is used. A different identity destroys
 // all rendered data and editors before it can start another session.
@@ -74,7 +76,7 @@ onAuth(async user => {
     await candidate.load();
     if (mine !== generation || current()?.uid !== uid) return;
     window.__MMT_V5_FRESH_STORE__ = candidate;
-    await import('./app.js');
+    await import('./app.js' + buildQuery);
     if (mine !== generation || current()?.uid !== uid) return;
     started = true; status.hidden = true; root.hidden = false;
   } catch (_) {
