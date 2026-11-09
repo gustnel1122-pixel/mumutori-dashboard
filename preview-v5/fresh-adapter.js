@@ -1,6 +1,7 @@
 const buildVersion = new URL(import.meta.url).searchParams.get('v');
 const buildQuery = buildVersion ? `?v=${encodeURIComponent(buildVersion)}` : '';
 const {validateMaterialLinks, receiptAllocation, receiptCurrency, validOptionalDate} = await import('./model.js' + buildQuery);
+const {normalizeSale, mergeSalePatch, prepareSaleChange, MARGIN_VISIBLE_TO} = await import('./sale-model.js' + buildQuery);
 
 // Operational integration draft. No connection starts until a caller invokes
 // load or a mutation. The public demo must keep using its memory store.
@@ -17,6 +18,9 @@ const integer = x => Number.isSafeInteger(x) && x >= 0;
 const positive = x => Number.isSafeInteger(x) && x > 0;
 const number = x => typeof x === 'number' && Number.isFinite(x) && x >= 0;
 const box = x => /박스|box/i.test(String(x || ''));
+const canonical = value => JSON.stringify(value, (_key, item) => object(item) ? Object.fromEntries(Object.keys(item).sort().map(key => [key,item[key]])) : item);
+const rows = value => Array.isArray(value) ? value : object(value) ? Object.values(value) : [];
+export {MARGIN_VISIBLE_TO};
 
 function project(schema, raw) {
   if (!schema || typeof schema.project !== 'function' || typeof schema.apply !== 'function') {
@@ -37,7 +41,7 @@ function project(schema, raw) {
   return out;
 }
 
-export function createAuthenticatedStore({auth, fetchImpl, schema = null, onChange = () => {}, onStatus = () => {}, allowWrites = false}) {
+export function createAuthenticatedStore({auth, fetchImpl, schema = null, onChange = () => {}, onStatus = () => {}, allowWrites = false, marginVisibleTo = MARGIN_VISIBLE_TO}) {
   if (!auth || typeof auth.current !== 'function' || typeof auth.onAuth !== 'function' ||
       typeof auth.dbUrl !== 'function' || typeof fetchImpl !== 'function') throw Error('자료 연결을 준비하지 못했어요.');
   let epoch = 0, loadSequence = 0, closed = false, userId = auth.current()?.uid || '', lastEtag = null;
@@ -81,7 +85,7 @@ export function createAuthenticatedStore({auth, fetchImpl, schema = null, onChan
     if (!etag) throw Error('자료 변경 여부를 확인하지 못했어요.');
     return {raw, etag, snapshot:project(schema, raw)};
   }
-  async function transact(mutator, expectedRevision = lastEtag) {
+  async function transact(mutator, expectedRevision = lastEtag, options = {}) {
     if (!allowWrites) throw Error('미리보기에서는 저장할 수 없어요.');
     if (!expectedRevision) throw Error('자료를 다시 불러온 뒤 저장해 주세요.');
     const request = begin();
@@ -89,7 +93,12 @@ export function createAuthenticatedStore({auth, fetchImpl, schema = null, onChan
       const {raw, etag, snapshot} = await read(request); check(request);
       if (etag !== expectedRevision) { invalidate(); throw Error('다른 곳에서 자료가 바뀌었어요. 다시 불러와 주세요.'); }
       const next = clone(raw || {});
-      mutator(next, snapshot);
+      const outcome = mutator(next, snapshot, request);
+      if (options.skipWrite && options.skipWrite(outcome)) { onStatus('saved'); return; }
+      if (options.beforeWrite) {
+        await options.beforeWrite({raw, etag, snapshot, request, outcome});
+        check(request);
+      }
       const url = await privateUrl(request);
       let result;
       try {
@@ -105,6 +114,14 @@ export function createAuthenticatedStore({auth, fetchImpl, schema = null, onChan
       if (result.status === 401 || result.status === 403) { permissionDenied(); throw Error('이 계정은 저장할 수 없어요.'); }
       if (result.status === 412) { invalidate(); throw Error('다른 곳에서 자료가 바뀌었어요. 다시 불러와 주세요.'); }
       if (!result.ok) { invalidate(); throw Error('저장 결과를 확인하지 못했어요. 다시 불러와 주세요.'); }
+      if (options.verifyWrite) {
+        let after;
+        try { after = await read(request); check(request); }
+        catch (_) { invalidate(); throw Error('저장 후 자료를 확인하지 못했어요. 다시 불러와 주세요.'); }
+        if (!options.verifyWrite(after.snapshot, outcome)) {
+          invalidate(); throw Error('저장 후 자료가 달라졌어요. 다시 불러와 주세요.');
+        }
+      }
       // Do not optimistically retain sensitive state; caller reloads with auth.
       invalidate(); onStatus('saved');
     } catch (error) {
@@ -127,6 +144,29 @@ export function createAuthenticatedStore({auth, fetchImpl, schema = null, onChan
       } finally { pending.delete(request.controller); }
     },
     revision() { return lastEtag; },
+    // 'allowed' means both already authorized accounts, not owner-only.
+    canViewMargin() { return marginVisibleTo === 'allowed' && !!auth.current()?.uid; },
+    async saveSale(id, patch, expectedRevision = lastEtag) {
+      if (!validId(id)) throw Error('상품을 찾을 수 없어요.');
+      // Validate patch before network access. A second validation uses the
+      // actual current sale, preserving fields the caller did not edit.
+      mergeSalePatch(null, patch);
+      return transact((raw, data, request) => {
+        const product = data.products.find(item => item.id === id);
+        const original = rows(raw.products).find(item => item?.id === id);
+        if (!product || !original) throw Error('상품을 찾을 수 없어요.');
+        const previous = original.sale == null ? null : clone(original.sale);
+        const result = prepareSaleChange(previous, patch, request.uid);
+        if (result.changed) schema.apply(raw, {type:'saveSale', id, sale:result.sale});
+        return {id, sale:result.sale, changed:result.changed};
+      }, expectedRevision, {
+        skipWrite(outcome) { return !outcome.changed; },
+        verifyWrite(snapshot, outcome) {
+          const product = snapshot.products.find(item => item.id === outcome.id);
+          return !!product && canonical(normalizeSale(product.sale)) === canonical(normalizeSale(outcome.sale));
+        }
+      });
+    },
     async saveProductLinks(id, links, expectedRevision = lastEtag) {
       if (!validId(id) || !Array.isArray(links)) throw Error('상품 연결을 확인해 주세요.');
       return transact((raw, data) => {

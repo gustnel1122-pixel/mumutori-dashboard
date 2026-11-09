@@ -1,12 +1,13 @@
 const buildVersion = new URL(import.meta.url).searchParams.get('v');
 const buildQuery = buildVersion ? `?v=${encodeURIComponent(buildVersion)}` : '';
 const {validateMaterialLinks, receiptAllocation, receiptCurrency, validOptionalDate} = await import('./model.js' + buildQuery);
+const {prepareSaleChange, MARGIN_VISIBLE_TO} = await import('./sale-model.js' + buildQuery);
 
 // UI data boundary: methods are asynchronous so a future authenticated store
 // can implement the same contract. This preview adapter never uses the network.
 // Save methods return only after validation succeeds, then load() returns a
 // fresh snapshot; the UI must not assume a mutable cached snapshot is saved.
-export function createMemoryStore(initial) {
+export function createMemoryStore(initial, {marginVisibleTo = MARGIN_VISIBLE_TO} = {}) {
   const data = structuredClone(initial);
   const byId = (rows, id) => rows.find(row => row.id === id);
   const validMaterial = material => {
@@ -18,6 +19,14 @@ export function createMemoryStore(initial) {
   };
   return Object.freeze({
     async load() { return structuredClone(data); },
+    // Simulation only; 'allowed' shows margins to both permitted users.
+    canViewMargin() { return marginVisibleTo === 'allowed'; },
+    async saveSale(productId, patch) {
+      const product = byId(data.products, productId);
+      if (!product) throw new Error('상품을 찾을 수 없어요.');
+      const result = prepareSaleChange(product.sale, patch, 'preview');
+      if (result.changed) product.sale = result.sale;
+    },
     async saveProductLinks(productId, links) {
       const product = byId(data.products, productId);
       if (!product) throw new Error('상품을 찾을 수 없어요.');
