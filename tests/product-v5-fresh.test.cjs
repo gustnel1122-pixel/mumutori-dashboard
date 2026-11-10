@@ -91,3 +91,26 @@ test('RTDB가 null과 빈 배열을 생략해도 비공개 미확인 값과 빈 
   assert.equal(out.materials[0].stock,null); assert.deepEqual(out.materials[0].receipts,[]);
   assert.equal(calcProduct(out.products[0],[]).stock,null);
 });
+
+test('기존 미확인 연결은 해제하고 확정 부자재만 새로 연결할 수 있다',async()=>{
+  const [{createAuthenticatedStore},{freshSchema}]=await modules;
+  const m=mock(), one=Number(true);
+  m.serverChange(data=>{
+    data.materials=[{id:'known-material',name:'가상 부자재',kind:'부자재',currency:'KRW',unitCost:one},{id:'unknown-material',name:'가상 미확인',kind:'unknown',currency:'KRW',unitCost:one},{id:'product-material',name:'가상 상품',kind:'상품',currency:'KRW',unitCost:one}];
+    data.products[0].links=[{materialId:'unknown-material',quantity:one,always:true},{materialId:'product-material',quantity:one,always:true}];
+  });
+  const store=createAuthenticatedStore({auth:m.auth,fetchImpl:m.fetchImpl,schema:freshSchema,allowWrites:true});
+  const before=await store.load(),legacy=before.products[0].links;
+  await store.saveProductLinks('new-p1',[legacy[1]]);
+  let after=await store.load();assert.deepEqual(after.products[0].links,[legacy[1]]);
+  const added={materialId:'known-material',quantity:one,always:true};
+  await store.saveProductLinks('new-p1',[legacy[1],added]);
+  after=await store.load();assert.deepEqual(after.products[0].links,[legacy[1],added]);
+  await store.saveProductLinks('new-p1',[added]);
+  after=await store.load();assert.deepEqual(after.products[0].links,[added]);
+  await assert.rejects(store.saveProductLinks('new-p1',[added,legacy[0]]),/종류 확인 필요/);
+  await store.saveProductLinks('new-p1',[]);
+  await store.load();
+  await store.saveProductLinks('new-p1',[added]);
+  assert.deepEqual((await store.load()).products[0].links,[added]);store.stop();
+});

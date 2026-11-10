@@ -1,6 +1,6 @@
 const buildVersion = new URL(import.meta.url).searchParams.get('v');
 const buildQuery = buildVersion ? `?v=${encodeURIComponent(buildVersion)}` : '';
-const {validateMaterialLinks, receiptAllocation, receiptCurrency, validOptionalDate} = await import('./model.js' + buildQuery);
+const {validateMaterialLinks, validateMaterialLinkUpdate, receiptAllocation, receiptCurrency, validOptionalDate} = await import('./model.js' + buildQuery);
 const {normalizeSale, mergeSalePatch, prepareSaleChange, MARGIN_VISIBLE_TO} = await import('./sale-model.js' + buildQuery);
 
 // Operational integration draft. No connection starts until a caller invokes
@@ -170,8 +170,9 @@ export function createAuthenticatedStore({auth, fetchImpl, schema = null, onChan
     async saveProductLinks(id, links, expectedRevision = lastEtag) {
       if (!validId(id) || !Array.isArray(links)) throw Error('상품 연결을 확인해 주세요.');
       return transact((raw, data) => {
-        if (!data.products.some(product => product.id === id)) throw Error('상품을 찾을 수 없어요.');
-        const result = validateMaterialLinks(links, data.materials);
+        const product = data.products.find(product => product.id === id);
+        if (!product) throw Error('상품을 찾을 수 없어요.');
+        const result = validateMaterialLinkUpdate(links, Array.isArray(product.links) ? product.links : [], data.materials);
         if (!result.valid) throw Error(result.errors[0]);
         schema.apply(raw, {type:'saveProductLinks', id, links:clone(links)});
       }, expectedRevision);
@@ -212,7 +213,7 @@ export function createAuthenticatedStore({auth, fetchImpl, schema = null, onChan
           ids.add(c.id);
         }
         const check = validateMaterialLinks(set.materials, data.materials);
-        if (!check.valid || set.materials.some(link => data.materials.find(m=>m.id===link.materialId)?.kind !== 'pack')) {
+        if (!check.valid || set.materials.some(link => data.materials.find(m=>m.id===link.materialId)?.kind !== 'pack' && data.materials.find(m=>m.id===link.materialId)?.kind !== '부자재')) {
           throw Error('세트 포장 부자재를 확인해 주세요.');
         }
         if (data.sets.some(existing => existing.id === set.id)) throw Error('이미 등록됐거나 자료를 확인할 수 없어요.');

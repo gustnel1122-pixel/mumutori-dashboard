@@ -1,6 +1,6 @@
 const buildVersion = new URL(import.meta.url).searchParams.get('v');
 const buildQuery = buildVersion ? `?v=${encodeURIComponent(buildVersion)}` : '';
-const {calcProduct, calcSet, validateMaterialLinks, receiptAllocation, receiptCurrency, minimumRoas, FEES} = await import('./model.js' + buildQuery);
+const {calcProduct, calcSet, validateMaterialLinks, validateMaterialLinkUpdate, receiptAllocation, receiptCurrency, minimumRoas, FEES} = await import('./model.js' + buildQuery);
 const {createMemoryStore} = await import('./store.js' + buildQuery);
 const {normalizeSale, saleStatus, saleMargin} = await import('./sale-model.js' + buildQuery);
 
@@ -22,15 +22,17 @@ const isLive = Boolean(window.__MMT_V5_FRESH_STORE__);
 const store = window.__MMT_V5_FRESH_STORE__ || createMemoryStore({products:exampleProducts,materials:exampleMaterials,sets:exampleSets});
 let {products,materials,sets} = await store.load();
 async function reload(){({products,materials,sets}=await store.load());}
-const state = {tab:'p',filters:{batch:new Set(),channel:new Set(),kind:new Set(),status:new Set()},saleFilter:'전체',saleBusy:false,openProduct:null,openSale:new Set(),saleMessages:new Map(),saleDrafts:new Map(),saleUncertain:new Set(),sort:'name',includeMaterials:true,channel:'smart',openDetails:new Set(),openLinks:new Set(),editReceipt:new Map(),editReceiptRevision:new Map(),editMaterial:null,editMaterialRevision:null,draft:{items:{},materials:{}}};
+const state = {tab:'p',filters:{batch:new Set(),channel:new Set(),kind:new Set(),status:new Set()},saleFilter:'전체',saleBusy:false,openProduct:null,openSale:new Set(),saleMessages:new Map(),saleDrafts:new Map(),saleUncertain:new Set(),sort:'name',includeMaterials:true,channel:'smart',openDetails:new Set(),openLinks:new Set(),linkMessage:'',editReceipt:new Map(),editReceiptRevision:new Map(),editMaterial:null,editMaterialRevision:null,draft:{items:{},materials:{}}};
 const saleEditRevision = new WeakMap();
 const revision = () => typeof store.revision === 'function' ? store.revision() : undefined;
 const $ = id => document.getElementById(id);
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt = v => typeof v === 'number' && Number.isFinite(v) ? Math.round(v).toLocaleString('ko-KR') : '확인 필요';
 const money = v => typeof v === 'number' && Number.isFinite(v) ? fmt(v)+'원' : '확인 필요';
-const receiptMoney = (v,currency) => typeof v === 'number' && Number.isFinite(v) && currency === 'CNY' ? `${v.toLocaleString('ko-KR',{maximumFractionDigits:2})}위안` : currency === 'KRW' ? money(v) : '확인 필요';
+const receiptMoney = (v,currency) => typeof v === 'number' && Number.isFinite(v) && currency === 'CNY' ? `${v.toLocaleString('ko-KR',{maximumFractionDigits:2})}위안` : currency === 'KRW' ? money(v) : typeof v === 'number' && Number.isFinite(v) ? '통화 확인 필요' : '확인 필요';
 const pct = v => typeof v === 'number' && Number.isFinite(v) ? Math.round(v)+'%' : '확인 필요';
+const productCostText = (calc, field='unitCost') => typeof calc?.[field] === 'number' && Number.isFinite(calc[field]) ? money(calc[field]) : `원가 없음 — ${calc?.costReason || '구성 원가 기록 없음'}`;
+const pendingCostText = calc => [...(Array.isArray(calc?.costBases) ? calc.costBases : []), ...(Array.isArray(calc?.costNotes) ? calc.costNotes : []), calc?.pendingExpenses ? `${calc.costBatch ? `${calc.costBatch}차 ` : ''}남은 비용 대기` : ''].filter(Boolean).join(' · ');
 const options = () => ({includeMaterials:state.includeMaterials,channel:state.channel});
 const calculate = p => calcProduct(p,materials,options());
 const canViewCost = () => typeof store.canViewMargin==='function' && store.canViewMargin();
@@ -101,15 +103,22 @@ function receiptPanel(p){
 }
 function linksPanel(p){
   if(!state.openLinks.has(p.id))return '';
-  return `<section class="panel"><h4>부자재 연결</h4><p class="hint">등록된 부자재만 고를 수 있어요. 실제 재고는 바뀌지 않습니다.</p>${materials.length?materials.map(m=>{
-    const link=(p.links||[]).find(l=>l.materialId===m.id);
-    return `<div class="lrow"><span class="nm">${esc(m.name)}<small>${m.kind==='item'?'상품에 붙음':'포장'}</small></span><div class="lctl">${link?`<label>1개당 <input type="number" min="1" max="999" value="${esc(link.quantity)}" data-link-quantity="${esc(m.id)}" aria-label="${esc(m.name)} 1개당 개수"></label><button type="button" class="btn" data-unlink="${esc(m.id)}">연결 해제</button>`:`<button type="button" class="btn" data-link="${esc(m.id)}">연결</button>`}</div></div>`;
-  }).join(''):'<p class="empty">먼저 부자재를 등록해 주세요.</p>'}</section>`;
+  const links=Array.isArray(p.links)?p.links:[];
+  const linked=links.map((link,index)=>{
+    const material=materials.find(m=>m.id===link?.materialId);
+    const valid=validateMaterialLinks([link],materials).valid;
+    const label=material?.name||'연결 정보 없음';
+    const kind=['item','상품에 붙음'].includes(material?.kind)?'상품에 붙음':['pack','포장'].includes(material?.kind)?'포장':material?.kind==='부자재'?'부자재':'종류 확인 필요 · 합계 제외';
+    return `<div class="lrow"><span class="nm">${esc(label)}<small>${esc(valid?kind:'종류 확인 필요 · 합계 제외')}</small></span><div class="lctl">${valid?`<label>1개당 <input type="number" min="1" max="999" value="${esc(link.quantity)}" data-link-quantity="${esc(material.id)}" aria-label="${esc(label)} 1개당 개수"></label>`:''}<button type="button" class="btn" data-unlink="${esc(link?.materialId||'')}" data-unlink-index="${index}">연결 해제</button></div></div>`;
+  });
+  const available=materials.filter(m=>!links.some(l=>l?.materialId===m.id)&&validateMaterialLinks([{materialId:m.id,quantity:1,always:true}],materials).valid);
+  const choices=available.map(m=>`<div class="lrow"><span class="nm">${esc(m.name)}<small>${['item','상품에 붙음'].includes(m.kind)?'상품에 붙음':['pack','포장'].includes(m.kind)?'포장':'부자재'}</small></span><div class="lctl"><button type="button" class="btn" data-link="${esc(m.id)}">연결</button></div></div>`);
+  return `<dialog class="panel links-dialog" aria-labelledby="links-title"><div class="links-head"><h3 id="links-title">부자재 연결</h3><button type="button" class="btn" data-links-close>닫기</button></div><p class="hint">등록된 부자재만 고를 수 있어요. 실제 재고는 바뀌지 않습니다.</p><p role="alert" class="links-error">${esc(state.linkMessage)}</p>${linked.length?`<h4>연결됨</h4>${linked.join('')}`:''}${choices.length?`<h4>연결할 부자재</h4>${choices.join('')}`:!linked.length?'<p class="empty">연결할 부자재가 없어요 — 부자재 탭에서 종류를 부자재로 설정해 주세요.</p>':''}</dialog>`;
 }
 function saleMarginRows(p,sale){
   if (!canViewCost()) return '<p class="sale-margin-note">마진 표시 설정 확인 필요</p>';
-  const cost=calculate(p).cost;
-  return `<div class="sale-margins"><strong>마진 보기</strong><small>판매가 − 확인된 원가 · 수수료 제외</small>${saleChannels.map(([key,label])=>{
+  const costResult=calculate(p),cost=costResult.partialCost?null:costResult.cost;
+  return `<div class="sale-margins"><strong>마진 보기</strong><small>판매가 − ${costResult.provisional?'잠정 원가':'확인된 원가'} · 수수료 제외</small>${saleChannels.map(([key,label])=>{
     const result=saleMargin(sale,key,cost,true);
     return `<div><span>${esc(label)}</span><span>${result.margin===null?'확인 필요':`${money(result.margin)} · ${pct(result.marginRate)}`}</span></div>`;
   }).join('')}</div>`;
@@ -138,13 +147,13 @@ function rowSummary(p){
   const showCost=canViewCost();
   const calc=showCost?calculate(p):null;
   const cost=calc?.unitCost ?? null;
-  const roas=showCost && channel!==null?minimumRoas(price,calc.cost,FEES[channel]):null;
+  const roas=showCost && channel!==null&&!calc.partialCost?minimumRoas(price,calc.cost,FEES[channel]):null;
   const colour=roasClass(roas), colourLabel=roas===null?'확인 필요':colour==='g'?'초록':colour==='w'?'주황':'빨강';
   const marks=[['own','자','자사몰'],['smart','스','스마트스토어'],['coupang','쿠','쿠팡']].map(([key,short,label])=>{
     const on=sale.listings[key].registered;
     return `<span class="market-mark ${on?'is-on':''}" data-market="${key}" role="img" aria-label="${label} ${on?'등록됨':'등록 표시 없음'}">${short}</span>`;
   }).join('');
-  const costCell=showCost?`<span class="product-row-cost" aria-label="개당 원가 ${esc(money(cost))}"><small>원가</small><span>${esc(money(cost))}</span></span>`:'<span class="product-row-cost-placeholder" aria-hidden="true"></span>';
+  const costCell=showCost?`<span class="product-row-cost" aria-label="${esc(productCostText(calc))}${pendingCostText(calc)?` · ${esc(pendingCostText(calc))}`:''}" title="${esc(productCostText(calc))}${pendingCostText(calc)?` · ${esc(pendingCostText(calc))}`:''}"><small>${cost===null&&calc.costReason==='통화 확인 필요'?'통화 확인 필요':calc.provisional?'원가 · 잠정':'원가'}</small><span>${esc(cost===null?'—':money(cost))}</span>${calc.partialCost?`<small class="product-cost-note">${calc.issues.includes('부자재 통화 확인 필요')?'통화 확인 필요':'부자재 확인 필요'}</small>`:calc.costNotes?.length?`<small class="product-cost-note">${calc.costNotes.some(note=>note.includes('추가'))?'추가비용 확인':'비용 확인'}</small>`:''}</span>`:'<span class="product-row-cost-placeholder" aria-hidden="true"></span>';
   const roasCell=showCost?`<span class="product-row-roas ${colour}" role="img" aria-label="최소 ROAS ${colourLabel}" title="최소 ROAS ${colourLabel}"></span>`:'<span class="product-row-roas-placeholder" aria-hidden="true"></span>';
   return `<span class="product-row-photo" aria-hidden="true">${img}</span><span class="product-row-name" title="${esc(p.name)}">${esc(p.name)}</span><span class="product-row-batch" aria-label="${esc(batch||'차수 미확인')}">${esc(shortBatch||'–')}</span><span class="product-row-decision ${decisionClass(sale.decision)}">${esc(sale.decision)}</span>${costCell}<span class="product-row-price" aria-label="${channel==='own'?'자사몰':channel==='smart'?'스마트스토어':''} 판매가 ${esc(price===null?'없음':money(price))}"><small>${channel==='own'?'자사몰':channel==='smart'?'스스':'판매가'}</small><span>${esc(price===null?'판매가 없음':money(price))}</span></span>${roasCell}<span class="product-row-market">${marks}</span><span class="product-row-arrow" aria-hidden="true">⌄</span>`;
 }
@@ -159,7 +168,7 @@ function card(p){
   const open=state.openProduct===p.id, detailId=`product-detail-${p.id}`;
   return `<article class="card product-row" data-product="${esc(p.id)}"><button type="button" class="product-row-toggle" data-product-toggle aria-expanded="${open}" aria-controls="${esc(detailId)}">${rowSummary(p)}</button><div class="product-detail" id="${esc(detailId)}" ${open?'':'hidden'}><div class="ctop"><div class="cname">${picture(p)}<span>${esc(p.name)}</span></div><div class="tags"><span class="pill t-batch">${esc(Array.isArray(p.batch)?p.batch.join(' · '):p.batch)}</span><span class="pill st-on">${esc(p.status)}</span>${(p.receipts||[]).some(r=>r.status==='확인 필요')?'<span class="pill st-hold">입고 확인 필요</span>':''}</div></div>
     <div class="chs">${esc((p.channels||[]).join(' · ')||'판매처 확인 필요')}</div>
-    <div class="nums">${showCost?`<div class="num"><div class="k">원가</div><div class="v">${money(c.cost)}</div><div class="s">${state.includeMaterials?'부자재 포함':'부자재 제외'}</div></div>`:''}
+    <div class="nums">${showCost?`<div class="num"><div class="k">원가${c.provisional?' · 잠정':''}</div><div class="v">${c.cost===null?esc(c.costReason||'확인 필요'):money(c.cost)}</div><div class="s">${state.includeMaterials?'부자재 포함':'부자재 제외'}${c.partialCost?(c.issues.includes('부자재 통화 확인 필요')?' · 부자재 통화 확인 필요':' · 일부 부자재 제외 · 확인 필요'):''}${pendingCostText(c)?` · 원가 기준: ${esc(pendingCostText(c))}`:''}</div></div>`:''}
     <div class="num"><div class="k">기존 계산 기준가 <span class="ps ${p.priceStatus==='확정'?'확정':'제안'}">${esc(p.priceStatus||'제안')}</span></div><div class="v">${money(c.price)}</div></div>
     ${showCost?`<div class="num"><div class="k">기존 기준 최소 ROAS</div><div class="roas"><div><span class="c">스스</span><span class="${roasClass(c.roas.smart)}">${pct(c.roas.smart)}</span></div><div><span class="c">자사몰</span><span class="${roasClass(c.roas.own)}">${pct(c.roas.own)}</span></div></div></div>`:''}</div><p class="sale-legacy-note">기존 계산 기준가는 아래 판매 준비 가격과 별도예요.</p>
     <div class="sell"><div class="row"><span>소진율 ${pct(rate)}</span><span>판매용 ${fmt(c.saleReceived)} · 재고 ${fmt(c.stock)}</span></div><div class="bar"><i class="g" style="width:${bar}%"></i></div></div>
@@ -172,25 +181,35 @@ function renderProducts(){
   $('sum-p').innerHTML=`<span>상품 <b>${shown.length}</b>개</span><span>${isLive?'새 상품 장부':'금액과 상품은 가상의 예시'}</span>`;
   $('grid-p').innerHTML=shown.length?shown.map(card).join(''):'<div class="empty-card">조건에 맞는 상품이 없어요. 필터를 바꿔 주세요.</div>';
   if(state.editReceipt.size)for(const control of $('grid-p').querySelectorAll('[data-sale-decision],[data-sale-price],[data-sale-registered],[data-sale-url],[data-sale-detail],[data-photo-product],[data-link-quantity]'))control.disabled=true;
+  const dialog=$('grid-p').querySelector('.links-dialog');
+  if(dialog){
+    dialog.addEventListener('cancel',event=>{event.preventDefault();closeLinks();});
+    dialog.showModal();
+  }
+}
+function closeLinks(){
+  const id=state.openProduct;
+  state.openLinks.clear();state.linkMessage='';renderProducts();
+  if(id)document.querySelector(`#grid-p [data-product="${CSS.escape(id)}"] [data-action="links"]`)?.focus({preventScroll:true});
 }
 function setCard(s){
   const c=calcSet(s,products,materials,options());
   const showCost=canViewCost();
   const names=(s.components||[]).map(x=>`${byId(x.id)?.name||'구성품 확인 필요'} ×${x.quantity}`).join(' · ');
   const packaging=(s.materials||[]).map(x=>`${materials.find(m=>m.id===x.materialId)?.name||'부자재 확인 필요'} ×${x.quantity}`).join(' · ');
-  return `<article class="card"><div class="ctop"><div class="cname">${esc(s.name)}</div><div class="tags"><span class="pill st-set">세트</span></div></div><div class="chs">${esc(names)}</div><div class="nums">${showCost?`<div class="num"><div class="k">세트 원가</div><div class="v">${money(c.cost)}</div></div>`:''}<div class="num"><div class="k">판매가</div><div class="v">${money(c.price)}</div></div><div class="num"><div class="k">세트 재고</div><div class="v">${fmt(c.stock)}</div></div></div><div class="chs">포장: ${esc(packaging||'연결 없음')}</div>${showCost?`<div class="chs">최소 ROAS · 스스 ${pct(c.roas.smart)} · 자사몰 ${pct(c.roas.own)}</div>`:''}</article>`;
+  return `<article class="card"><div class="ctop"><div class="cname">${esc(s.name)}</div><div class="tags"><span class="pill st-set">세트</span></div></div><div class="chs">${esc(names)}</div><div class="nums">${showCost?`<div class="num"><div class="k">세트 원가</div><div class="v">${money(c.cost)}</div>${c.partialCost?`<div class="s">${c.issues.includes('부자재 통화 확인 필요')?'부자재 통화 확인 필요':'일부 부자재 제외 · 확인 필요'}</div>`:''}</div>`:''}<div class="num"><div class="k">판매가</div><div class="v">${money(c.price)}</div></div><div class="num"><div class="k">세트 재고</div><div class="v">${fmt(c.stock)}</div></div></div><div class="chs">포장: ${esc(packaging||'연결 없음')}</div>${showCost?`<div class="chs">최소 ROAS · 스스 ${pct(c.roas.smart)} · 자사몰 ${pct(c.roas.own)}</div>`:''}</article>`;
 }
 function renderSetForm(){
   $('sf-items').innerHTML='<legend>구성품 고르기</legend>'+products.map(p=>`<div class="pickrow"><label><input type="checkbox" data-pick-product="${esc(p.id)}" ${state.draft.items[p.id]?'checked':''}> ${esc(p.name)}</label>${state.draft.items[p.id]?`<input type="number" min="1" max="999" value="${state.draft.items[p.id]}" data-quantity-product="${esc(p.id)}" aria-label="${esc(p.name)} 개수">`:''}</div>`).join('');
-  const packing=materials.filter(m=>m.kind==='pack');
-  $('sf-pack').innerHTML='<legend>포장 부자재 고르기</legend>'+(packing.length?packing.map(m=>`<div class="pickrow"><label><input type="checkbox" data-pick-pack="${esc(m.id)}" ${state.draft.materials[m.id]?'checked':''}> ${esc(m.name)}</label>${state.draft.materials[m.id]?`<input type="number" min="1" max="999" value="${state.draft.materials[m.id]}" data-quantity-pack="${esc(m.id)}" aria-label="${esc(m.name)} 개수">`:''}</div>`).join(''):'<p class="empty">등록된 포장 부자재가 없어요.</p>');
+  const packing=materials.filter(m=>m.kind==='pack'||m.kind==='부자재');
+  $('sf-pack').innerHTML='<legend>세트 부자재 고르기</legend>'+(packing.length?packing.map(m=>`<div class="pickrow"><label><input type="checkbox" data-pick-pack="${esc(m.id)}" ${state.draft.materials[m.id]?'checked':''}> ${esc(m.name)}</label>${state.draft.materials[m.id]?`<input type="number" min="1" max="999" value="${state.draft.materials[m.id]}" data-quantity-pack="${esc(m.id)}" aria-label="${esc(m.name)} 개수">`:''}</div>`).join(''):'<p class="empty">등록된 포장 부자재가 없어요.</p>');
   updateSetCalculation();
 }
 function draftSet(){return {name:$('sf-name').value.trim(),salePrice:$('sf-price').value===''?null:Number($('sf-price').value),components:Object.entries(state.draft.items).map(([id,quantity])=>({id,quantity})),materials:Object.entries(state.draft.materials).map(([materialId,quantity])=>({materialId,quantity}))};}
 function updateSetCalculation(){
   const draft=draftSet(); if(!draft.components.length){$('sf-calc').innerHTML='<span class="empty">구성품을 1개 이상 골라 주세요.</span>';return;}
   const c=calcSet(draft,products,materials,options());
-  $('sf-calc').innerHTML=`${canViewCost()?`<div class="num"><div class="k">세트 원가</div><div class="v">${money(c.cost)}</div></div><div class="num"><div class="k">최소 ROAS(스스)</div><div class="v">${pct(c.roas.smart)}</div></div>`:''}<div class="num"><div class="k">만들 수 있는 수</div><div class="v">${fmt(c.stock)}</div></div>`;
+  $('sf-calc').innerHTML=`${canViewCost()?`<div class="num"><div class="k">세트 원가</div><div class="v">${money(c.cost)}</div>${c.partialCost?`<div class="s">${c.issues.includes('부자재 통화 확인 필요')?'부자재 통화 확인 필요':'일부 부자재 제외 · 확인 필요'}</div>`:''}</div><div class="num"><div class="k">최소 ROAS(스스)</div><div class="v">${pct(c.roas.smart)}</div></div>`:''}<div class="num"><div class="k">만들 수 있는 수</div><div class="v">${fmt(c.stock)}</div></div>`;
 }
 function renderSets(){ $('sum-s').innerHTML=`<span>세트 <b>${sets.length}</b>개</span><span>세트 재고는 구성품 중 가장 적게 만들 수 있는 수량이에요.</span>`; $('grid-s').innerHTML=sets.map(setCard).join('');renderSetForm(); }
 function materialPurchaseLink(value){
@@ -208,7 +227,7 @@ function renderMaterials(){
     const used=products.filter(p=>(p.links||[]).some(l=>l.materialId===m.id)).length+sets.filter(s=>(s.materials||[]).some(l=>l.materialId===m.id)).length;
     const entries=Array.isArray(m.receipts)?m.receipts:[];
     const history=entries.length?`<details><summary>입고 기록 ${entries.length}건</summary>${entries.map(r=>`<p>${esc(r.batch)}차 · ${esc(r.status||'상태 확인 필요')} · 입고일 ${esc(r.date||'확인 필요')}${showCost?` · 원화 결제액 ${money(r.settlementKrw)}`:''}${r.orderedQuantity==null?'':` · 주문 ${fmt(r.orderedQuantity)}개`} ${showCost?esc(r.memo||''):''}${materialPurchaseLink(r.url)}</p>`).join('')}</details>`:'';
-    return `<tr class="${isLow(m)?'low':''}"><td>${esc(m.name)} ${isLow(m)?'<span class="pill st-hold">부족</span>':''}${history}</td><td>${m.kind==='item'?'상품에 붙음':m.kind==='pack'?'포장':'확인 필요'}</td><td class="n">${showCost?receiptMoney(m.unitCost,receiptCurrency(m)):'–'}</td><td class="n">${m.stock==null?'확인 필요':fmt(m.stock)+'개'}</td><td class="n">${m.minStock==null?'확인 필요':fmt(m.minStock)+'개'}</td><td class="n">${used}곳 ${showCost?`<button type="button" class="btn" data-edit-material="${esc(m.id)}" aria-label="${esc(m.name)} 수정">수정</button>`:''}</td></tr>`;
+    return `<tr class="${isLow(m)?'low':''}"><td>${esc(m.name)} ${isLow(m)?'<span class="pill st-hold">부족</span>':''}${history}</td><td>${m.kind==='item'?'상품에 붙음':m.kind==='pack'?'포장':m.kind==='부자재'?'부자재':m.kind==='상품'?'상품':'확인 필요'}</td><td class="n">${showCost?receiptMoney(m.unitCost,receiptCurrency(m)):'–'}</td><td class="n">${m.stock==null?'확인 필요':fmt(m.stock)+'개'}</td><td class="n">${m.minStock==null?'확인 필요':fmt(m.minStock)+'개'}</td><td class="n">${used}곳 ${showCost?`<button type="button" class="btn" data-edit-material="${esc(m.id)}" aria-label="${esc(m.name)} 수정">수정</button>`:''}</td></tr>`;
   }).join('')+'</tbody>';
 }
 function render(){
@@ -316,12 +335,13 @@ document.addEventListener('click',async e=>{
   }
   const p=byId(t.closest('[data-product]')?.dataset.product);if(!p)return;
   if(t.dataset.action==='details'){state.openDetails.has(p.id)?state.openDetails.delete(p.id):state.openDetails.add(p.id);renderProducts();return;}
-  if(t.dataset.action==='links'){state.openLinks.has(p.id)?state.openLinks.delete(p.id):state.openLinks.add(p.id);renderProducts();return;}
+  if(t.hasAttribute('data-links-close')){closeLinks();return;}
+  if(t.dataset.action==='links'){state.linkMessage='';state.openLinks.has(p.id)?state.openLinks.delete(p.id):state.openLinks.add(p.id);renderProducts();return;}
   if(t.hasAttribute('data-receipt-add')){state.editReceipt.set(p.id,'new');state.editReceiptRevision.set(p.id,revision());renderProducts();return;}
   if(t.hasAttribute('data-receipt-edit')){state.editReceipt.set(p.id,Number(t.dataset.receiptEdit));state.editReceiptRevision.set(p.id,revision());renderProducts();return;}
   if(t.hasAttribute('data-receipt-cancel')){state.editReceipt.delete(p.id);state.editReceiptRevision.delete(p.id);renderProducts();return;}
-  if(t.dataset.link){const candidate=[...(p.links||[]),{materialId:t.dataset.link,quantity:1,always:true}];try{if(validateMaterialLinks(candidate,materials).valid){await store.saveProductLinks(p.id,candidate);await reload();$('product-error').textContent='';}}catch(error){$('product-error').textContent=error.message;}renderProducts();return;}
-  if(t.dataset.unlink){try{await store.saveProductLinks(p.id,(p.links||[]).filter(l=>l.materialId!==t.dataset.unlink));await reload();$('product-error').textContent='';}catch(error){$('product-error').textContent=error.message;}renderProducts();}
+  if(t.dataset.link){const candidate=[...(p.links||[]),{materialId:t.dataset.link,quantity:1,always:true}];try{const result=validateMaterialLinkUpdate(candidate,Array.isArray(p.links)?p.links:[],materials);if(!result.valid)throw Error(result.errors[0]||'부자재를 확인해 주세요.');await store.saveProductLinks(p.id,candidate);await reload();state.linkMessage='';}catch(error){state.linkMessage=error.message||'부자재를 연결하지 못했어요.';}renderProducts();return;}
+  if(t.hasAttribute('data-unlink-index')){try{const index=Number(t.dataset.unlinkIndex),next=(p.links||[]).filter((_,i)=>i!==index);await store.saveProductLinks(p.id,next);await reload();state.linkMessage='';}catch(error){state.linkMessage=error.message||'부자재 연결을 해제하지 못했어요.';}renderProducts();}
 });
 document.addEventListener('change',async e=>{
   const t=e.target;
@@ -357,7 +377,7 @@ document.addEventListener('change',async e=>{
   }
   if(t.id==='sort'){state.sort=t.value;renderProducts();return;}
   if(t.id==='material-cost'){state.includeMaterials=t.checked;render();return;}
-  if(t.dataset.linkQuantity){const p=byId(t.closest('[data-product]')?.dataset.product),link=(p?.links||[]).find(l=>l.materialId===t.dataset.linkQuantity);if(link){try{const next=p.links.map(l=>l.materialId===t.dataset.linkQuantity?{...l,quantity:Math.max(1,Math.min(999,Math.floor(Number(t.value)||1)))}:l);await store.saveProductLinks(p.id,next);await reload();$('product-error').textContent='';}catch(error){$('product-error').textContent=error.message;}}renderProducts();return;}
+  if(t.dataset.linkQuantity){const p=byId(t.closest('[data-product]')?.dataset.product),link=(p?.links||[]).find(l=>l.materialId===t.dataset.linkQuantity);if(link){try{const next=p.links.map(l=>l.materialId===t.dataset.linkQuantity?{...l,quantity:Math.max(1,Math.min(999,Math.floor(Number(t.value)||1)))}:l);await store.saveProductLinks(p.id,next);await reload();state.linkMessage='';}catch(error){state.linkMessage=error.message||'부자재 개수를 저장하지 못했어요.';}}renderProducts();return;}
   if(t.dataset.pickProduct){if(t.checked)state.draft.items[t.dataset.pickProduct]=1;else delete state.draft.items[t.dataset.pickProduct];renderSetForm();return;}
   if(t.dataset.pickPack){if(t.checked)state.draft.materials[t.dataset.pickPack]=1;else delete state.draft.materials[t.dataset.pickPack];renderSetForm();return;}
   if(t.dataset.quantityProduct){state.draft.items[t.dataset.quantityProduct]=Math.max(1,Math.min(999,Math.floor(Number(t.value)||1)));updateSetCalculation();return;}

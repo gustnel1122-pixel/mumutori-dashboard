@@ -1,6 +1,6 @@
 const buildVersion = new URL(import.meta.url).searchParams.get('v');
 const buildQuery = buildVersion ? `?v=${encodeURIComponent(buildVersion)}` : '';
-const {validateMaterialLinks, receiptAllocation, receiptCurrency, validOptionalDate} = await import('./model.js' + buildQuery);
+const {validateMaterialLinks, validateMaterialLinkUpdate, receiptAllocation, receiptCurrency, validOptionalDate} = await import('./model.js' + buildQuery);
 const {prepareSaleChange, MARGIN_VISIBLE_TO} = await import('./sale-model.js' + buildQuery);
 
 // UI data boundary: methods are asynchronous so a future authenticated store
@@ -30,7 +30,7 @@ export function createMemoryStore(initial, {marginVisibleTo = MARGIN_VISIBLE_TO}
     async saveProductLinks(productId, links) {
       const product = byId(data.products, productId);
       if (!product) throw new Error('상품을 찾을 수 없어요.');
-      const result = validateMaterialLinks(links, data.materials);
+      const result = validateMaterialLinkUpdate(links, Array.isArray(product.links) ? product.links : [], data.materials);
       if (!result.valid) throw new Error(result.errors[0]);
       product.links = structuredClone(links);
     },
@@ -90,7 +90,7 @@ export function createMemoryStore(initial, {marginVisibleTo = MARGIN_VISIBLE_TO}
       if (!set || typeof set.id !== 'string' || byId(data.sets, set.id) || !String(set.name || '').trim() || !Array.isArray(set.components) || !set.components.length) throw new Error('세트 이름과 구성품을 확인해 주세요.');
       if (set.components.some(part => !byId(data.products, part.id) || !Number.isSafeInteger(part.quantity) || part.quantity < 1)) throw new Error('세트 구성품을 확인해 주세요.');
       const check = validateMaterialLinks(set.materials, data.materials);
-      if (!check.valid || set.materials.some(link => byId(data.materials, link.materialId)?.kind !== 'pack')) throw new Error('세트 포장 부자재를 확인해 주세요.');
+      if (!check.valid || set.materials.some(link => byId(data.materials, link.materialId)?.kind !== 'pack' && byId(data.materials, link.materialId)?.kind !== '부자재')) throw new Error('세트 포장 부자재를 확인해 주세요.');
       if (!Number.isFinite(set.salePrice) || set.salePrice < 0) throw new Error('세트 판매가를 확인해 주세요.');
       data.sets.push(structuredClone(set));
     },

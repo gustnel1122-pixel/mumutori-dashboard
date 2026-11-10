@@ -228,3 +228,10 @@ button,input,select{min-height:36px}
 .product-detail{display:flex;flex-direction:column;gap:10px;min-width:0;padding:14px;border-top:1px solid var(--line)}
 @media(max-width:480px){.product-row-toggle{min-height:56px;grid-template-columns:24px minmax(45px,1fr) auto auto 55px 58px 7px auto 7px;gap:2px;padding:8px 5px}.product-row-photo{width:24px;height:24px}.product-row-name{font-size:12px}.product-row-batch{font-size:10px}.product-row-decision{padding:3px 3px;font-size:10px}.product-row-price,.product-row-cost{font-size:10px}.product-row-price small,.product-row-cost small{font-size:9px}.product-row-roas{width:7px;height:7px}.market-mark{width:10px;height:17px;font-size:9px}.product-detail{padding:10px}}
 @media(prefers-reduced-motion:reduce){.product-row-arrow{transition:none}}
+
+.links-dialog{border:1px solid var(--line);border-radius:16px;background:var(--paper, white);color:inherit;width:min(92vw, 520px);max-height:80vh;overflow:auto;padding:20px;box-shadow:0 18px 60px #0003}
+.links-dialog::backdrop{background:#0008}
+.links-dialog .links-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.links-dialog:not([open]){display:none}
+
+.product-row-cost .product-cost-note{font-size:7px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
