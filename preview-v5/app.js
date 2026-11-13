@@ -223,11 +223,12 @@ function renderMaterials(){
   const low=materials.filter(isLow);
   $('mform').hidden=!showCost;
   $('sum-m').innerHTML=`<span>부자재 <b>${materials.length}</b>종</span><span>부족 <b>${low.length}</b>종</span>`;
-  $('tbl-m').innerHTML='<thead><tr><th>부자재</th><th>종류</th><th>단가</th><th>남은 수량</th><th>부족 기준</th><th>연결된 곳</th></tr></thead><tbody>'+materials.map(m=>{
+  $('tbl-m').innerHTML='<thead><tr><th>사진</th><th>부자재</th><th>종류</th><th>단가</th><th>남은 수량</th><th>부족 기준</th><th>연결된 곳</th></tr></thead><tbody>'+materials.map(m=>{
     const used=products.filter(p=>(p.links||[]).some(l=>l.materialId===m.id)).length+sets.filter(s=>(s.materials||[]).some(l=>l.materialId===m.id)).length;
     const entries=Array.isArray(m.receipts)?m.receipts:[];
     const history=entries.length?`<details><summary>입고 기록 ${entries.length}건</summary>${entries.map(r=>`<p>${esc(r.batch)}차 · ${esc(r.status||'상태 확인 필요')} · 입고일 ${esc(r.date||'확인 필요')}${showCost?` · 원화 결제액 ${money(r.settlementKrw)}`:''}${r.orderedQuantity==null?'':` · 주문 ${fmt(r.orderedQuantity)}개`} ${showCost?esc(r.memo||''):''}${materialPurchaseLink(r.url)}</p>`).join('')}</details>`:'';
-    return `<tr class="${isLow(m)?'low':''}"><td>${esc(m.name)} ${isLow(m)?'<span class="pill st-hold">부족</span>':''}${history}</td><td>${m.kind==='item'?'상품에 붙음':m.kind==='pack'?'포장':m.kind==='부자재'?'부자재':m.kind==='상품'?'상품':'확인 필요'}</td><td class="n">${showCost?receiptMoney(m.unitCost,receiptCurrency(m)):'–'}</td><td class="n">${m.stock==null?'확인 필요':fmt(m.stock)+'개'}</td><td class="n">${m.minStock==null?'확인 필요':fmt(m.minStock)+'개'}</td><td class="n">${used}곳 ${showCost?`<button type="button" class="btn" data-edit-material="${esc(m.id)}" aria-label="${esc(m.name)} 수정">수정</button>`:''}</td></tr>`;
+    const photo=typeof m.imageData==='string' && /^data:image\/(png|jpeg|webp);base64,[a-z0-9+/=]+$/i.test(m.imageData)?`<img src="${esc(m.imageData)}" alt="">`:'';
+    return `<tr class="${isLow(m)?'low':''}"><td><span class="product-row-photo" aria-hidden="true">${photo}</span></td><td>${esc(m.name)} ${isLow(m)?'<span class="pill st-hold">부족</span>':''}${history}</td><td>${m.kind==='item'?'상품에 붙음':m.kind==='pack'?'포장':m.kind==='부자재'?'부자재':m.kind==='상품'?'상품':'확인 필요'}</td><td class="n">${showCost?receiptMoney(m.unitCost,receiptCurrency(m)):'–'}</td><td class="n">${m.stock==null?'확인 필요':fmt(m.stock)+'개'}</td><td class="n">${m.minStock==null?'확인 필요':fmt(m.minStock)+'개'}</td><td class="n">${used}곳 ${showCost?`<button type="button" class="btn" data-edit-material="${esc(m.id)}" aria-label="${esc(m.name)} 수정">수정</button>`:''}</td></tr>`;
   }).join('')+'</tbody>';
 }
 function render(){
@@ -324,12 +325,13 @@ document.addEventListener('click',async e=>{
   if(t.dataset.group){const s=state.filters[t.dataset.group];s.has(t.dataset.value)?s.delete(t.dataset.value):s.add(t.dataset.value);render();return;}
   if(t.id==='clear-filters'){Object.values(state.filters).forEach(s=>s.clear());state.saleFilter='전체';render();return;}
   if(t.dataset.channel){state.channel=t.dataset.channel;render();return;}
-  if(t.id==='material-cancel'){state.editMaterial=null;$('mform').reset();$('material-title').textContent='새 부자재 등록';$('material-submit').textContent='등록';t.hidden=true;$('material-error').textContent='';return;}
+  if(t.id==='material-cancel'){state.editMaterial=null;$('mform').reset();$('mf-photo-preview').innerHTML='';$('material-title').textContent='새 부자재 등록';$('material-submit').textContent='등록';t.hidden=true;$('material-error').textContent='';return;}
   if(t.dataset.editMaterial){
     const material=materials.find(m=>m.id===t.dataset.editMaterial);if(!material)return;
     state.editMaterial=material.id;state.editMaterialRevision=revision();$('mf-name').value=material.name;$('mf-kind').value=material.kind;
     $('mf-price').value=material.unitCost;$('mf-currency').value=receiptCurrency(material)||'';
     $('mf-stock').value=material.stock;$('mf-min').value=material.minStock;
+    $('mf-photo').value='';$('mf-photo-preview').innerHTML=typeof material.imageData==='string' && /^data:image\/(png|jpeg|webp);base64,[a-z0-9+/=]+$/i.test(material.imageData)?`<img alt="" src="${esc(material.imageData)}">`:'';
     $('material-title').textContent='부자재 수정';$('material-submit').textContent='수정 저장';$('material-cancel').hidden=false;$('material-error').textContent='';
     $('mf-name').focus();return;
   }
@@ -391,6 +393,23 @@ document.addEventListener('submit',async e=>{
   try{await store.saveReceipt(form.dataset.receiptForm,form.dataset.index==='new'?null:Number(form.dataset.index),receipt,state.editReceiptRevision.get(form.dataset.receiptForm));await reload();state.editReceipt.delete(form.dataset.receiptForm);state.editReceiptRevision.delete(form.dataset.receiptForm);$('product-error').textContent='';renderProducts();}
   catch(error){form.querySelector('.receipt-error').textContent=error.message;}
 });
-$('mform').addEventListener('submit',async e=>{e.preventDefault();if(state.saleDrafts.size)return;const form=e.currentTarget,name=$('mf-name').value.trim();if(!name)return;const fields={name,kind:$('mf-kind').value,unitCost:Number($('mf-price').value),currency:$('mf-currency').value,stock:Number($('mf-stock').value),minStock:Number($('mf-min').value)};try{if(state.editMaterial)await store.saveMaterial(state.editMaterial,fields,state.editMaterialRevision);else await store.createMaterial({id:'demo-m-'+Date.now(),...fields});await reload();state.editMaterial=null;state.editMaterialRevision=null;form.reset();$('material-title').textContent='새 부자재 등록';$('material-submit').textContent='등록';$('material-cancel').hidden=true;$('material-error').textContent='';render();}catch(error){$('material-error').textContent=error.message;}});
+$('mform').addEventListener('submit',async e=>{
+  e.preventDefault();if(state.saleDrafts.size)return;
+  const form=e.currentTarget,name=$('mf-name').value.trim();if(!name)return;
+  const photoFile=$('mf-photo').files?.[0];
+  if(photoFile&&(!['image/png','image/jpeg','image/webp'].includes(photoFile.type)||photoFile.size>1024*1024)){$('material-error').textContent='1MB 이하의 PNG, JPG, WebP 사진만 선택해 주세요.';return;}
+  const fields={name,kind:$('mf-kind').value,unitCost:Number($('mf-price').value),currency:$('mf-currency').value,stock:Number($('mf-stock').value),minStock:Number($('mf-min').value)};
+  try{
+    let id;
+    if(state.editMaterial){id=state.editMaterial;await store.saveMaterial(id,fields,state.editMaterialRevision);}
+    else{id='demo-m-'+Date.now();await store.createMaterial({id,...fields});}
+    await reload();
+    if(photoFile){
+      const data=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(new Error('사진을 읽을 수 없어요.'));reader.readAsDataURL(photoFile);});
+      await store.saveMaterialImage(id,data,revision());await reload();
+    }
+    state.editMaterial=null;state.editMaterialRevision=null;form.reset();$('mf-photo-preview').innerHTML='';$('material-title').textContent='새 부자재 등록';$('material-submit').textContent='등록';$('material-cancel').hidden=true;$('material-error').textContent='';render();
+  }catch(error){$('material-error').textContent=error.message;}
+});
 $('setform').addEventListener('submit',async e=>{e.preventDefault();if(state.saleDrafts.size)return;const form=e.currentTarget,draft=draftSet();if(!draft.name||!draft.components.length){$('sf-calc').textContent='세트 이름과 구성품을 확인해 주세요.';return;}try{await store.createSet({...draft,id:'demo-s-'+Date.now(),priceStatus:'제안'});await reload();state.draft={items:{},materials:{}};form.reset();render();}catch(error){$('sf-calc').textContent=error.message;}});
 render();

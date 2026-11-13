@@ -46,6 +46,8 @@
           <label>단가 통화 <select id="mf-currency" required><option value="" disabled>통화 확인 필요</option><option value="KRW" selected>원 (KRW)</option><option value="CNY">위안 (CNY)</option></select></label>
           <label>재고 <input type="number" id="mf-stock" min="0" step="1" required></label>
           <label>부족 기준 <input type="number" id="mf-min" min="0" step="1" required></label>
+          <label>사진 <input type="file" id="mf-photo" accept="image/png,image/jpeg,image/webp" aria-label="부자재 대표 사진 선택"></label>
+          <span class="thumb" id="mf-photo-preview" aria-hidden="true"></span>
           <button class="btn pri" id="material-submit" type="submit">등록</button>
           <button class="btn" id="material-cancel" type="button" hidden>수정 취소</button>
         </div><p id="material-error" role="alert"></p><div class="hint">여기 등록한 것만 상품의 부자재 연결 칸에 나와요.</div>

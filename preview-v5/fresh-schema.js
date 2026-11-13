@@ -40,8 +40,14 @@ export const freshSchema = Object.freeze({
       if (!value) throw Error('상품을 찾을 수 없어요.');
       return value;
     };
+    const material = () => {
+      const value = raw.materials.find(item => item.id === operation.id);
+      if (!value) throw Error('부자재를 찾을 수 없어요.');
+      return value;
+    };
     if (operation.type === 'saveProductLinks') product().links = copy(operation.links);
     else if (operation.type === 'saveImage') product().imageData = operation.dataUrl;
+    else if (operation.type === 'saveMaterialImage') material().imageData = operation.dataUrl;
     else if (operation.type === 'saveReceipt') {
       const p = product(); p.receipts = array(p.receipts);
       if (operation.index === null) p.receipts.push(copy(operation.receipt));
