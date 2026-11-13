@@ -191,13 +191,15 @@ export function createAuthenticatedStore({auth, fetchImpl, schema = null, onChan
     },
     async saveMaterial(id, fields, expectedRevision = lastEtag) {
       if (!validId(id) || !object(fields)) throw Error('부자재 정보를 확인해 주세요.');
+      const touchesPrice = 'unitCost' in fields || 'currency' in fields;
       return transact((raw, data) => {
         const previous = data.materials.find(existing => existing.id === id);
         if (!previous) throw Error('부자재 정보를 확인해 주세요.');
         const material = {...previous,...clone(fields),id};
         if ('unitCostCurrency' in previous && fields.currency != null) material.unitCostCurrency = fields.currency;
         if (!String(material.name || '').trim() || !['item','pack'].includes(material.kind) || box(material.name) ||
-            !number(material.unitCost) || !receiptCurrency(material) || !optionalInteger(material.stock) || !optionalInteger(material.minStock)) throw Error('부자재 정보를 확인해 주세요.');
+            (touchesPrice && (!number(material.unitCost) || !receiptCurrency(material))) ||
+            !optionalInteger(material.stock) || !optionalInteger(material.minStock)) throw Error('부자재 정보를 확인해 주세요.');
         if (material.kind !== 'pack' && data.sets.some(set => (set.materials || []).some(link => link.materialId === id))) throw Error('세트에 연결된 포장은 종류를 바꿀 수 없어요.');
         schema.apply(raw, {type:'saveMaterial', material:clone(material)});
       }, expectedRevision);

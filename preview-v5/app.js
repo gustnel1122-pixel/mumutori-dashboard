@@ -398,12 +398,17 @@ $('mform').addEventListener('submit',async e=>{
   const form=e.currentTarget,name=$('mf-name').value.trim();if(!name)return;
   const photoFile=$('mf-photo').files?.[0];
   if(photoFile&&(!['image/png','image/jpeg','image/webp'].includes(photoFile.type)||photoFile.size>1024*1024)){$('material-error').textContent='1MB 이하의 PNG, JPG, WebP 사진만 선택해 주세요.';return;}
+  const priceRaw=$('mf-price').value.trim(),currencyVal=$('mf-currency').value;
   const stockRaw=$('mf-stock').value.trim(),minRaw=$('mf-min').value.trim();
-  const fields={name,kind:$('mf-kind').value,unitCost:Number($('mf-price').value),currency:$('mf-currency').value};
+  const fields={name,kind:$('mf-kind').value};
   if(state.editMaterial){
+    if(priceRaw!=='')fields.unitCost=Number(priceRaw);
+    if(currencyVal!=='')fields.currency=currencyVal;
     if(stockRaw!=='')fields.stock=Number(stockRaw);
     if(minRaw!=='')fields.minStock=Number(minRaw);
   }else{
+    if(priceRaw===''){$('material-error').textContent='단가를 입력해 주세요.';return;}
+    fields.unitCost=Number(priceRaw);fields.currency=currencyVal;
     fields.stock=stockRaw===''?null:Number(stockRaw);
     fields.minStock=minRaw===''?null:Number(minRaw);
   }

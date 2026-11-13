@@ -10,11 +10,13 @@ const {prepareSaleChange, MARGIN_VISIBLE_TO} = await import('./sale-model.js' + 
 export function createMemoryStore(initial, {marginVisibleTo = MARGIN_VISIBLE_TO} = {}) {
   const data = structuredClone(initial);
   const byId = (rows, id) => rows.find(row => row.id === id);
-  const validMaterial = material => {
+  const validMaterial = (material, {requirePrice = true} = {}) => {
     if (!material || typeof material.id !== 'string' || !String(material.name || '').trim() || !['item','pack'].includes(material.kind)) throw new Error('부자재 정보를 확인해 주세요.');
     if (/박스|box/i.test(material.name)) throw new Error('박스 연결은 아직 사용할 수 없어요.');
-    if (!Number.isFinite(material.unitCost) || material.unitCost < 0) throw new Error('부자재 단가를 확인해 주세요.');
-    if (!receiptCurrency(material)) throw new Error('부자재 단가 통화를 확인해 주세요.');
+    if (requirePrice) {
+      if (!Number.isFinite(material.unitCost) || material.unitCost < 0) throw new Error('부자재 단가를 확인해 주세요.');
+      if (!receiptCurrency(material)) throw new Error('부자재 단가 통화를 확인해 주세요.');
+    }
     for (const field of ['stock','minStock']) { const v = material[field]; if (v !== null && (!Number.isSafeInteger(v) || v < 0)) throw new Error('부자재 수량을 확인해 주세요.'); }
   };
   return Object.freeze({
@@ -86,9 +88,10 @@ export function createMemoryStore(initial, {marginVisibleTo = MARGIN_VISIBLE_TO}
     async saveMaterial(id, fields) {
       const previous = byId(data.materials, id);
       if (!previous || !fields || typeof fields !== 'object' || Array.isArray(fields)) throw new Error('부자재 정보를 확인해 주세요.');
+      const touchesPrice = 'unitCost' in fields || 'currency' in fields;
       const updated = {...previous,...structuredClone(fields),id};
       if ('unitCostCurrency' in previous && fields.currency != null) updated.unitCostCurrency = fields.currency;
-      validMaterial(updated);
+      validMaterial(updated, {requirePrice: touchesPrice});
       if (updated.kind !== 'pack' && data.sets.some(set => (set.materials || []).some(link => link.materialId === id))) throw new Error('세트에 연결된 포장은 종류를 바꿀 수 없어요.');
       Object.assign(previous,updated);
     },
