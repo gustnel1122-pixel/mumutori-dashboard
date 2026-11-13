@@ -14,7 +14,7 @@ const exampleProducts = [
 ];
 const exampleMaterials = [
   {id:'demo-m1',name:'예시 상품 택',kind:'item',unitCost:80,stock:140,minStock:40},
-  {id:'demo-m2',name:'예시 스티커',kind:'item',unitCost:30,stock:25,minStock:50},
+  {id:'demo-m2',name:'예시 스티커',kind:'item',unitCost:30,stock:25,minStock:50,imageData:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL4WQAAAABJRU5ErkJggg=='},
   {id:'demo-m3',name:'예시 포장 봉투',kind:'pack',unitCost:120,stock:70,minStock:20},
 ];
 const exampleSets = [{id:'demo-s1',name:'예시 선물 세트',components:[{id:'demo-p1',quantity:1},{id:'demo-p2',quantity:1}],materials:[{materialId:'demo-m3',quantity:1}],salePrice:19500,priceStatus:'제안'}];
@@ -101,6 +101,10 @@ function receiptPanel(p){
     return `<div class="record"><strong>${esc(r.batch??(i+1))}차 · 입고일 ${esc(r.date||'확인 필요')} · ${esc(r.status||'상태 확인 필요')}</strong><small>발주일 ${esc(r.orderDate||'확인 필요')} · ${esc(r.supplier||'-')} · 개당 ${r.unitCost==null?'-':receiptMoney(r.unitCost,currency)}</small><small>원화 결제액 ${money(r.settlementKrw)}</small>${r.orderedQuantity==null?'':`<small>주문 수 ${fmt(r.orderedQuantity)}</small>`}<small>들어온 수 ${fmt(r.quantity)} · 판매용 ${fmt(r.saleQuantity)} · 이벤트/불량용 ${fmt(r.eventQuantity)}</small><small>이벤트에 쓴 원가 ${eventCost===null?'확인 필요':receiptMoney(eventCost,currency)}</small>${url?`<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">1688 상품 보기</a>`:'<small>1688 링크 -</small>'}<small>${esc(r.memo||'')}</small><button type="button" class="btn" data-receipt-edit="${i}">수정</button></div>`;
   }).join('')}</div>`:'<p class="empty">입고 기록을 확인해 주세요.</p>'}<button type="button" class="btn" data-receipt-add>입고 기록 추가</button>${form}</section>`;
 }
+function materialThumb(m){
+  const has=typeof m?.imageData==='string' && /^data:image\/(png|jpeg|webp);base64,[a-z0-9+/=]+$/i.test(m.imageData);
+  return {has,html:`<span class="product-row-photo" aria-hidden="true">${has?`<img src="${esc(m.imageData)}" alt="">`:''}</span>`};
+}
 function linksPanel(p){
   if(!state.openLinks.has(p.id))return '';
   const links=Array.isArray(p.links)?p.links:[];
@@ -109,10 +113,14 @@ function linksPanel(p){
     const valid=validateMaterialLinks([link],materials).valid;
     const label=material?.name||'연결 정보 없음';
     const kind=['item','상품에 붙음'].includes(material?.kind)?'상품에 붙음':['pack','포장'].includes(material?.kind)?'포장':material?.kind==='부자재'?'부자재':'종류 확인 필요 · 합계 제외';
-    return `<div class="lrow"><span class="nm">${esc(label)}<small>${esc(valid?kind:'종류 확인 필요 · 합계 제외')}</small></span><div class="lctl">${valid?`<label>1개당 <input type="number" min="1" max="999" value="${esc(link.quantity)}" data-link-quantity="${esc(material.id)}" aria-label="${esc(label)} 1개당 개수"></label>`:''}<button type="button" class="btn" data-unlink="${esc(link?.materialId||'')}" data-unlink-index="${index}">연결 해제</button></div></div>`;
+    const thumb=materialThumb(material);
+    return `<div class="lrow">${thumb.html}<span class="nm">${esc(label)}<small>${esc(valid?kind:'종류 확인 필요 · 합계 제외')}${thumb.has?'':' · 사진 없음'}</small></span><div class="lctl">${valid?`<label>1개당 <input type="number" min="1" max="999" value="${esc(link.quantity)}" data-link-quantity="${esc(material.id)}" aria-label="${esc(label)} 1개당 개수"></label>`:''}<button type="button" class="btn" data-unlink="${esc(link?.materialId||'')}" data-unlink-index="${index}">연결 해제</button></div></div>`;
   });
   const available=materials.filter(m=>!links.some(l=>l?.materialId===m.id)&&validateMaterialLinks([{materialId:m.id,quantity:1,always:true}],materials).valid);
-  const choices=available.map(m=>`<div class="lrow"><span class="nm">${esc(m.name)}<small>${['item','상품에 붙음'].includes(m.kind)?'상품에 붙음':['pack','포장'].includes(m.kind)?'포장':'부자재'}</small></span><div class="lctl"><button type="button" class="btn" data-link="${esc(m.id)}">연결</button></div></div>`);
+  const choices=available.map(m=>{
+    const thumb=materialThumb(m);
+    return `<div class="lrow">${thumb.html}<span class="nm">${esc(m.name)}<small>${['item','상품에 붙음'].includes(m.kind)?'상품에 붙음':['pack','포장'].includes(m.kind)?'포장':'부자재'}${thumb.has?'':' · 사진 없음'}</small></span><div class="lctl"><button type="button" class="btn" data-link="${esc(m.id)}">연결</button></div></div>`;
+  });
   return `<dialog class="panel links-dialog" aria-labelledby="links-title"><div class="links-head"><h3 id="links-title">부자재 연결</h3><button type="button" class="btn" data-links-close>닫기</button></div><p class="hint">등록된 부자재만 고를 수 있어요. 실제 재고는 바뀌지 않습니다.</p><p role="alert" class="links-error">${esc(state.linkMessage)}</p>${linked.length?`<h4>연결됨</h4>${linked.join('')}`:''}${choices.length?`<h4>연결할 부자재</h4>${choices.join('')}`:!linked.length?'<p class="empty">연결할 부자재가 없어요 — 부자재 탭에서 종류를 부자재로 설정해 주세요.</p>':''}</dialog>`;
 }
 function saleMarginRows(p,sale){

@@ -92,6 +92,12 @@ async function main(){
       await photo.setInputFiles({name:'fake.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL4WQAAAABJRU5ErkJggg==','base64')});
       await page.locator('[data-product="demo-p1"] .thumb img').waitFor();
       await page.getByRole('button',{name:'부자재 연결'}).click();
+      const noPhotoRow=page.locator('.lrow').filter({has:page.locator('[data-unlink="demo-m1"]')});
+      assert.equal(await noPhotoRow.locator('.product-row-photo img').count(),0);
+      assert.match(await noPhotoRow.innerText(),/사진 없음/);
+      const hasPhotoRow=page.locator('.lrow').filter({has:page.locator('[data-link="demo-m2"]')});
+      assert.equal(await hasPhotoRow.locator('.product-row-photo img').count(),1);
+      assert.doesNotMatch(await hasPhotoRow.innerText(),/사진 없음/);
       await page.locator('[data-link="demo-m2"]').click();
       assert.equal(await page.locator('[data-unlink="demo-m2"]').count(),1);
       await page.getByRole('button',{name:'초기화'}).click();

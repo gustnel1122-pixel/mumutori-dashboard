@@ -98,6 +98,7 @@ input[type=number]{width:64px}
 .panel{border-top:1px dashed var(--line);padding-top:10px;display:grid;gap:7px}
 .panel h4{margin:0;font-size:13px;color:var(--bark)}
 .lrow{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;justify-content:space-between;font-size:13px;padding-block:3px;border-bottom:1px dotted var(--line)}
+.lrow .product-row-photo{flex-shrink:0}
 .lrow .nm{min-width:0;flex:1 1 150px}
 .lrow .nm small{color:var(--muted);display:block;font-size:11px}
 .lctl{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
