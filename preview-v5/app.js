@@ -330,7 +330,7 @@ document.addEventListener('click',async e=>{
     const material=materials.find(m=>m.id===t.dataset.editMaterial);if(!material)return;
     state.editMaterial=material.id;state.editMaterialRevision=revision();$('mf-name').value=material.name;$('mf-kind').value=material.kind;
     $('mf-price').value=material.unitCost;$('mf-currency').value=receiptCurrency(material)||'';
-    $('mf-stock').value=material.stock;$('mf-min').value=material.minStock;
+    $('mf-stock').value=material.stock??'';$('mf-min').value=material.minStock??'';
     $('mf-photo').value='';$('mf-photo-preview').innerHTML=typeof material.imageData==='string' && /^data:image\/(png|jpeg|webp);base64,[a-z0-9+/=]+$/i.test(material.imageData)?`<img alt="" src="${esc(material.imageData)}">`:'';
     $('material-title').textContent='부자재 수정';$('material-submit').textContent='수정 저장';$('material-cancel').hidden=false;$('material-error').textContent='';
     $('mf-name').focus();return;
@@ -398,7 +398,15 @@ $('mform').addEventListener('submit',async e=>{
   const form=e.currentTarget,name=$('mf-name').value.trim();if(!name)return;
   const photoFile=$('mf-photo').files?.[0];
   if(photoFile&&(!['image/png','image/jpeg','image/webp'].includes(photoFile.type)||photoFile.size>1024*1024)){$('material-error').textContent='1MB 이하의 PNG, JPG, WebP 사진만 선택해 주세요.';return;}
-  const fields={name,kind:$('mf-kind').value,unitCost:Number($('mf-price').value),currency:$('mf-currency').value,stock:Number($('mf-stock').value),minStock:Number($('mf-min').value)};
+  const stockRaw=$('mf-stock').value.trim(),minRaw=$('mf-min').value.trim();
+  const fields={name,kind:$('mf-kind').value,unitCost:Number($('mf-price').value),currency:$('mf-currency').value};
+  if(state.editMaterial){
+    if(stockRaw!=='')fields.stock=Number(stockRaw);
+    if(minRaw!=='')fields.minStock=Number(minRaw);
+  }else{
+    fields.stock=stockRaw===''?null:Number(stockRaw);
+    fields.minStock=minRaw===''?null:Number(minRaw);
+  }
   try{
     let id;
     if(state.editMaterial){id=state.editMaterial;await store.saveMaterial(id,fields,state.editMaterialRevision);}

@@ -15,7 +15,7 @@ export function createMemoryStore(initial, {marginVisibleTo = MARGIN_VISIBLE_TO}
     if (/박스|box/i.test(material.name)) throw new Error('박스 연결은 아직 사용할 수 없어요.');
     if (!Number.isFinite(material.unitCost) || material.unitCost < 0) throw new Error('부자재 단가를 확인해 주세요.');
     if (!receiptCurrency(material)) throw new Error('부자재 단가 통화를 확인해 주세요.');
-    for (const field of ['stock','minStock']) if (!Number.isSafeInteger(material[field]) || material[field] < 0) throw new Error('부자재 수량을 확인해 주세요.');
+    for (const field of ['stock','minStock']) { const v = material[field]; if (v !== null && (!Number.isSafeInteger(v) || v < 0)) throw new Error('부자재 수량을 확인해 주세요.'); }
   };
   return Object.freeze({
     async load() { return structuredClone(data); },

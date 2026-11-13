@@ -15,6 +15,7 @@ const object = x => x !== null && typeof x === 'object' && !Array.isArray(x);
 const clone = x => JSON.parse(JSON.stringify(x));
 const validId = x => typeof x === 'string' && ID.test(x) && !['__proto__','prototype','constructor'].includes(x);
 const integer = x => Number.isSafeInteger(x) && x >= 0;
+const optionalInteger = x => x === null || integer(x);
 const positive = x => Number.isSafeInteger(x) && x > 0;
 const number = x => typeof x === 'number' && Number.isFinite(x) && x >= 0;
 const box = x => /박스|box/i.test(String(x || ''));
@@ -180,7 +181,7 @@ export function createAuthenticatedStore({auth, fetchImpl, schema = null, onChan
     async createMaterial(material, expectedRevision = lastEtag) {
       if (!object(material) || !validId(material.id) || !String(material.name || '').trim() ||
           !['item','pack'].includes(material.kind) || box(material.name) ||
-          !number(material.unitCost) || !receiptCurrency(material) || !integer(material.stock) || !integer(material.minStock)) {
+          !number(material.unitCost) || !receiptCurrency(material) || !optionalInteger(material.stock) || !optionalInteger(material.minStock)) {
         throw Error('부자재 정보를 확인해 주세요.');
       }
       return transact((raw, data) => {
@@ -196,7 +197,7 @@ export function createAuthenticatedStore({auth, fetchImpl, schema = null, onChan
         const material = {...previous,...clone(fields),id};
         if ('unitCostCurrency' in previous && fields.currency != null) material.unitCostCurrency = fields.currency;
         if (!String(material.name || '').trim() || !['item','pack'].includes(material.kind) || box(material.name) ||
-            !number(material.unitCost) || !receiptCurrency(material) || !integer(material.stock) || !integer(material.minStock)) throw Error('부자재 정보를 확인해 주세요.');
+            !number(material.unitCost) || !receiptCurrency(material) || !optionalInteger(material.stock) || !optionalInteger(material.minStock)) throw Error('부자재 정보를 확인해 주세요.');
         if (material.kind !== 'pack' && data.sets.some(set => (set.materials || []).some(link => link.materialId === id))) throw Error('세트에 연결된 포장은 종류를 바꿀 수 없어요.');
         schema.apply(raw, {type:'saveMaterial', material:clone(material)});
       }, expectedRevision);
