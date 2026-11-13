@@ -92,6 +92,39 @@ test('RTDB가 null과 빈 배열을 생략해도 비공개 미확인 값과 빈 
   assert.equal(calcProduct(out.products[0],[]).stock,null);
 });
 
+test('이름에 박스가 있어도 부자재 등록·수정 저장은 되고, 상품 연결은 여전히 거부',async()=>{
+  const [{createAuthenticatedStore},{freshSchema}]=await modules;
+  const m=mock(), store=createAuthenticatedStore({auth:m.auth,fetchImpl:m.fetchImpl,schema:freshSchema,allowWrites:true});
+  await store.load();
+  await store.createMaterial({id:'box1',name:'택배박스 1호',kind:'pack',unitCost:500,currency:'KRW',stock:10,minStock:2});
+  assert.equal(m.value().materials.find(row=>row.id==='box1').name,'택배박스 1호');
+  await store.load();
+  await store.saveMaterial('box1',{name:'택배박스 1호',kind:'pack'});
+  assert.equal(m.value().materials.find(row=>row.id==='box1').kind,'pack');
+  await store.load();
+  await assert.rejects(store.saveProductLinks('new-p1',[{materialId:'box1',quantity:1,always:true}]),/종류 확인 필요/);
+  store.stop();
+});
+test('통화는 저장돼 있지만 단가가 빈 부자재는 통화를 그대로 다시 보내도 막히지 않음(택 스티커 패턴)',async()=>{
+  const [{createAuthenticatedStore},{freshSchema}]=await modules;
+  const m=mock();
+  m.serverChange(data=>{data.materials=[{id:'sticker',name:'택 스티커',kind:'item',currency:'KRW',stock:50,minStock:5}];});
+  const store=createAuthenticatedStore({auth:m.auth,fetchImpl:m.fetchImpl,schema:freshSchema,allowWrites:true});
+  await store.load();
+  await store.saveMaterial('sticker',{name:'택 스티커',kind:'item',currency:'KRW'});
+  assert.equal(m.value().materials.find(row=>row.id==='sticker').unitCost,null);
+  store.stop();
+});
+test('재고·부족 기준에 정수가 아닌 값을 보내면 어느 칸인지 알 수 있는 문구로 거부',async()=>{
+  const [{createAuthenticatedStore},{freshSchema}]=await modules;
+  const m=mock();
+  m.serverChange(data=>{data.materials=[{id:'ring',name:'가상 오링',kind:'item',currency:'KRW',unitCost:10,stock:8,minStock:2}];});
+  const store=createAuthenticatedStore({auth:m.auth,fetchImpl:m.fetchImpl,schema:freshSchema,allowWrites:true});
+  await store.load();
+  await assert.rejects(store.saveMaterial('ring',{stock:'100'}),/재고\(정수\)/);
+  await assert.rejects(store.saveMaterial('ring',{minStock:-1}),/부족 기준\(정수\)/);
+  assert.equal(m.writes(),0); store.stop();
+});
 test('기존 미확인 연결은 해제하고 확정 부자재만 새로 연결할 수 있다',async()=>{
   const [{createAuthenticatedStore},{freshSchema}]=await modules;
   const m=mock(), one=Number(true);

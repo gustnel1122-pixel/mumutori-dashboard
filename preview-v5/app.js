@@ -22,7 +22,7 @@ const isLive = Boolean(window.__MMT_V5_FRESH_STORE__);
 const store = window.__MMT_V5_FRESH_STORE__ || createMemoryStore({products:exampleProducts,materials:exampleMaterials,sets:exampleSets});
 let {products,materials,sets} = await store.load();
 async function reload(){({products,materials,sets}=await store.load());}
-const state = {tab:'p',filters:{batch:new Set(),channel:new Set(),kind:new Set(),status:new Set()},saleFilter:'전체',saleBusy:false,openProduct:null,openSale:new Set(),saleMessages:new Map(),saleDrafts:new Map(),saleUncertain:new Set(),sort:'name',includeMaterials:true,channel:'smart',openDetails:new Set(),openLinks:new Set(),linkMessage:'',editReceipt:new Map(),editReceiptRevision:new Map(),editMaterial:null,editMaterialRevision:null,draft:{items:{},materials:{}}};
+const state = {tab:'p',filters:{batch:new Set(),channel:new Set(),kind:new Set(),status:new Set()},saleFilter:'전체',saleBusy:false,openProduct:null,openSale:new Set(),saleMessages:new Map(),saleDrafts:new Map(),saleUncertain:new Set(),sort:'name',includeMaterials:true,channel:'smart',openDetails:new Set(),openLinks:new Set(),linkMessage:'',editReceipt:new Map(),editReceiptRevision:new Map(),editMaterial:null,editMaterialRevision:null,editMaterialCurrency:null,draft:{items:{},materials:{}}};
 const saleEditRevision = new WeakMap();
 const revision = () => typeof store.revision === 'function' ? store.revision() : undefined;
 const $ = id => document.getElementById(id);
@@ -325,11 +325,11 @@ document.addEventListener('click',async e=>{
   if(t.dataset.group){const s=state.filters[t.dataset.group];s.has(t.dataset.value)?s.delete(t.dataset.value):s.add(t.dataset.value);render();return;}
   if(t.id==='clear-filters'){Object.values(state.filters).forEach(s=>s.clear());state.saleFilter='전체';render();return;}
   if(t.dataset.channel){state.channel=t.dataset.channel;render();return;}
-  if(t.id==='material-cancel'){state.editMaterial=null;$('mform').reset();$('mf-photo-preview').innerHTML='';$('material-title').textContent='새 부자재 등록';$('material-submit').textContent='등록';t.hidden=true;$('material-error').textContent='';return;}
+  if(t.id==='material-cancel'){state.editMaterial=null;state.editMaterialCurrency=null;$('mform').reset();$('mf-photo-preview').innerHTML='';$('material-title').textContent='새 부자재 등록';$('material-submit').textContent='등록';t.hidden=true;$('material-error').textContent='';return;}
   if(t.dataset.editMaterial){
     const material=materials.find(m=>m.id===t.dataset.editMaterial);if(!material)return;
-    state.editMaterial=material.id;state.editMaterialRevision=revision();$('mf-name').value=material.name;$('mf-kind').value=material.kind;
-    $('mf-price').value=material.unitCost;$('mf-currency').value=receiptCurrency(material)||'';
+    state.editMaterial=material.id;state.editMaterialRevision=revision();state.editMaterialCurrency=receiptCurrency(material)||'';$('mf-name').value=material.name;$('mf-kind').value=material.kind;
+    $('mf-price').value=material.unitCost;$('mf-currency').value=state.editMaterialCurrency;
     $('mf-stock').value=material.stock??'';$('mf-min').value=material.minStock??'';
     $('mf-photo').value='';$('mf-photo-preview').innerHTML=typeof material.imageData==='string' && /^data:image\/(png|jpeg|webp);base64,[a-z0-9+/=]+$/i.test(material.imageData)?`<img alt="" src="${esc(material.imageData)}">`:'';
     $('material-title').textContent='부자재 수정';$('material-submit').textContent='수정 저장';$('material-cancel').hidden=false;$('material-error').textContent='';
@@ -403,7 +403,7 @@ $('mform').addEventListener('submit',async e=>{
   const fields={name,kind:$('mf-kind').value};
   if(state.editMaterial){
     if(priceRaw!=='')fields.unitCost=Number(priceRaw);
-    if(currencyVal!=='')fields.currency=currencyVal;
+    if(currencyVal!==''&&currencyVal!==state.editMaterialCurrency)fields.currency=currencyVal;
     if(stockRaw!=='')fields.stock=Number(stockRaw);
     if(minRaw!=='')fields.minStock=Number(minRaw);
   }else{
@@ -421,7 +421,7 @@ $('mform').addEventListener('submit',async e=>{
       const data=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(new Error('사진을 읽을 수 없어요.'));reader.readAsDataURL(photoFile);});
       await store.saveMaterialImage(id,data,revision());await reload();
     }
-    state.editMaterial=null;state.editMaterialRevision=null;form.reset();$('mf-photo-preview').innerHTML='';$('material-title').textContent='새 부자재 등록';$('material-submit').textContent='등록';$('material-cancel').hidden=true;$('material-error').textContent='';render();
+    state.editMaterial=null;state.editMaterialRevision=null;state.editMaterialCurrency=null;form.reset();$('mf-photo-preview').innerHTML='';$('material-title').textContent='새 부자재 등록';$('material-submit').textContent='등록';$('material-cancel').hidden=true;$('material-error').textContent='';render();
   }catch(error){$('material-error').textContent=error.message;}
 });
 $('setform').addEventListener('submit',async e=>{e.preventDefault();if(state.saleDrafts.size)return;const form=e.currentTarget,draft=draftSet();if(!draft.name||!draft.components.length){$('sf-calc').textContent='세트 이름과 구성품을 확인해 주세요.';return;}try{await store.createSet({...draft,id:'demo-s-'+Date.now(),priceStatus:'제안'});await reload();state.draft={items:{},materials:{}};form.reset();render();}catch(error){$('sf-calc').textContent=error.message;}});
