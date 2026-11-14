@@ -296,7 +296,7 @@ function renderMaterials(){
 function render(){
   for(const t of ['p','s','m']){$('view-'+t).hidden=state.tab!==t;$('tab-'+t).setAttribute('aria-selected',String(state.tab===t));}
   $('cnt-p').textContent=products.length;$('cnt-s').textContent=sets.length;$('cnt-m').textContent=materials.length;
-  if(state.tab==='p'){renderSaleFilters();$('settings-panel').innerHTML=canViewCost()?settingsPanel():'';renderFilters();renderProducts();}else if(state.tab==='s')renderSets();else renderMaterials();
+  if(state.tab==='p'){renderSaleFilters();const sp=$('settings-panel');if(sp)sp.innerHTML=canViewCost()?settingsPanel():'';renderFilters();renderProducts();}else if(state.tab==='s')renderSets();else renderMaterials();
 }
 const saleInputs='[data-sale-decision],[data-sale-store-price],[data-sale-barcode],[data-bundle-price],[data-sale-price],[data-sale-registered],[data-sale-url],[data-sale-detail]';
 function saleMessage(card,text,isError=false){
