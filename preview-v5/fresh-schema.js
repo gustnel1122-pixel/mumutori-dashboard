@@ -11,11 +11,17 @@ function requireRoot(raw) {
 function receipt(value) {
   return {...value,date:value.date??'',orderDate:value.orderDate??'',settlementKrw:value.settlementKrw??null,unitCost:value.unitCost??null};
 }
+function productSale(value) {
+  // One product's unreadable sale data must not break the whole list; show
+  // that product as needing attention instead of failing every product.
+  try { return {sale: normalizeSale(value.sale)}; }
+  catch (error) { return {sale: normalizeSale(null), saleError: error?.message || '판매 준비 자료를 읽지 못했어요.'}; }
+}
 function product(value) {
   const receipts = array(value.receipts).map(receipt);
   return {...value,stock:value.stock??null,salePrice:value.salePrice??null,
     batch:[...new Set(receipts.map(row => row.batch).filter(n => Number.isSafeInteger(n) && n > 0).map(n => `${n}차`))],
-    channels:array(value.channels),links:array(value.links),receipts,sale:normalizeSale(value.sale)};
+    channels:array(value.channels),links:array(value.links),receipts,...productSale(value)};
 }
 function material(value) {
   return {...value,stock:value.stock??null,minStock:value.minStock??null,unitCost:value.unitCost??null,

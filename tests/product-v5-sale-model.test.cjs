@@ -51,6 +51,20 @@ test('coupangBundlePrices (쿠팡가 손입력) normalizes per-qty, patches, and
  assert.throws(()=>mergeSalePatch(s,{coupangBundlePrices:{4:1000}})); // 1·2·3개만 있음
  assert.throws(()=>mergeSalePatch(s,{coupangBundlePrices:{2:-1}}));
 });
+test('coupangBundlePrices survives Firebase turning its numeric-keyed object into a sparse array (20261114_2210)',async()=>{
+ const {normalizeSale,mergeSalePatch}=await model;
+ // Firebase RTDB stores {"1":5000} back as [null,5000] — load must not break.
+ const loaded=normalizeSale({coupangBundlePrices:[null,5000]});
+ assert.deepEqual(loaded.coupangBundlePrices,{1:5000,2:null,3:null});
+ const loaded2=normalizeSale({coupangBundlePrices:[null,null,9900]});
+ assert.deepEqual(loaded2.coupangBundlePrices,{1:null,2:9900,3:null});
+ const loaded3=normalizeSale({coupangBundlePrices:[null,1000,2000,3000]});
+ assert.deepEqual(loaded3.coupangBundlePrices,{1:1000,2:2000,3:3000});
+ // A patch (always built fresh in the UI) also tolerates the array shape defensively.
+ const patched=mergeSalePatch(normalizeSale(null),{coupangBundlePrices:[null,4000]});
+ assert.equal(patched.coupangBundlePrices[1],4000);
+ assert.throws(()=>normalizeSale({coupangBundlePrices:'broken'}));
+});
 test('statuses reflect decision and registrations without inferring unregistered channels',async()=>{
  const {saleStatus}=await model;
  assert.equal(saleStatus({decision:'판매'}),'판매 확정 미등록');

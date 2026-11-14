@@ -12,6 +12,19 @@ const price = x => x == null || x === '' ? null : typeof x === 'number' && Numbe
 // 1823: 매장(오프라인) 판매가가 기준값 — 자사몰·스스·쿠팡 칸을 비우면 이 값을 따라간다(기존 saleMargin의 own 기준값을 매장으로 승격).
 const barcodeText = x => x == null || x === '' ? '' : typeof x === 'string' && x.trim().length <= 40 ? x.trim() : fail();
 export const BUNDLE_QTYS = Object.freeze([1, 2, 3]);
+// Firebase Realtime Database silently turns an object whose keys are all
+// small non-negative integers (e.g. {1:..,2:..}) into a sparse array on
+// save; accept that shape back on read so a saved value never breaks load.
+function bundlePricesFromStorage(value) {
+  if (value == null) return {};
+  if (Array.isArray(value)) {
+    const out = {};
+    for (const qty of BUNDLE_QTYS) if (value[qty] !== undefined) out[qty] = value[qty];
+    return out;
+  }
+  if (!object(value)) fail();
+  return value;
+}
 const HISTORY_FIELDS = /^(?:decision|storePrice|barcode|prices\.(?:own|smart|coupang)|coupangBundlePrices\.[123]|listings\.(?:own|smart|coupang)\.(?:registered|url|detail))$/;
 const HISTORY_LIMIT = 30;
 const ACTOR = /^[A-Za-z0-9:_-]{1,128}$/;
@@ -112,8 +125,7 @@ export function normalizeSale(value) {
     prices[channel] = price(prices[channel]);
     listings[channel] = readListing(listings[channel]);
   }
-  if (value.coupangBundlePrices != null && !object(value.coupangBundlePrices)) fail();
-  const coupangBundlePrices = {...(value.coupangBundlePrices || {})};
+  const coupangBundlePrices = {...bundlePricesFromStorage(value.coupangBundlePrices)};
   for (const qty of BUNDLE_QTYS) coupangBundlePrices[qty] = price(coupangBundlePrices[qty]);
   return {...value, decision, prices, listings, storePrice:price(value.storePrice), barcode:barcodeText(value.barcode), coupangBundlePrices, history:historyList(value.history), updatedAt:value.updatedAt ?? null, by:value.by ?? null};
 }
@@ -124,8 +136,9 @@ export function mergeSalePatch(original, patch) {
   if (owns(patch,'storePrice')) result.storePrice = patch.storePrice;
   if (owns(patch,'barcode')) result.barcode = patch.barcode;
   if (owns(patch,'coupangBundlePrices')) {
-    if (!object(patch.coupangBundlePrices) || !Object.keys(patch.coupangBundlePrices).length || Object.keys(patch.coupangBundlePrices).some(k => !BUNDLE_QTYS.includes(Number(k)))) fail();
-    for (const qty of Object.keys(patch.coupangBundlePrices)) result.coupangBundlePrices[qty] = patch.coupangBundlePrices[qty];
+    const incoming = bundlePricesFromStorage(patch.coupangBundlePrices);
+    if (!Object.keys(incoming).length || Object.keys(incoming).some(k => !BUNDLE_QTYS.includes(Number(k)))) fail();
+    for (const qty of Object.keys(incoming)) result.coupangBundlePrices[qty] = incoming[qty];
   }
   for (const key of ['prices','listings']) {
     if (!owns(patch,key)) continue;

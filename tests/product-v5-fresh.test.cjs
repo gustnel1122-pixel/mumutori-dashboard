@@ -91,6 +91,32 @@ test('RTDB가 null과 빈 배열을 생략해도 비공개 미확인 값과 빈 
   assert.equal(out.materials[0].stock,null); assert.deepEqual(out.materials[0].receipts,[]);
   assert.equal(calcProduct(out.products[0],[]).stock,null);
 });
+test('20261114_2210: 한 상품의 판매 준비 자료가 깨져도(쿠팡 묶음가가 배열로 저장) 그 상품만 확인 필요로 뜨고 나머지는 그대로 열린다',async()=>{
+  const [,{freshSchema}]=await modules;
+  const server={schema:'product-v5-fresh-v1',products:[
+    {id:'ok-1',name:'정상 상품',receipts:[]},
+    {id:'broken',name:'감자 동전지갑',receipts:[],sale:{coupangBundlePrices:[null,1]}},
+  ],materials:[],sets:[]};
+  const out=freshSchema.project(server);
+  assert.equal(out.products.length,2); // 전체가 안 막힘
+  assert.equal(out.products[0].saleError,undefined);
+  assert.equal(out.products[0].name,'정상 상품');
+  // 배열 모양은 이제 정상적으로 읽혀 깨짐으로 취급되지 않는다(이번 버그의 실제 원인).
+  assert.equal(out.products[1].saleError,undefined);
+  assert.equal(out.products[1].sale.coupangBundlePrices[1],1);
+});
+test('20261114_2210: sale 자체가 정말로 읽을 수 없는 모양이면 그 상품만 확인 필요로 빠지고 나머지는 그대로 열린다',async()=>{
+  const [,{freshSchema}]=await modules;
+  const server={schema:'product-v5-fresh-v1',products:[
+    {id:'ok-1',name:'정상 상품',receipts:[]},
+    {id:'broken',name:'망가진 상품',receipts:[],sale:{coupangBundlePrices:'이상한값'}},
+  ],materials:[],sets:[]};
+  const out=freshSchema.project(server);
+  assert.equal(out.products.length,2);
+  assert.equal(out.products[0].saleError,undefined);
+  assert.equal(typeof out.products[1].saleError,'string');
+  assert.deepEqual(out.products[1].sale.coupangBundlePrices,{1:null,2:null,3:null});
+});
 
 test('이름에 박스가 있어도 부자재 등록·수정 저장은 되고, 상품 연결은 여전히 거부',async()=>{
   const [{createAuthenticatedStore},{freshSchema}]=await modules;

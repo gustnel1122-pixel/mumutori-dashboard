@@ -186,6 +186,7 @@ function settingsPanel(){
 function salePanel(p){
   const sale=normalizeSale(p.sale), status=state.saleMessages.get(p.id)||'';
   return `<section class="sale-prep" aria-label="${esc(p.name)} 판매 준비">
+    ${p.saleError?`<p class="sale-margin-note flag-bad" role="alert">⚠ 판매 준비 자료를 읽지 못했어요 — 이 칸은 비워 두었어요(다른 상품은 그대로). 총괄에게 알려 주세요.</p>`:''}
     <div class="sale-prep-head"><div><strong>판매 준비</strong><span class="sale-step">${esc(saleStatus(sale))}</span></div><span class="sale-save-status" role="status" aria-live="polite" data-sale-save-status>${esc(status)}</span></div>
     <div class="sale-decision"><span>판매 결정</span><div class="sale-decisions" role="group" aria-label="${esc(p.name)} 판매 결정">${['미정','판매','보류','안 팜'].map(v=>`<button type="button" data-sale-decision="${v}" aria-pressed="${v===sale.decision}">${v}</button>`).join('')}</div></div>
     <details data-sale-details ${state.openSale.has(p.id)?'open':''}><summary>판매가 · 온라인 등록</summary>
