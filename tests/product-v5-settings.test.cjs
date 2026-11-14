@@ -3,9 +3,9 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const modules=Promise.all([import('../preview-v5/fresh-adapter.js'),import('../preview-v5/fresh-schema.js'),import('../preview-v5/store.js'),import('../preview-v5/model.js')]);
 
-function fixture(initialUid) {
+function fixture(initialUid, products = []) {
  let uid=initialUid, etag='"v1"';
- const fake={schema:'product-v5-fresh-v1',products:[],materials:[],sets:[]};
+ const fake={schema:'product-v5-fresh-v1',products,materials:[],sets:[]};
  const auth={current:()=>uid?{uid}:null,onAuth:fn=>{fn(uid?{uid}:null);return()=>{}},dbUrl:async()=> 'https://preview.invalid/data'};
  const fetchImpl=async(_url,opts)=>{
   if(!opts||opts.method==='GET')return {status:200,ok:true,headers:{get:()=>etag},json:async()=>structuredClone(fake)};
@@ -36,6 +36,39 @@ test('20261114_1823: fresh-adapter saveSettings rejects unknown fields', async (
  await store.load();
  await assert.rejects(store.saveSettings({notAField: 1}));
  store.stop();
+});
+
+test('20261114_2316: fresh-adapter saveProductName renames in place and keeps other fields', async () => {
+ const [{createAuthenticatedStore},{freshSchema}]=await modules;
+ const f=fixture('owner', [{id:'p1', name:'묶음 상품', receipts:[], links:[]}]);
+ const store=createAuthenticatedStore({auth:f.auth,fetchImpl:f.fetchImpl,schema:freshSchema,allowWrites:true});
+ await store.load();
+ await store.saveProductName('p1', '  나눈 상품 이름  ');
+ const after=await store.load();
+ assert.equal(after.products[0].name, '나눈 상품 이름'); // 앞뒤 공백은 지움
+ assert.equal(after.products[0].id, 'p1');
+ store.stop();
+});
+
+test('20261114_2316: fresh-adapter saveProductName rejects empty, too-long, or unknown id', async () => {
+ const [{createAuthenticatedStore},{freshSchema}]=await modules;
+ const f=fixture('owner', [{id:'p1', name:'묶음 상품', receipts:[], links:[]}]);
+ const store=createAuthenticatedStore({auth:f.auth,fetchImpl:f.fetchImpl,schema:freshSchema,allowWrites:true});
+ await store.load();
+ await assert.rejects(store.saveProductName('p1', '  '));
+ await assert.rejects(store.saveProductName('p1', 'x'.repeat(61)));
+ await assert.rejects(store.saveProductName('no-such-id', '새 이름'));
+ store.stop();
+});
+
+test('20261114_2316: memory store saveProductName works the same way for the preview demo', async () => {
+ const [,,{createMemoryStore}]=await modules;
+ const store=createMemoryStore({products:[{id:'p1', name:'묶음 상품', receipts:[], links:[]}],materials:[],sets:[]});
+ await store.saveProductName('p1', '나눈 상품 이름');
+ const after=await store.load();
+ assert.equal(after.products[0].name, '나눈 상품 이름');
+ await assert.rejects(store.saveProductName('p1', ''));
+ await assert.rejects(store.saveProductName('no-such-id', '새 이름'));
 });
 
 test('20261114_1823: memory store saveSettings works the same way for the preview demo', async () => {

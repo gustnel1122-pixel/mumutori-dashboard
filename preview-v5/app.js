@@ -32,6 +32,26 @@ const fmt = v => typeof v === 'number' && Number.isFinite(v) ? Math.round(v).toL
 const money = v => typeof v === 'number' && Number.isFinite(v) ? fmt(v)+'원' : '확인 필요';
 const receiptMoney = (v,currency) => typeof v === 'number' && Number.isFinite(v) && currency === 'CNY' ? `${v.toLocaleString('ko-KR',{maximumFractionDigits:2})}위안` : currency === 'KRW' ? money(v) : typeof v === 'number' && Number.isFinite(v) ? '통화 확인 필요' : '확인 필요';
 const pct = v => typeof v === 'number' && Number.isFinite(v) ? Math.round(v)+'%' : '확인 필요';
+const PHOTO_LIMIT=1400000;
+function readFileAsDataUrl(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(new Error('사진을 읽을 수 없어요.'));reader.readAsDataURL(file);});}
+function loadImage(src){return new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=()=>reject(new Error('사진을 읽을 수 없어요.'));img.src=src;});}
+// 폰 사진처럼 큰 파일도 기존 imageData 크기(1MB) 안으로 자동으로 줄인다(20261114_2316).
+async function photoDataUrl(file){
+  const original=await readFileAsDataUrl(file);
+  if(original.length<=PHOTO_LIMIT)return original;
+  const img=await loadImage(original);
+  let scale=Math.min(1,Math.sqrt(PHOTO_LIMIT/original.length));
+  for(let attempt=0;attempt<6;attempt++){
+    const canvas=document.createElement('canvas');
+    canvas.width=Math.max(1,Math.round(img.width*scale));
+    canvas.height=Math.max(1,Math.round(img.height*scale));
+    const ctx=canvas.getContext('2d');ctx.drawImage(img,0,0,canvas.width,canvas.height);
+    const resized=canvas.toDataURL('image/jpeg',0.82);
+    if(resized.length<=PHOTO_LIMIT)return resized;
+    scale*=0.75;
+  }
+  throw new Error('사진이 너무 커서 줄여도 1MB를 넘어요. 더 작은 사진을 선택해 주세요.');
+}
 const productCostText = (calc, field='unitCost') => typeof calc?.[field] === 'number' && Number.isFinite(calc[field]) ? money(calc[field]) : `원가 없음 — ${calc?.costReason || '구성 원가 기록 없음'}`;
 const pendingCostText = calc => [...(Array.isArray(calc?.costBases) ? calc.costBases : []), ...(Array.isArray(calc?.costNotes) ? calc.costNotes : []), calc?.pendingExpenses ? `${calc.costBatch ? `${calc.costBatch}차 ` : ''}남은 비용 대기` : ''].filter(Boolean).join(' · ');
 const options = () => ({includeMaterials:state.includeMaterials,channel:state.channel});
@@ -229,7 +249,7 @@ function card(p){
   const showCost=canViewCost();
   const attached=(p.links||[]).filter(x=>x.always).map(l=>{const m=materials.find(x=>x.id===l.materialId);return m?`${m.name} ×${l.quantity}`:'연결 확인 필요';});
   const open=state.openProduct===p.id, detailId=`product-detail-${p.id}`;
-  return `<article class="card product-row" data-product="${esc(p.id)}"><button type="button" class="product-row-toggle" data-product-toggle aria-expanded="${open}" aria-controls="${esc(detailId)}">${rowSummary(p)}</button><div class="product-detail" id="${esc(detailId)}" ${open?'':'hidden'}><div class="ctop"><div class="cname">${picture(p)}<span>${esc(p.name)}</span></div><div class="tags"><span class="pill t-batch">${esc(Array.isArray(p.batch)?p.batch.join(' · '):p.batch)}</span><span class="pill st-on">${esc(p.status)}</span>${(p.receipts||[]).some(r=>r.status==='확인 필요')?'<span class="pill st-hold">입고 확인 필요</span>':''}</div></div>
+  return `<article class="card product-row" data-product="${esc(p.id)}"><button type="button" class="product-row-toggle" data-product-toggle aria-expanded="${open}" aria-controls="${esc(detailId)}">${rowSummary(p)}</button><div class="product-detail" id="${esc(detailId)}" ${open?'':'hidden'}><div class="ctop"><div class="cname">${picture(p)}<span class="name-edit"><input type="text" data-rename-product="${esc(p.id)}" value="${esc(p.name)}" maxlength="60" aria-label="상품 이름"><small data-name-save-status role="status" aria-live="polite"></small></span></div><div class="tags"><span class="pill t-batch">${esc(Array.isArray(p.batch)?p.batch.join(' · '):p.batch)}</span><span class="pill st-on">${esc(p.status)}</span>${(p.receipts||[]).some(r=>r.status==='확인 필요')?'<span class="pill st-hold">입고 확인 필요</span>':''}</div></div>
     <div class="chs">${esc((p.channels||[]).join(' · ')||'판매처 확인 필요')}</div>
     <div class="nums">${showCost?`<div class="num"><div class="k">원가${c.provisional?' · 잠정':''}</div><div class="v">${c.cost===null?esc(c.costReason||'확인 필요'):money(c.cost)}</div><div class="s">${state.includeMaterials?'부자재 포함':'부자재 제외'}${c.partialCost?(c.issues.includes('부자재 통화 확인 필요')?' · 부자재 통화 확인 필요':' · 일부 부자재 제외 · 확인 필요'):''}${pendingCostText(c)?` · 원가 기준: ${esc(pendingCostText(c))}`:''}</div></div>`:''}
     <div class="num"><div class="k">기존 계산 기준가 <span class="ps ${p.priceStatus==='확정'?'확정':'제안'}">${esc(p.priceStatus||'제안')}</span></div><div class="v">${money(c.price)}</div></div>
@@ -243,7 +263,7 @@ function renderProducts(){
   const shown=ordered(products.filter(matching));
   $('sum-p').innerHTML=`<span>상품 <b>${shown.length}</b>개</span><span>${isLive?'새 상품 장부':'금액과 상품은 가상의 예시'}</span>`;
   $('grid-p').innerHTML=shown.length?shown.map(card).join(''):'<div class="empty-card">조건에 맞는 상품이 없어요. 필터를 바꿔 주세요.</div>';
-  if(state.editReceipt.size)for(const control of $('grid-p').querySelectorAll('[data-sale-decision],[data-sale-store-price],[data-sale-barcode],[data-bundle-price],[data-sale-price],[data-sale-registered],[data-sale-url],[data-sale-detail],[data-photo-product],[data-link-quantity]'))control.disabled=true;
+  if(state.editReceipt.size)for(const control of $('grid-p').querySelectorAll('[data-sale-decision],[data-sale-store-price],[data-sale-barcode],[data-bundle-price],[data-sale-price],[data-sale-registered],[data-sale-url],[data-sale-detail],[data-photo-product],[data-rename-product],[data-link-quantity]'))control.disabled=true;
   const dialog=$('grid-p').querySelector('.links-dialog');
   if(dialog){
     dialog.addEventListener('cancel',event=>{event.preventDefault();closeLinks();});
@@ -469,11 +489,23 @@ document.addEventListener('change',async e=>{
     saleEditRevision.delete(t);await persistSale(t,patch,expected);
     return;
   }
+  if(t.dataset.renameProduct){
+    const id=t.dataset.renameProduct,status=t.closest('.name-edit')?.querySelector('[data-name-save-status]');
+    const name=t.value.trim();
+    if(!name){if(status)status.textContent='이름을 입력해 주세요.';return;}
+    const startRevision=revision();
+    try{await store.saveProductName(id,name,startRevision);await reload();if(status)status.textContent='저장됨';renderProducts();}
+    catch(error){if(status)status.textContent=error.message;}
+    return;
+  }
   if(t.dataset.photoProduct){
     const file=t.files?.[0];if(!file)return;
     const startRevision=revision();
-    if(!['image/png','image/jpeg','image/webp'].includes(file.type)||file.size>1024*1024){$('product-error').textContent='1MB 이하의 PNG, JPG, WebP 사진만 선택해 주세요.';t.value='';return;}
-    try{const data=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(new Error('사진을 읽을 수 없어요.'));reader.readAsDataURL(file);});await store.saveImage(t.dataset.photoProduct,data,startRevision);await reload();$('product-error').textContent='';renderProducts();}
+    if(!['image/png','image/jpeg','image/webp'].includes(file.type)){$('product-error').textContent='PNG, JPG, WebP 사진만 선택해 주세요.';t.value='';return;}
+    try{
+      const data=await photoDataUrl(file);
+      await store.saveImage(t.dataset.photoProduct,data,startRevision);await reload();$('product-error').textContent='';renderProducts();
+    }
     catch(error){$('product-error').textContent=error.message;}return;
   }
   if(t.id==='sort'){state.sort=t.value;renderProducts();return;}

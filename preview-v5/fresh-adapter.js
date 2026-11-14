@@ -267,6 +267,14 @@ export function createAuthenticatedStore({auth, fetchImpl, schema = null, onChan
         schema.apply(raw, {type:'saveReceipt', id:productId, index, receipt:entry});
       }, expectedRevision);
     },
+    async saveProductName(productId, name, expectedRevision = lastEtag) {
+      const trimmed = typeof name === 'string' ? name.trim() : '';
+      if (!validId(productId) || !trimmed || trimmed.length > 60) throw Error('상품 이름(1~60자)을 확인해 주세요.');
+      return transact((raw, data) => {
+        if (!data.products.some(row => row.id === productId)) throw Error('상품을 찾을 수 없어요.');
+        schema.apply(raw, {type:'renameProduct', id:productId, name:trimmed});
+      }, expectedRevision);
+    },
     async saveImage(productId, dataUrl, expectedRevision = lastEtag) {
       if (!validId(productId) || typeof dataUrl !== 'string' || !/^data:image\/(png|jpeg|webp);base64,[a-z0-9+/=]+$/i.test(dataUrl) || dataUrl.length > 1400000) throw Error('1MB 이하의 PNG, JPG, WebP 사진만 선택해 주세요.');
       return transact((raw, data) => {

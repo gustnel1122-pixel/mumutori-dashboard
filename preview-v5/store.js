@@ -73,6 +73,13 @@ export function createMemoryStore(initial, {marginVisibleTo = MARGIN_VISIBLE_TO}
       if ('unitCostCurrency' in previous) entry.unitCostCurrency = currency;
       if (index === null) product.receipts.push(entry); else product.receipts[index] = entry;
     },
+    async saveProductName(productId, name) {
+      const product = byId(data.products, productId);
+      if (!product) throw new Error('상품을 찾을 수 없어요.');
+      const trimmed = typeof name === 'string' ? name.trim() : '';
+      if (!trimmed || trimmed.length > 60) throw new Error('상품 이름(1~60자)을 확인해 주세요.');
+      product.name = trimmed;
+    },
     async saveImage(productId, dataUrl) {
       const product = byId(data.products, productId);
       if (!product) throw new Error('상품을 찾을 수 없어요.');
