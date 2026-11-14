@@ -1,6 +1,6 @@
 const buildVersion = new URL(import.meta.url).searchParams.get('v');
 const buildQuery = buildVersion ? `?v=${encodeURIComponent(buildVersion)}` : '';
-const {validateMaterialLinks, validateMaterialLinkUpdate, receiptAllocation, receiptCurrency, validOptionalDate} = await import('./model.js' + buildQuery);
+const {validateMaterialLinks, validateMaterialLinkUpdate, receiptAllocation, receiptCurrency, validOptionalDate, normalizeSettings, SETTINGS_FIELDS} = await import('./model.js' + buildQuery);
 const {prepareSaleChange, MARGIN_VISIBLE_TO} = await import('./sale-model.js' + buildQuery);
 
 // UI data boundary: methods are asynchronous so a future authenticated store
@@ -20,7 +20,12 @@ export function createMemoryStore(initial, {marginVisibleTo = MARGIN_VISIBLE_TO}
     for (const field of ['stock','minStock']) { const v = material[field]; if (v !== null && (!Number.isSafeInteger(v) || v < 0)) throw new Error('부자재 수량을 확인해 주세요.'); }
   };
   return Object.freeze({
-    async load() { return structuredClone(data); },
+    async load() { return {...structuredClone(data), settings: normalizeSettings(data.settings)}; },
+    async saveSettings(fields) {
+      if (!fields || typeof fields !== 'object' || Array.isArray(fields) || !Object.keys(fields).length) throw new Error('설정 칸을 확인해 주세요.');
+      if (Object.keys(fields).some(k => !SETTINGS_FIELDS.includes(k))) throw new Error('설정 칸을 확인해 주세요.');
+      data.settings = normalizeSettings({...normalizeSettings(data.settings), ...fields});
+    },
     // Simulation only; 'allowed' shows margins to both permitted users.
     canViewMargin() { return marginVisibleTo === 'allowed'; },
     async saveSale(productId, patch) {

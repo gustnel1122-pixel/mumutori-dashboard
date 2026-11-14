@@ -1,6 +1,6 @@
 const buildVersion = new URL(import.meta.url).searchParams.get('v');
 const buildQuery = buildVersion ? `?v=${encodeURIComponent(buildVersion)}` : '';
-const {calcProduct, calcSet, validateMaterialLinks, validateMaterialLinkUpdate, receiptAllocation, receiptCurrency, minimumRoas, CHANNEL_FEES, COUPANG_LOGISTICS_DEFAULT, DEFAULT_TARGET_ROAS, channelBreakdown, coupangBundleOptions} = await import('./model.js' + buildQuery);
+const {calcProduct, calcSet, validateMaterialLinks, validateMaterialLinkUpdate, receiptAllocation, receiptCurrency, minimumRoas, CHANNEL_FEES, COUPANG_LOGISTICS_DEFAULT, DEFAULT_TARGET_ROAS, DEFAULT_MIN_LISTING_STOCK, SETTINGS_FIELDS, normalizeSettings, channelFeesFrom, channelBreakdown, coupangBundleOptions} = await import('./model.js' + buildQuery);
 const {createMemoryStore} = await import('./store.js' + buildQuery);
 const {normalizeSale, saleStatus, saleMargin} = await import('./sale-model.js' + buildQuery);
 
@@ -20,9 +20,10 @@ const exampleMaterials = [
 const exampleSets = [{id:'demo-s1',name:'예시 선물 세트',components:[{id:'demo-p1',quantity:1},{id:'demo-p2',quantity:1}],materials:[{materialId:'demo-m3',quantity:1}],salePrice:19500,priceStatus:'제안'}];
 const isLive = Boolean(window.__MMT_V5_FRESH_STORE__);
 const store = window.__MMT_V5_FRESH_STORE__ || createMemoryStore({products:exampleProducts,materials:exampleMaterials,sets:exampleSets});
-let {products,materials,sets} = await store.load();
-async function reload(){({products,materials,sets}=await store.load());}
-const state = {tab:'p',filters:{batch:new Set(),channel:new Set(),kind:new Set(),status:new Set()},saleFilter:'전체',saleBusy:false,openProduct:null,openSale:new Set(),saleMessages:new Map(),saleDrafts:new Map(),saleUncertain:new Set(),sort:'name',includeMaterials:true,channel:'smart',openDetails:new Set(),openLinks:new Set(),linkMessage:'',editReceipt:new Map(),editReceiptRevision:new Map(),editMaterial:null,editMaterialRevision:null,editMaterialCurrency:null,draft:{items:{},materials:{}}};
+let {products,materials,sets,settings} = await store.load();
+settings = normalizeSettings(settings);
+async function reload(){({products,materials,sets,settings}=await store.load());settings=normalizeSettings(settings);}
+const state = {tab:'p',filters:{batch:new Set(),channel:new Set(),kind:new Set(),status:new Set()},saleFilter:'전체',saleBusy:false,openProduct:null,openSale:new Set(),saleMessages:new Map(),saleDrafts:new Map(),saleUncertain:new Set(),sort:'name',includeMaterials:true,channel:'smart',openDetails:new Set(),openLinks:new Set(),linkMessage:'',editReceipt:new Map(),editReceiptRevision:new Map(),editMaterial:null,editMaterialRevision:null,editMaterialCurrency:null,draft:{items:{},materials:{}},settingsOpen:false,settingsBusy:false,settingsMessage:''};
 const saleEditRevision = new WeakMap();
 const revision = () => typeof store.revision === 'function' ? store.revision() : undefined;
 const $ = id => document.getElementById(id);
@@ -134,33 +135,53 @@ function saleMarginRows(p,sale){
 // 1702: 판매가 하나(자사몰 칸 = 매장·자사몰 공통 기준가)로 채널별 정산금·마진·마진율·최소 ROAS를 자동 계산.
 // 매장 카드수수료는 아직 확인 전이라 0%로 두고 '확인 필요'를 같이 보여준다(지어내지 않음).
 const channelMarginTable = [['store','매장(토스 포스)'],['smart','스마트스토어'],['own','자사몰'],['coupang','쿠팡(단품)']];
-function channelClass(result){
+function channelClass(result,targetRoas=DEFAULT_TARGET_ROAS){
   if (result.margin===null) return 'b';
   if (result.margin<=0) return 'b';
-  if (result.roas===null || result.roas>DEFAULT_TARGET_ROAS) return 'w';
+  if (result.roas===null || result.roas>targetRoas) return 'w';
   return 'g';
 }
 function channelMarginRows(p,sale){
   if (!canViewCost()) return '';
   const costResult=calculate(p),cost=costResult.partialCost?null:costResult.cost;
   const basePrice=sale.storePrice;
+  const fees=channelFeesFrom(settings);
   if (basePrice===null) return '<p class="sale-margin-note">매장 판매가를 적으면 채널별 마진이 자동으로 나와요.</p>';
   return `<div class="channel-margins"><strong>채널별 마진 자동</strong><div class="tablewrap"><table><thead><tr><th>채널</th><th>정산금</th><th>마진</th><th>마진율</th><th>최소 ROAS</th></tr></thead><tbody>${channelMarginTable.map(([key,label])=>{
     const price=key==='store'?basePrice:sale.prices[key]??basePrice;
-    const logi=key==='coupang'?COUPANG_LOGISTICS_DEFAULT:0;
-    const result=channelBreakdown(price,cost,CHANNEL_FEES[key],logi);
-    const cls=channelClass(result);
-    const flag=key==='store'?' <small>(카드수수료 확인 필요)</small>':cls==='b'&&result.margin!==null&&result.margin<=0?' <small class="flag-bad">적자</small>':cls==='w'?' <small class="flag-warn">광고 어려움</small>':'';
+    const logi=key==='coupang'?settings.coupangLogistics:0;
+    const result=channelBreakdown(price,cost,fees[key],logi);
+    const cls=channelClass(result,settings.targetRoas);
+    const flag=key==='store'&&settings.storeCardFee==null?' <small>(카드수수료 확인 필요)</small>':cls==='b'&&result.margin!==null&&result.margin<=0?' <small class="flag-bad">적자</small>':cls==='w'?' <small class="flag-warn">광고 어려움</small>':'';
     return `<tr class="${cls}"><td>${esc(label)}${flag}</td><td>${money(result.settlement)}</td><td>${money(result.margin)}</td><td>${pct(result.marginRate)}</td><td>${pct(result.roas)}</td></tr>`;
   }).join('')}</tbody></table></div></div>${coupangBundleRows(p,sale,basePrice,cost)}`;
 }
 function coupangBundleRows(p,sale,basePrice,cost){
-  const r=coupangBundleOptions(basePrice,cost,{stock:typeof p.stock==='number'?p.stock:null});
+  const r=coupangBundleOptions(basePrice,cost,{
+    stock:typeof p.stock==='number'?p.stock:null,
+    targetRoas:settings.targetRoas,minStock:settings.minStock,coupangLogistics:settings.coupangLogistics,coupangFee:settings.coupangFee,
+    priceOverride:sale.coupangBundlePrices,
+  });
   if (!r) return '';
-  return `<div class="coupang-bundle"><strong>쿠팡 단품 · 묶음 자동 추천</strong><div class="tablewrap"><table><thead><tr><th>구성</th><th>쿠팡가(제안)</th><th>정산금</th><th>마진</th><th>최소 ROAS</th><th></th></tr></thead><tbody>${r.bundles.map(b=>{
+  return `<div class="coupang-bundle"><strong>쿠팡 단품 · 묶음 자동 추천</strong><div class="tablewrap"><table><thead><tr><th>구성</th><th>쿠팡가(제안)</th><th>손으로 바꾸기</th><th>정산금</th><th>마진</th><th>최소 ROAS</th><th></th></tr></thead><tbody>${r.bundles.map(b=>{
     const isPick=r.recommend===b.qty;
-    return `<tr class="${channelClass(b)}">${b.qty===1?'<td>단품</td>':`<td>${b.qty}개 묶음</td>`}<td>${money(b.coupangPrice)}</td><td>${money(b.settlement)}</td><td>${money(b.margin)}</td><td>${pct(b.roas)}</td><td>${isPick?'<span class="flag-pick">추천</span>':''}</td></tr>`;
+    return `<tr class="${channelClass(b,settings.targetRoas)}">${b.qty===1?'<td>단품</td>':`<td>${b.qty}개 묶음</td>`}<td>${money(b.suggestedPrice)}</td><td><span class="sale-input"><input type="number" inputmode="numeric" min="0" step="1" data-bundle-price="${b.qty}" aria-label="${esc(p.name)} ${b.qty}개 쿠팡가 손으로 바꾸기" placeholder="자동 제안가" value="${sale.coupangBundlePrices?.[b.qty]??''}"><span>원</span></span></td><td>${money(b.settlement)}</td><td>${money(b.margin)}</td><td>${pct(b.roas)}</td><td>${isPick?'<span class="flag-pick">추천</span>':''}</td></tr>`;
   }).join('')}</tbody></table></div><p class="sale-margin-note">${r.lowStock?'⚠ ':''}${esc(r.reason)}${r.recommend===null?' — 쿠팡 안 올림 추천':''}</p></div>`;
+}
+function settingsPanel(){
+  const s=settings;
+  const field=(key,label,value,step='1')=>`<label>${esc(label)} <span class="sale-input"><input type="number" inputmode="decimal" step="${step}" min="0" data-settings-field="${key}" aria-label="${esc(label)}" value="${value}"></span></label>`;
+  return `<details class="box settings-panel" ${state.settingsOpen?'open':''}><summary>계산 기준 — 수수료 · 물류비 · 목표</summary><div class="sale-fields">
+    <p class="sale-field-hint">고치지 않은 칸은 기본값을 그대로 써요. 매장 카드수수료는 확인 전이면 비워 두세요(계산은 0%, 화면엔 '확인 필요').</p>
+    ${field('smartFee','스마트스토어 수수료(%)',(s.smartFee*100).toFixed(2),'0.01')}
+    ${field('ownFee','자사몰 수수료(%)',(s.ownFee*100).toFixed(2),'0.01')}
+    ${field('coupangFee','쿠팡 수수료(%)',(s.coupangFee*100).toFixed(2),'0.01')}
+    ${field('coupangLogistics','쿠팡 개당 물류비(원)',s.coupangLogistics)}
+    ${field('targetRoas','목표 최소 ROAS(%)',s.targetRoas)}
+    ${field('minStock','쿠팡 최소 묶음 수량(개)',s.minStock)}
+    <label>매장 카드수수료(%) <span class="sale-input"><input type="number" inputmode="decimal" step="0.01" min="0" data-settings-field="storeCardFee" aria-label="매장 카드수수료(%)" placeholder="확인 필요" value="${s.storeCardFee==null?'':(s.storeCardFee*100).toFixed(2)}"></span></label>
+    <p class="sale-margin-note" data-settings-status role="status" aria-live="polite">${esc(state.settingsMessage)}</p>
+  </div></details>`;
 }
 function salePanel(p){
   const sale=normalizeSale(p.sale), status=state.saleMessages.get(p.id)||'';
@@ -221,7 +242,7 @@ function renderProducts(){
   const shown=ordered(products.filter(matching));
   $('sum-p').innerHTML=`<span>상품 <b>${shown.length}</b>개</span><span>${isLive?'새 상품 장부':'금액과 상품은 가상의 예시'}</span>`;
   $('grid-p').innerHTML=shown.length?shown.map(card).join(''):'<div class="empty-card">조건에 맞는 상품이 없어요. 필터를 바꿔 주세요.</div>';
-  if(state.editReceipt.size)for(const control of $('grid-p').querySelectorAll('[data-sale-decision],[data-sale-store-price],[data-sale-barcode],[data-sale-price],[data-sale-registered],[data-sale-url],[data-sale-detail],[data-photo-product],[data-link-quantity]'))control.disabled=true;
+  if(state.editReceipt.size)for(const control of $('grid-p').querySelectorAll('[data-sale-decision],[data-sale-store-price],[data-sale-barcode],[data-bundle-price],[data-sale-price],[data-sale-registered],[data-sale-url],[data-sale-detail],[data-photo-product],[data-link-quantity]'))control.disabled=true;
   const dialog=$('grid-p').querySelector('.links-dialog');
   if(dialog){
     dialog.addEventListener('cancel',event=>{event.preventDefault();closeLinks();});
@@ -275,9 +296,9 @@ function renderMaterials(){
 function render(){
   for(const t of ['p','s','m']){$('view-'+t).hidden=state.tab!==t;$('tab-'+t).setAttribute('aria-selected',String(state.tab===t));}
   $('cnt-p').textContent=products.length;$('cnt-s').textContent=sets.length;$('cnt-m').textContent=materials.length;
-  if(state.tab==='p'){renderSaleFilters();renderFilters();renderProducts();}else if(state.tab==='s')renderSets();else renderMaterials();
+  if(state.tab==='p'){renderSaleFilters();$('settings-panel').innerHTML=canViewCost()?settingsPanel():'';renderFilters();renderProducts();}else if(state.tab==='s')renderSets();else renderMaterials();
 }
-const saleInputs='[data-sale-decision],[data-sale-store-price],[data-sale-barcode],[data-sale-price],[data-sale-registered],[data-sale-url],[data-sale-detail]';
+const saleInputs='[data-sale-decision],[data-sale-store-price],[data-sale-barcode],[data-bundle-price],[data-sale-price],[data-sale-registered],[data-sale-url],[data-sale-detail]';
 function saleMessage(card,text,isError=false){
   const el=card?.querySelector('[data-sale-save-status]');
   if(el){el.textContent=text;el.classList.toggle('is-error',isError);}
@@ -303,6 +324,7 @@ function discardSaleDraft(id){
   const sale=normalizeSale(p.sale);
   if(target.hasAttribute('data-sale-store-price'))target.value=sale.storePrice??'';
   else if(target.hasAttribute('data-sale-barcode'))target.value=sale.barcode;
+  else if(target.hasAttribute('data-bundle-price'))target.value=sale.coupangBundlePrices?.[target.dataset.bundlePrice]??'';
   else if(target.dataset.salePrice)target.value=sale.prices[target.dataset.salePrice]??'';
   else if(target.dataset.saleRegistered)target.checked=sale.listings[target.dataset.saleRegistered].registered;
   else if(target.dataset.saleUrl)target.value=sale.listings[target.dataset.saleUrl].url;
@@ -337,6 +359,7 @@ document.addEventListener('focusin',e=>{
   if(e.target.matches?.(saleInputs))saleEditRevision.set(e.target,revision());
 });
 document.addEventListener('toggle',e=>{
+  if(e.target.matches?.('.settings-panel')){state.settingsOpen=e.target.open;return;}
   if(!e.target.matches?.('[data-sale-details]'))return;
   const id=e.target.closest('[data-product]')?.dataset.product;
   if(id){if(e.target.open)state.openSale.add(id);else state.openSale.delete(id);}
@@ -395,6 +418,26 @@ document.addEventListener('change',async e=>{
     if(t.id==='sort')t.value=state.sort;else t.checked=state.includeMaterials;
     $('product-error').textContent='입고 기록을 저장하거나 취소한 뒤 계속해 주세요.';return;
   }
+  if(t.hasAttribute('data-settings-field')){
+    if(state.settingsBusy)return;
+    const key=t.dataset.settingsField;
+    const raw=t.value.trim();
+    if(key==='storeCardFee'&&raw===''){state.settingsBusy=true;state.settingsMessage='저장 중…';render();
+      try{await store.saveSettings({storeCardFee:null});await reload();state.settingsMessage='저장됨';}
+      catch(error){state.settingsMessage=error.message||'저장하지 못했어요.';}
+      finally{state.settingsBusy=false;render();}
+      return;
+    }
+    const n=Number(raw);
+    if(raw===''||!Number.isFinite(n)||n<0){state.settingsMessage='0 이상의 숫자를 입력해 주세요.';render();return;}
+    const isPct=['smartFee','ownFee','coupangFee','storeCardFee'].includes(key);
+    const value=isPct?n/100:n;
+    state.settingsBusy=true;state.settingsMessage='저장 중…';render();
+    try{await store.saveSettings({[key]:value});await reload();state.settingsMessage='저장됨';}
+    catch(error){state.settingsMessage=error.message||'저장하지 못했어요.';}
+    finally{state.settingsBusy=false;render();}
+    return;
+  }
   if(t.matches?.(saleInputs)){
     const card=t.closest('[data-product]'),id=card?.dataset.product,p=byId(id);
     if(!p||state.saleBusy)return;
@@ -407,6 +450,10 @@ document.addEventListener('change',async e=>{
       const value=t.value.trim();
       if(value.length>40){saleFailure(t,'바코드가 너무 길어요.');return;}
       patch={barcode:value};
+    }else if(t.hasAttribute('data-bundle-price')){
+      const raw=t.value.trim(),value=raw===''?null:Number(raw);
+      if(value!==null&&(!Number.isSafeInteger(value)||value<0)){saleFailure(t,'0 이상의 정수 금액을 입력해 주세요.');return;}
+      patch={coupangBundlePrices:{[t.dataset.bundlePrice]:value}};
     }else if(t.dataset.salePrice){
       const raw=t.value.trim(),value=raw===''?null:Number(raw);
       if(value!==null&&(!Number.isSafeInteger(value)||value<0)){saleFailure(t,'0 이상의 정수 금액을 입력해 주세요.');return;}

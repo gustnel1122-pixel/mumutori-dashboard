@@ -73,3 +73,36 @@ test('a manual priceOverride on a bundle is used instead of the auto-suggested p
   assert.equal(r.bundles[1].coupangPrice, 9900);
   assert.equal(r.bundles[1].suggestedPrice, 10900); // 자동 제안가는 그대로 보여 손으로 바꾼 것과 비교할 수 있게
 });
+
+test('20261114_1823: normalizeSettings falls back to the built-in defaults for anything unset or invalid', async () => {
+  const {normalizeSettings, FEES, CHANNEL_FEES, COUPANG_LOGISTICS_DEFAULT, DEFAULT_TARGET_ROAS, DEFAULT_MIN_LISTING_STOCK} = await modules;
+  const empty = normalizeSettings(null);
+  assert.equal(empty.smartFee, FEES.smart);
+  assert.equal(empty.ownFee, FEES.own);
+  assert.equal(empty.coupangFee, CHANNEL_FEES.coupang);
+  assert.equal(empty.coupangLogistics, COUPANG_LOGISTICS_DEFAULT);
+  assert.equal(empty.targetRoas, DEFAULT_TARGET_ROAS);
+  assert.equal(empty.minStock, DEFAULT_MIN_LISTING_STOCK);
+  assert.equal(empty.storeCardFee, null); // 확인 전 — 지어내지 않음
+  const invalid = normalizeSettings({smartFee: 'x', coupangLogistics: -5});
+  assert.equal(invalid.smartFee, FEES.smart);
+  assert.equal(invalid.coupangLogistics, COUPANG_LOGISTICS_DEFAULT);
+});
+
+test('20261114_1823: a saved storeCardFee feeds channelFeesFrom and is no longer null', async () => {
+  const {normalizeSettings, channelFeesFrom} = await modules;
+  const saved = normalizeSettings({storeCardFee: 0.025, coupangFee: 0.12});
+  assert.equal(saved.storeCardFee, 0.025);
+  const fees = channelFeesFrom(saved);
+  assert.equal(fees.store, 0.025);
+  assert.equal(fees.coupang, 0.12);
+});
+
+test('20261114_1823: coupangBundleOptions honors a custom coupangFee from settings', async () => {
+  const {coupangBundleOptions, channelBreakdown} = await modules;
+  const withDefault = coupangBundleOptions(9900, 640, {stock: 20});
+  const withCustomFee = coupangBundleOptions(9900, 640, {stock: 20, coupangFee: 0.2});
+  assert.notEqual(withDefault.bundles[0].settlement, withCustomFee.bundles[0].settlement);
+  const expected = channelBreakdown(withCustomFee.bundles[0].coupangPrice, 640, 0.2, 2250).settlement;
+  assert.equal(withCustomFee.bundles[0].settlement, expected);
+});

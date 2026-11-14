@@ -7,6 +7,30 @@ export const COUPANG_LOGISTICS_DEFAULT = 2250;
 export const DEFAULT_TARGET_ROAS = 300;
 export const DEFAULT_MIN_LISTING_STOCK = 10;
 
+// 1823: '계산 기준' 설정 한 곳 — 공개 코드에는 기본값만 있고, 실제 값은 v5 비공개 자료(settings)에서 읽는다.
+// 고치지 않은 칸은 기본값을 그대로 쓴다. storeCardFee는 확인 전이면 null(화면에 '확인 필요', 계산은 0%로).
+export const SETTINGS_FIELDS = Object.freeze(['smartFee', 'ownFee', 'coupangFee', 'coupangLogistics', 'targetRoas', 'minStock', 'storeCardFee']);
+export function normalizeSettings(value) {
+  const v = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  const pct = (x, def) => { const n = numberOrNull(x); return n !== null && n < 1 ? n : def; };
+  const num = (x, def) => { const n = numberOrNull(x); return n !== null ? n : def; };
+  const int = (x, def) => { const n = numberOrNull(x); return n !== null && Number.isSafeInteger(n) ? n : def; };
+  return {
+    smartFee: pct(v.smartFee, FEES.smart),
+    ownFee: pct(v.ownFee, FEES.own),
+    coupangFee: pct(v.coupangFee, CHANNEL_FEES.coupang),
+    coupangLogistics: num(v.coupangLogistics, COUPANG_LOGISTICS_DEFAULT),
+    targetRoas: num(v.targetRoas, DEFAULT_TARGET_ROAS),
+    minStock: int(v.minStock, DEFAULT_MIN_LISTING_STOCK),
+    storeCardFee: v.storeCardFee == null ? null : pct(v.storeCardFee, null),
+  };
+}
+// settings 하나를 받아 channelMarginRows/coupangBundleOptions이 바로 쓸 수 있는 채널 수수료표로.
+export function channelFeesFrom(settings) {
+  const s = normalizeSettings(settings);
+  return Object.freeze({ store: s.storeCardFee ?? 0, smart: s.smartFee, own: s.ownFee, coupang: s.coupangFee });
+}
+
 // 채널 정산금 = 판매가 × (1 − 수수료율) − 개당 물류비(쿠팡만). 스스·자사몰·매장은 물류비 0.
 export function channelSettlement(price, fee, logisticsPerUnit = 0) {
   const p = numberOrNull(price), f = numberOrNull(fee), logi = numberOrNull(logisticsPerUnit);
@@ -40,13 +64,14 @@ export function coupangBundleOptions(storePrice, unitCost, settings = {}) {
   const minStock = numberOrNull(settings.minStock) ?? DEFAULT_MIN_LISTING_STOCK;
   const markup = numberOrNull(settings.coupangMarkup) ?? 0;
   const logistics = numberOrNull(settings.coupangLogistics) ?? COUPANG_LOGISTICS_DEFAULT;
+  const coupangFee = numberOrNull(settings.coupangFee) ?? CHANNEL_FEES.coupang;
   const cost = numberOrNull(unitCost);
   const stock = settings.stock == null ? null : nonnegativeInteger(settings.stock);
   const bundles = [1, 2, 3].map(qty => {
     const suggested = roundUpTo900(p * qty * (1 + markup));
     const coupangPrice = numberOrNull(settings.priceOverride?.[qty]) ?? suggested;
     const bundleCost = cost === null ? null : cost * qty;
-    const breakdown = channelBreakdown(coupangPrice, bundleCost, CHANNEL_FEES.coupang, logistics);
+    const breakdown = channelBreakdown(coupangPrice, bundleCost, coupangFee, logistics);
     const withinTarget = breakdown.roas !== null && breakdown.roas <= targetRoas;
     return { qty, suggestedPrice: suggested, coupangPrice, ...breakdown, withinTarget };
   });

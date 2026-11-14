@@ -11,7 +11,8 @@ const fail = () => { throw Error('판매 준비 내용을 확인해 주세요.')
 const price = x => x == null || x === '' ? null : typeof x === 'number' && Number.isSafeInteger(x) && x >= 0 ? x : fail();
 // 1823: 매장(오프라인) 판매가가 기준값 — 자사몰·스스·쿠팡 칸을 비우면 이 값을 따라간다(기존 saleMargin의 own 기준값을 매장으로 승격).
 const barcodeText = x => x == null || x === '' ? '' : typeof x === 'string' && x.trim().length <= 40 ? x.trim() : fail();
-const HISTORY_FIELDS = /^(?:decision|storePrice|barcode|prices\.(?:own|smart|coupang)|listings\.(?:own|smart|coupang)\.(?:registered|url|detail))$/;
+export const BUNDLE_QTYS = Object.freeze([1, 2, 3]);
+const HISTORY_FIELDS = /^(?:decision|storePrice|barcode|prices\.(?:own|smart|coupang)|coupangBundlePrices\.[123]|listings\.(?:own|smart|coupang)\.(?:registered|url|detail))$/;
 const HISTORY_LIMIT = 30;
 const ACTOR = /^[A-Za-z0-9:_-]{1,128}$/;
 
@@ -73,6 +74,7 @@ function patchFields(patch) {
   if (owns(patch,'decision')) fields.push('decision');
   if (owns(patch,'storePrice')) fields.push('storePrice');
   if (owns(patch,'barcode')) fields.push('barcode');
+  if (owns(patch,'coupangBundlePrices')) for (const qty of Object.keys(patch.coupangBundlePrices)) fields.push(`coupangBundlePrices.${qty}`);
   if (owns(patch,'prices')) for (const channel of Object.keys(patch.prices)) fields.push(`prices.${channel}`);
   if (owns(patch,'listings')) for (const channel of Object.keys(patch.listings)) {
     for (const field of Object.keys(patch.listings[channel])) fields.push(`listings.${channel}.${field}`);
@@ -110,14 +112,21 @@ export function normalizeSale(value) {
     prices[channel] = price(prices[channel]);
     listings[channel] = readListing(listings[channel]);
   }
-  return {...value, decision, prices, listings, storePrice:price(value.storePrice), barcode:barcodeText(value.barcode), history:historyList(value.history), updatedAt:value.updatedAt ?? null, by:value.by ?? null};
+  if (value.coupangBundlePrices != null && !object(value.coupangBundlePrices)) fail();
+  const coupangBundlePrices = {...(value.coupangBundlePrices || {})};
+  for (const qty of BUNDLE_QTYS) coupangBundlePrices[qty] = price(coupangBundlePrices[qty]);
+  return {...value, decision, prices, listings, storePrice:price(value.storePrice), barcode:barcodeText(value.barcode), coupangBundlePrices, history:historyList(value.history), updatedAt:value.updatedAt ?? null, by:value.by ?? null};
 }
 export function mergeSalePatch(original, patch) {
-  if (!object(patch) || !Object.keys(patch).length || Object.keys(patch).some(k => !['decision','prices','listings','storePrice','barcode'].includes(k))) fail();
+  if (!object(patch) || !Object.keys(patch).length || Object.keys(patch).some(k => !['decision','prices','listings','storePrice','barcode','coupangBundlePrices'].includes(k))) fail();
   const result = normalizeSale(original);
   if (owns(patch,'decision')) result.decision = patch.decision;
   if (owns(patch,'storePrice')) result.storePrice = patch.storePrice;
   if (owns(patch,'barcode')) result.barcode = patch.barcode;
+  if (owns(patch,'coupangBundlePrices')) {
+    if (!object(patch.coupangBundlePrices) || !Object.keys(patch.coupangBundlePrices).length || Object.keys(patch.coupangBundlePrices).some(k => !BUNDLE_QTYS.includes(Number(k)))) fail();
+    for (const qty of Object.keys(patch.coupangBundlePrices)) result.coupangBundlePrices[qty] = patch.coupangBundlePrices[qty];
+  }
   for (const key of ['prices','listings']) {
     if (!owns(patch,key)) continue;
     if (!object(patch[key]) || !Object.keys(patch[key]).length || Object.keys(patch[key]).some(k => !SALE_CHANNELS.includes(k))) fail();

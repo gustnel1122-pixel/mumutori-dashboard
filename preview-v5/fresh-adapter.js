@@ -1,6 +1,6 @@
 const buildVersion = new URL(import.meta.url).searchParams.get('v');
 const buildQuery = buildVersion ? `?v=${encodeURIComponent(buildVersion)}` : '';
-const {validateMaterialLinks, validateMaterialLinkUpdate, receiptAllocation, receiptCurrency, validOptionalDate} = await import('./model.js' + buildQuery);
+const {validateMaterialLinks, validateMaterialLinkUpdate, receiptAllocation, receiptCurrency, validOptionalDate, normalizeSettings} = await import('./model.js' + buildQuery);
 const {normalizeSale, mergeSalePatch, prepareSaleChange, MARGIN_VISIBLE_TO} = await import('./sale-model.js' + buildQuery);
 
 // Operational integration draft. No connection starts until a caller invokes
@@ -38,6 +38,7 @@ function project(schema, raw) {
     }
     out[key] = clone(value[key]);
   }
+  out.settings = normalizeSettings(value.settings);
   return out;
 }
 
@@ -166,6 +167,12 @@ export function createAuthenticatedStore({auth, fetchImpl, schema = null, onChan
           return !!product && canonical(normalizeSale(product.sale)) === canonical(normalizeSale(outcome.sale));
         }
       });
+    },
+    async saveSettings(fields, expectedRevision = lastEtag) {
+      if (!object(fields) || !Object.keys(fields).length) throw Error('설정 칸을 확인해 주세요.');
+      return transact((raw) => {
+        schema.apply(raw, {type:'saveSettings', fields:clone(fields)});
+      }, expectedRevision);
     },
     async saveProductLinks(id, links, expectedRevision = lastEtag) {
       if (!validId(id) || !Array.isArray(links)) throw Error('상품 연결을 확인해 주세요.');

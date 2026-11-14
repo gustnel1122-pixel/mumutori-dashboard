@@ -40,6 +40,17 @@ test('storePrice and barcode normalize, patch, and record history like other sal
  assert.equal(changed,true);
  assert.deepEqual(sale.history.map(x=>x.field).sort(),['barcode','storePrice']);
 });
+test('coupangBundlePrices (쿠팡가 손입력) normalizes per-qty, patches, and tracks history (20261114_1910)',async()=>{
+ const {normalizeSale,mergeSalePatch}=await model;
+ const initial=normalizeSale(null); assert.deepEqual(initial.coupangBundlePrices,{1:null,2:null,3:null});
+ const s=mergeSalePatch(initial,{coupangBundlePrices:{2:9900}});
+ assert.equal(s.coupangBundlePrices[2],9900);
+ const s2=mergeSalePatch(s,{coupangBundlePrices:{3:15900}});
+ assert.equal(s2.coupangBundlePrices[2],9900); // 다른 묶음 칸은 그대로
+ assert.equal(s2.coupangBundlePrices[3],15900);
+ assert.throws(()=>mergeSalePatch(s,{coupangBundlePrices:{4:1000}})); // 1·2·3개만 있음
+ assert.throws(()=>mergeSalePatch(s,{coupangBundlePrices:{2:-1}}));
+});
 test('statuses reflect decision and registrations without inferring unregistered channels',async()=>{
  const {saleStatus}=await model;
  assert.equal(saleStatus({decision:'판매'}),'판매 확정 미등록');

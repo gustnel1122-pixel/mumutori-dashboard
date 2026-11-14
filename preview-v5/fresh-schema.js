@@ -2,6 +2,7 @@
 const buildVersion = new URL(import.meta.url).searchParams.get('v');
 const buildQuery = buildVersion ? `?v=${encodeURIComponent(buildVersion)}` : '';
 const {normalizeSale} = await import('./sale-model.js' + buildQuery);
+const {normalizeSettings, SETTINGS_FIELDS} = await import('./model.js' + buildQuery);
 const array = value => value == null ? [] : Array.isArray(value) ? value : Object.values(value);
 const copy = value => structuredClone(value);
 function requireRoot(raw) {
@@ -23,7 +24,7 @@ function material(value) {
 export const freshSchema = Object.freeze({
   project(raw) {
     requireRoot(raw);
-    return {products: array(raw.products).map(product), materials: array(raw.materials).map(material), sets: array(raw.sets)};
+    return {products: array(raw.products).map(product), materials: array(raw.materials).map(material), sets: array(raw.sets), settings: normalizeSettings(raw.settings)};
   },
   apply(raw, operation) {
     requireRoot(raw);
@@ -32,6 +33,13 @@ export const freshSchema = Object.freeze({
       const matches = array(raw.products).filter(item => item?.id === operation.id);
       if (matches.length !== 1) throw Error('상품을 찾을 수 없어요.');
       matches[0].sale = copy(normalizeSale(operation.sale));
+      return;
+    }
+    if (operation.type === 'saveSettings') {
+      // 1823: '계산 기준' — 고친 칸만 덮어쓰고 나머지는 그대로(기존 상품·부자재·세트는 안 건드림).
+      const fields = operation.fields || {};
+      if (Object.keys(fields).some(k => !SETTINGS_FIELDS.includes(k))) throw Error('설정 칸을 확인해 주세요.');
+      raw.settings = normalizeSettings({...normalizeSettings(raw.settings), ...fields});
       return;
     }
     for (const key of ['products', 'materials', 'sets']) raw[key] = array(raw[key]);
