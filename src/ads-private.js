@@ -6,10 +6,14 @@ const won=v=>v==null?'—':Number(v).toLocaleString('ko-KR')+'원';
 const pct=v=>v==null?'—':Number(v).toLocaleString('ko-KR',{maximumFractionDigits:1})+'%';
 const count=v=>v==null?'—':Number(v).toLocaleString('ko-KR');
 const dateTime=v=>v?new Date(v).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';
-function kstToday(){const d=new Date();const kst=new Date(d.getTime()+(9*60-d.getTimezoneOffset())*60000);return kst.toISOString().slice(0,10);}
-function kstWeek(){
-  const d=new Date();const kst=new Date(d.getTime()+(9*60-d.getTimezoneOffset())*60000);
-  const date=new Date(Date.UTC(kst.getFullYear(),kst.getMonth(),kst.getDate()));
+// Date.getTime() is always UTC-absolute regardless of the OS's own timezone; shifting it by a
+// fixed +9h and reading it back with UTC getters gives KST wall-clock date correctly on every
+// machine — mixing in getTimezoneOffset() double-counts the shift when the OS is already KST
+// (20261114_1823: 날짜가 하루 더 가 있던 버그, 한국 시간으로 맞춘 PC에서 재현됨).
+export function kstToday(){return new Date(Date.now()+9*3600e3).toISOString().slice(0,10);}
+export function kstWeek(){
+  const kst=new Date(Date.now()+9*3600e3);
+  const date=new Date(Date.UTC(kst.getUTCFullYear(),kst.getUTCMonth(),kst.getUTCDate()));
   const dayNum=(date.getUTCDay()+6)%7;date.setUTCDate(date.getUTCDate()-dayNum+3);
   const firstThursday=new Date(Date.UTC(date.getUTCFullYear(),0,4));
   const weekNum=1+Math.round(((date-firstThursday)/86400000-3+((firstThursday.getUTCDay()+6)%7))/7);
