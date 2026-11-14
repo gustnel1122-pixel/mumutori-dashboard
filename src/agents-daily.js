@@ -182,7 +182,7 @@ function keywordSection(keywords){
   const search=el('input');search.type='search';search.placeholder='키워드 찾기';search.setAttribute('aria-label','키워드 찾기');
   const groups=[...new Set(keywords.map(r=>r.group).filter(Boolean))];
   const groupSel=el('select');groupSel.setAttribute('aria-label','상품군 걸러보기');
-  groupSel.append(el('option','','전체 상품군'));
+  const allOpt=el('option','','전체 상품군');allOpt.value='';groupSel.append(allOpt);
   for(const g of groups){const o=el('option','',g);o.value=g;groupSel.append(o);}
   controls.append(search,groupSel);wrap.append(controls);
   const tableWrap=el('div','tablewrap');
