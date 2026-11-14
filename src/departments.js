@@ -19,7 +19,10 @@ export const DEPARTMENTS=[
 ];
 // 메뉴: 매일 보는 다섯 개만 위에, 나머지는 '더보기'(검수 기준 5). 통장은 재무의 탭이라 메뉴에 따로 두지 않는다.
 // 11/14 사장님이 광고 통합 화면을 바로 찾음(총괄 20261114_1112) — '소싱'을 더보기로 내리고 그 자리에 '광고'.
-export const DAILY=['overview','finance','sales','stock','ads'];
+// 11/14 14:13 사장님 "재고관리를 상품관리에 묶어버려" — 화면(상품 상세 안 재고 보기)으로 합치려면 v5(Firebase)와
+// 옛 재고(이 PC localStorage, 20261114_1413 결과 참고)의 상품 id를 안전하게 잇는 방법이 먼저 정해져야 해서,
+// 그 결정 전까지 1단계로 '물류·재고'만 더보기로 내림(데이터·화면 자체는 그대로, stock.html 그대로 접근 가능).
+export const DAILY=['overview','finance','sales','ads'];
 // Product navigation uses the main address; the previous screen has its own link.
 export function hrefFor(id){return `${id==='overview'?'index':id}.html`;}
 export function menuGroups(){
