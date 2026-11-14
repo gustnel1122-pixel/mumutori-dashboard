@@ -49,5 +49,10 @@ test('kstWeek is also independent of the OS timezone offset', async () => {
   assert.equal(asKstOs, asUtcOs);
 });
 
-// agents-daily.js(20261114_1655, 아직 push 전)의 같은 kstToday()는 이 파일이 그 커밋과 함께
-// 다시 올라갈 때 같은 시험이 함께 들어온다 — 여기서는 이미 올라간 ads-private.js만 고친다.
+test('agents-daily.js kstToday matches the same fixed KST-boundary cases', async () => {
+  const {kstToday} = await import('../src/agents-daily.js');
+  const beforeMidnight = Date.UTC(2026, 10, 14, 14, 59, 0);
+  const afterMidnight = Date.UTC(2026, 10, 14, 15, 1, 0);
+  assert.equal(withNow(beforeMidnight, () => kstToday()), '2026-11-14');
+  assert.equal(withNow(afterMidnight, () => kstToday()), '2026-11-15');
+});

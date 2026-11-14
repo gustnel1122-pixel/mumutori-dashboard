@@ -14,7 +14,8 @@ export const DEPARTMENTS=[
  // 광고 통합 관리(사장님 2026-11-14 11:04 "광고통합관리페이지"): 쿠팡·네이버·메타·카카오·구글을 한 곳에서. 원 단위 숫자는 로그인 전엔 전혀 안 보임(hub/adsDaily, 사장님·다희님 전용).
  {id:'ads',label:'광고',owner:'광고 담당',english:'ADS HUB',number:'05·K',icon:'chart',color:'pink',description:'채널 통합 — 수익률·캠페인·재고 경보',related:['sales','stock','overview']},
  {id:'audit',admin:true,label:'변경 이력',owner:'운영관리',english:'ACTIVITY LOG',number:'08',icon:'clock',color:'green',description:'기록의 발자취',related:['settings','overview']},
- {id:'agents',admin:true,label:'AI 조직도',owner:'총괄',english:'AI ORGANIZATION',number:'10',icon:'people',color:'green',description:'AI 담당과 연결 상태',related:['sourcing','overview']},
+ // 11/14 16:55 사장님 "각 에이전트들한테 매일 짧은 보고를 받게 해 줘 · 한 화면에 담아서 관리" — 조직도 위에 9자리 하루 보고 판을 더함(20261114_1655).
+ {id:'agents',admin:true,label:'AI 조직도',owner:'총괄',english:'AI ORGANIZATION',number:'10',icon:'people',color:'green',description:'9자리 하루 보고 + 연결 상태',related:['sourcing','overview']},
  {id:'settings',admin:true,label:'설정·백업',owner:'운영관리',english:'WORKSPACE SETTINGS',number:'09',icon:'settings',color:'green',description:'계좌·창고·자료 보관',related:['bank','stock','audit']}
 ];
 // 메뉴: 매일 보는 다섯 개만 위에, 나머지는 '더보기'(검수 기준 5). 통장은 재무의 탭이라 메뉴에 따로 두지 않는다.
