@@ -7,6 +7,14 @@ const pct=v=>v==null?'—':Number(v).toLocaleString('ko-KR',{maximumFractionDigi
 const count=v=>v==null?'—':Number(v).toLocaleString('ko-KR');
 const dateTime=v=>v?new Date(v).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';
 function kstToday(){const d=new Date();const kst=new Date(d.getTime()+(9*60-d.getTimezoneOffset())*60000);return kst.toISOString().slice(0,10);}
+function kstWeek(){
+  const d=new Date();const kst=new Date(d.getTime()+(9*60-d.getTimezoneOffset())*60000);
+  const date=new Date(Date.UTC(kst.getFullYear(),kst.getMonth(),kst.getDate()));
+  const dayNum=(date.getUTCDay()+6)%7;date.setUTCDate(date.getUTCDate()-dayNum+3);
+  const firstThursday=new Date(Date.UTC(date.getUTCFullYear(),0,4));
+  const weekNum=1+Math.round(((date-firstThursday)/86400000-3+((firstThursday.getUTCDay()+6)%7))/7);
+  return date.getUTCFullYear()+'-W'+String(weekNum).padStart(2,'0');
+}
 
 export const CHANNELS=[['coupang','쿠팡'],['naver','네이버 검색광고'],['meta','메타(인스타·페북)'],['kakao','카카오'],['google','구글']];
 export const PERIODS=[['yesterday','어제'],['d7','7일'],['d30','30일']];
@@ -17,7 +25,36 @@ function metric(label,value,sub){
 
 function validated(x){ if(!x||typeof x!=='object'||Array.isArray(x))throw Error('format'); return x; }
 
-function renderCard(host,data){
+function inflowTable(label,rows){
+  const wrap=el('div','tablewrap'),table=el('table','table'),thead=el('thead'),trh=el('tr');
+  for(const h of [label,'방문','비중'])trh.append(el('th','',h));
+  thead.append(trh);table.append(thead);
+  const tbody=el('tbody');
+  for(const r of rows){const tr=el('tr');tr.append(el('td','',r.route),el('td','',count(r.visits)),el('td','',r.sharePct!=null?pct(r.sharePct):'—'));tbody.append(tr);}
+  table.append(tbody);wrap.append(table);return wrap;
+}
+function productsTable(rows){
+  const wrap=el('div','tablewrap'),table=el('table','table'),thead=el('thead'),trh=el('tr');
+  for(const h of ['상품','방문','결제'])trh.append(el('th','',h));
+  thead.append(trh);table.append(thead);
+  const tbody=el('tbody');
+  for(const r of rows){const tr=el('tr');tr.append(el('td','',r.name),el('td','',count(r.visits)),el('td','',count(r.payments)));tbody.append(tr);}
+  table.append(tbody);wrap.append(table);return wrap;
+}
+function keywordTable(rows){
+  const wrap=el('div','tablewrap'),table=el('table','table'),thead=el('thead'),trh=el('tr');
+  for(const h of ['채널','키워드','노출','클릭','주문','광고비','수익률'])trh.append(el('th','',h));
+  thead.append(trh);table.append(thead);
+  const tbody=el('tbody');
+  for(const r of rows){
+    const tr=el('tr');
+    tr.append(el('td','',r.channelLabel||r.channel||''),el('td','',r.keyword||''),el('td','',count(r.impressions)),el('td','',count(r.clicks)),el('td','',count(r.orders)),el('td','',won(r.spend)),el('td','',r.roas!=null?pct(r.roas):'—'));
+    tbody.append(tr);
+  }
+  table.append(tbody);wrap.append(table);return wrap;
+}
+
+function renderCard(host,data,keywords){
   host.replaceChildren();
   let period='d7';
   const breakeven=CHANNELS.map(([id])=>data[id]?.breakeven).find(v=>v!=null)??null;
@@ -82,6 +119,14 @@ function renderCard(host,data){
       table.append(tbody);wrap.append(table);body.append(wrap);
     }
 
+    const inflowRows=CHANNELS.flatMap(([id])=>data[id]?.topInflowRoutes30d||[]);
+    if(inflowRows.length){body.append(el('h3','','유입 경로(30일)'));body.append(inflowTable('경로',inflowRows));}
+
+    const productRows=CHANNELS.flatMap(([id])=>data[id]?.topProducts30d||[]);
+    if(productRows.length){body.append(el('h3','','상품별 유입(30일)'));body.append(productsTable(productRows));}
+
+    if(keywords?.length){body.append(el('h3','','키워드 통합'));body.append(keywordTable(keywords));}
+
     const decisions=CHANNELS.map(([id,label])=>data[id]?.decisions?[label,data[id].decisions]:null).filter(Boolean);
     if(decisions.length){
       body.append(el('h3','','사장님이 정할 것'));
@@ -107,7 +152,7 @@ export function mountAdsHub(host){
     }
     // 시험용 가짜 자료(QA 전용 · 화면 모양만 · 실제 자료 안 건드림): ?testads=1 일 때만, 로그인은 그대로 해야 보인다.
     const test=typeof window!=='undefined'&&window.__MMT_TEST_ADS__;
-    if(test){renderCard(host,validated(test));return;}
+    if(test){renderCard(host,validated(test),Array.isArray(window.__MMT_TEST_ADS_KEYWORDS__)?window.__MMT_TEST_ADS_KEYWORDS__:null);return;}
     message('불러오는 중이에요.');
     const controller=new AbortController();abort=controller;const timer=setTimeout(()=>controller.abort(),10000);
     try{
@@ -120,7 +165,15 @@ export function mountAdsHub(host){
       const raw=await response.json();
       if(!active(version)||auth.current()?.uid!==user.uid)return;
       if(raw==null){message('아직 오늘 점검 자료가 없어요.');return;}
-      renderCard(host,validated(raw));
+      // 키워드 통합(hub/adsKeywords/<주>)은 아직 비어 있을 수 있음 — 없으면 조용히 생략(화면은 그대로 뜸).
+      let keywords=null;
+      try{
+        const kurl=await auth.dbUrl('hub/adsKeywords/'+kstWeek());
+        const kresp=await fetch(kurl,{method:'GET',cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer',redirect:'error',signal:controller.signal});
+        if(kresp.ok){const kraw=await kresp.json();if(Array.isArray(kraw))keywords=kraw;}
+      }catch(_){/* 키워드는 있으면 좋은 자료라 실패해도 전체 화면을 막지 않음 */}
+      if(!active(version)||auth.current()?.uid!==user.uid)return;
+      renderCard(host,validated(raw),keywords);
     }catch(_){if(active(version))message('불러오지 못했어요. 연결을 확인해 주세요.',()=>begin(auth,auth.current()));}
     finally{clearTimeout(timer);if(abort===controller)abort=null;}
   }

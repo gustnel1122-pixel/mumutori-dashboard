@@ -45,3 +45,23 @@ test('rejects a payload that is an array or a primitive', () => {
   assert.equal(validateAdsDay('x').ok, false);
   assert.equal(validateAdsDay(null).ok, false);
 });
+
+test('accepts no_campaign/disconnected status with inflow routes and top products', () => {
+  const r = validateAdsDay({
+    naver: {
+      updatedAt: '2026-11-14T14:05:00+09:00',
+      status: 'no_campaign',
+      topInflowRoutes30d: [{ rank: 2, route: '직유입', visits: 30, sharePct: 50.8 }],
+      topProducts30d: [{ name: '무무토리 카피바라 말랑이 2개 세트', visits: 15, payments: 0 }],
+      decisions: '비즈머니 충전이 먼저 필요합니다.',
+    },
+  });
+  assert.equal(r.ok, true);
+});
+
+test('rejects a bad status or malformed inflow/product rows', () => {
+  const base = { updatedAt: '2026-11-14T14:05:00+09:00' };
+  assert.equal(validateAdsDay({ naver: { ...base, status: 'whatever' } }).ok, false);
+  assert.equal(validateAdsDay({ naver: { ...base, status: 'ok', topInflowRoutes30d: [{ route: 1 }] } }).ok, false);
+  assert.equal(validateAdsDay({ naver: { ...base, status: 'ok', topProducts30d: [{ visits: -1 }] } }).ok, false);
+});

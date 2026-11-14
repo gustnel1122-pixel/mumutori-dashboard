@@ -20,9 +20,19 @@
     "campaigns": [{"name": "오늘의 Pick", "on": true, "dailyBudget": 10000, "targetRoas": 600, "diagnosis": "입찰 경쟁력 낮음"}],
     "decisions": "목표 수익률을 낮출지 정해주세요."
   },
-  "naver": null
+  "naver": {
+    "updatedAt": "2026-11-14T14:05:00+09:00",
+    "status": "no_campaign",
+    "topInflowRoutes30d": [{"rank": 2, "route": "직유입", "visits": 30, "sharePct": 50.8}],
+    "topProducts30d": [{"name": "무무토리 카피바라 말랑이 2개 세트", "visits": 15, "payments": 0}],
+    "decisions": "검색광고를 시작하려면 비즈머니 충전이 먼저 필요합니다."
+  }
 }
 ```
+
+`status`는 `ok`·`blocked`·`no_campaign`(계정은 있지만 캠페인 없음)·`disconnected`(아직 연결 전) 중 하나(20261114_1407 C번에서 추가). `topInflowRoutes30d`·`topProducts30d`는 지금은 30일 고정(스마트스토어 비즈어드바이저 화면 기준) — 둘 다 생략 가능.
+
+키워드 통합 표는 이 날짜 칸이 아니라 **`hub/adsKeywords/<YYYY>-W<주차>`에 별도로** 쌓는다(채널마다 캠페인·키워드가 생기면). 아직 실제 캠페인이 없어 자리만 비워 둠.
 
 ## 초안 doPost (Apps Script — 배포 전까지 그냥 텍스트)
 실제로 Apps Script 프로젝트를 만들면 이 내용을 `Code.gs`에 붙여넣는다. 지금은 어디에도 배포돼 있지 않다.
