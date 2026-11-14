@@ -86,7 +86,7 @@ async function main(){
       assert.match(await page.locator('[data-product="demo-p1"] .num').first().innerText(),/확인 필요/);
       const photo=page.locator('[data-photo-product="demo-p1"]');
       await photo.setInputFiles({name:'too-big.png',mimeType:'image/png',buffer:Buffer.alloc(1024*1024+1)});
-      assert.match(await page.locator('#product-error').innerText(),/1MB/);
+      assert.match(await page.locator('#product-error').innerText(),/사진을 읽을 수 없/);
       await photo.setInputFiles({name:'not-image.txt',mimeType:'text/plain',buffer:Buffer.from('example')});
       assert.match(await page.locator('#product-error').innerText(),/PNG/);
       await photo.setInputFiles({name:'fake.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL4WQAAAABJRU5ErkJggg==','base64')});

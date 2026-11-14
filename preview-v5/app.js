@@ -32,25 +32,29 @@ const fmt = v => typeof v === 'number' && Number.isFinite(v) ? Math.round(v).toL
 const money = v => typeof v === 'number' && Number.isFinite(v) ? fmt(v)+'원' : '확인 필요';
 const receiptMoney = (v,currency) => typeof v === 'number' && Number.isFinite(v) && currency === 'CNY' ? `${v.toLocaleString('ko-KR',{maximumFractionDigits:2})}위안` : currency === 'KRW' ? money(v) : typeof v === 'number' && Number.isFinite(v) ? '통화 확인 필요' : '확인 필요';
 const pct = v => typeof v === 'number' && Number.isFinite(v) ? Math.round(v)+'%' : '확인 필요';
-const PHOTO_LIMIT=1400000;
+const PHOTO_LIMIT=205000;
 function readFileAsDataUrl(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(new Error('사진을 읽을 수 없어요.'));reader.readAsDataURL(file);});}
 function loadImage(src){return new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=()=>reject(new Error('사진을 읽을 수 없어요.'));img.src=src;});}
-// 폰 사진처럼 큰 파일도 기존 imageData 크기(1MB) 안으로 자동으로 줄인다(20261114_2316).
+// 폰 사진처럼 큰 파일도 150KB(글자 길이 기준) 안으로 자동으로 줄인다(20261114_2316_v2 — 문서 전체가 14.4MB로 불어난 사고 재발 방지).
 async function photoDataUrl(file){
   const original=await readFileAsDataUrl(file);
   if(original.length<=PHOTO_LIMIT)return original;
   const img=await loadImage(original);
-  let scale=Math.min(1,Math.sqrt(PHOTO_LIMIT/original.length));
+  let scale=Math.min(1,600/Math.max(img.width,img.height));
+  let quality=0.75;
   for(let attempt=0;attempt<6;attempt++){
     const canvas=document.createElement('canvas');
     canvas.width=Math.max(1,Math.round(img.width*scale));
     canvas.height=Math.max(1,Math.round(img.height*scale));
-    const ctx=canvas.getContext('2d');ctx.drawImage(img,0,0,canvas.width,canvas.height);
-    const resized=canvas.toDataURL('image/jpeg',0.82);
+    const ctx=canvas.getContext('2d');
+    ctx.fillStyle='#ffffff';ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.drawImage(img,0,0,canvas.width,canvas.height);
+    const resized=canvas.toDataURL('image/jpeg',quality);
     if(resized.length<=PHOTO_LIMIT)return resized;
-    scale*=0.75;
+    quality=Math.max(0.5,quality-0.1);
+    scale*=0.85;
   }
-  throw new Error('사진이 너무 커서 줄여도 1MB를 넘어요. 더 작은 사진을 선택해 주세요.');
+  throw new Error('사진이 너무 커서 줄여도 150KB를 넘어요. 더 작은 사진을 선택해 주세요.');
 }
 const productCostText = (calc, field='unitCost') => typeof calc?.[field] === 'number' && Number.isFinite(calc[field]) ? money(calc[field]) : `원가 없음 — ${calc?.costReason || '구성 원가 기록 없음'}`;
 const pendingCostText = calc => [...(Array.isArray(calc?.costBases) ? calc.costBases : []), ...(Array.isArray(calc?.costNotes) ? calc.costNotes : []), calc?.pendingExpenses ? `${calc.costBatch ? `${calc.costBatch}차 ` : ''}남은 비용 대기` : ''].filter(Boolean).join(' · ');
@@ -528,7 +532,7 @@ $('mform').addEventListener('submit',async e=>{
   e.preventDefault();if(state.saleDrafts.size)return;
   const form=e.currentTarget,name=$('mf-name').value.trim();if(!name)return;
   const photoFile=$('mf-photo').files?.[0];
-  if(photoFile&&(!['image/png','image/jpeg','image/webp'].includes(photoFile.type)||photoFile.size>1024*1024)){$('material-error').textContent='1MB 이하의 PNG, JPG, WebP 사진만 선택해 주세요.';return;}
+  if(photoFile&&!['image/png','image/jpeg','image/webp'].includes(photoFile.type)){$('material-error').textContent='PNG, JPG, WebP 사진만 선택해 주세요.';return;}
   const priceRaw=$('mf-price').value.trim(),currencyVal=$('mf-currency').value;
   const stockRaw=$('mf-stock').value.trim(),minRaw=$('mf-min').value.trim();
   const fields={name,kind:$('mf-kind').value};
@@ -549,7 +553,7 @@ $('mform').addEventListener('submit',async e=>{
     else{id='demo-m-'+Date.now();await store.createMaterial({id,...fields});}
     await reload();
     if(photoFile){
-      const data=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(new Error('사진을 읽을 수 없어요.'));reader.readAsDataURL(photoFile);});
+      const data=await photoDataUrl(photoFile);
       await store.saveMaterialImage(id,data,revision());await reload();
     }
     state.editMaterial=null;state.editMaterialRevision=null;state.editMaterialCurrency=null;form.reset();$('mf-photo-preview').innerHTML='';$('material-title').textContent='새 부자재 등록';$('material-submit').textContent='등록';$('material-cancel').hidden=true;$('material-error').textContent='';render();

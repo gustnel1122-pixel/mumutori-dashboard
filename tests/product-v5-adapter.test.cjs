@@ -221,6 +221,18 @@ test('입고·사진 계약은 가상 매핑에서 검증 후 조건부 저장�
   assert.equal(db.puts(),writes); store.stop();
 });
 
+test('150KB(글자 길이 기준)를 넘는 사진은 저장되지 않음(20261114_2316_v2 — 문서 14.4MB 사고 재발 방지)', async () => {
+  const {createAuthenticatedStore} = await adapter;
+  const db=mockDb(), store=createAuthenticatedStore({auth:fakeAuth(),schema:fakeSchema(),fetchImpl:db.fetch,allowWrites:true});
+  const tooBig='data:image/png;base64,'+'A'.repeat(205001);
+  await assert.rejects(store.saveImage('p',tooBig),/150KB/);
+  assert.equal(db.puts(),0);
+  const okSize='data:image/png;base64,'+'A'.repeat(1000);
+  await store.saveImage('p',okSize);
+  assert.equal(db.value().products.p.v5.imageData,okSize);
+  store.stop();
+});
+
 test('입고일 미상과 위안 단가를 보존하며 수정 시 원본 식별자·발주일을 지우지 않음', async () => {
   const {createAuthenticatedStore}=await adapter;
   const initial=fixture();

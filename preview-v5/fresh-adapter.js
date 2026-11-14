@@ -276,14 +276,14 @@ export function createAuthenticatedStore({auth, fetchImpl, schema = null, onChan
       }, expectedRevision);
     },
     async saveImage(productId, dataUrl, expectedRevision = lastEtag) {
-      if (!validId(productId) || typeof dataUrl !== 'string' || !/^data:image\/(png|jpeg|webp);base64,[a-z0-9+/=]+$/i.test(dataUrl) || dataUrl.length > 1400000) throw Error('1MB 이하의 PNG, JPG, WebP 사진만 선택해 주세요.');
+      if (!validId(productId) || typeof dataUrl !== 'string' || !/^data:image\/(png|jpeg|webp);base64,[a-z0-9+/=]+$/i.test(dataUrl) || dataUrl.length > 205000) throw Error('150KB 이하의 PNG, JPG, WebP 사진만 선택해 주세요.');
       return transact((raw, data) => {
         if (!data.products.some(row => row.id === productId)) throw Error('상품을 찾을 수 없어요.');
         schema.apply(raw, {type:'saveImage', id:productId, dataUrl});
       }, expectedRevision);
     },
     async saveMaterialImage(materialId, dataUrl, expectedRevision = lastEtag) {
-      if (!validId(materialId) || typeof dataUrl !== 'string' || !/^data:image\/(png|jpeg|webp);base64,[a-z0-9+/=]+$/i.test(dataUrl) || dataUrl.length > 1400000) throw Error('1MB 이하의 PNG, JPG, WebP 사진만 선택해 주세요.');
+      if (!validId(materialId) || typeof dataUrl !== 'string' || !/^data:image\/(png|jpeg|webp);base64,[a-z0-9+/=]+$/i.test(dataUrl) || dataUrl.length > 205000) throw Error('150KB 이하의 PNG, JPG, WebP 사진만 선택해 주세요.');
       return transact((raw, data) => {
         if (!data.materials.some(row => row.id === materialId)) throw Error('부자재를 찾을 수 없어요.');
         schema.apply(raw, {type:'saveMaterialImage', id:materialId, dataUrl});

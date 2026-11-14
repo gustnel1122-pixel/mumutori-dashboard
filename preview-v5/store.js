@@ -83,13 +83,13 @@ export function createMemoryStore(initial, {marginVisibleTo = MARGIN_VISIBLE_TO}
     async saveImage(productId, dataUrl) {
       const product = byId(data.products, productId);
       if (!product) throw new Error('상품을 찾을 수 없어요.');
-      if (typeof dataUrl !== 'string' || !/^data:image\/(png|jpeg|webp);base64,[a-z0-9+/=]+$/i.test(dataUrl) || dataUrl.length > 1400000) throw new Error('1MB 이하의 PNG, JPG, WebP 사진만 선택해 주세요.');
+      if (typeof dataUrl !== 'string' || !/^data:image\/(png|jpeg|webp);base64,[a-z0-9+/=]+$/i.test(dataUrl) || dataUrl.length > 205000) throw new Error('150KB 이하의 PNG, JPG, WebP 사진만 선택해 주세요.');
       product.imageData = dataUrl;
     },
     async saveMaterialImage(materialId, dataUrl) {
       const material = byId(data.materials, materialId);
       if (!material) throw new Error('부자재를 찾을 수 없어요.');
-      if (typeof dataUrl !== 'string' || !/^data:image\/(png|jpeg|webp);base64,[a-z0-9+/=]+$/i.test(dataUrl) || dataUrl.length > 1400000) throw new Error('1MB 이하의 PNG, JPG, WebP 사진만 선택해 주세요.');
+      if (typeof dataUrl !== 'string' || !/^data:image\/(png|jpeg|webp);base64,[a-z0-9+/=]+$/i.test(dataUrl) || dataUrl.length > 205000) throw new Error('150KB 이하의 PNG, JPG, WebP 사진만 선택해 주세요.');
       material.imageData = dataUrl;
     },
     async createMaterial(material) {
