@@ -1,5 +1,68 @@
 // Pure product calculations. Unknown input stays unknown, never a guessed zero.
 export const FEES = Object.freeze({ smart: 0.0662, own: 0.0363 });
+// 1702: 매장(토스 포스)·쿠팡 채널 수수료 — 출처 30_채널판매/채널 수수료·물류비.md · 20261106_1차입고_상품분류표.xlsx '수수료 설정' 탭.
+// 매장 카드수수료는 아직 확인 전이라 0으로 두고 화면에서 '확인 필요'로 표시한다(지어내지 않음).
+export const CHANNEL_FEES = Object.freeze({ store: 0, smart: FEES.smart, own: FEES.own, coupang: 0.1155 });
+export const COUPANG_LOGISTICS_DEFAULT = 2250;
+export const DEFAULT_TARGET_ROAS = 300;
+export const DEFAULT_MIN_LISTING_STOCK = 10;
+
+// 채널 정산금 = 판매가 × (1 − 수수료율) − 개당 물류비(쿠팡만). 스스·자사몰·매장은 물류비 0.
+export function channelSettlement(price, fee, logisticsPerUnit = 0) {
+  const p = numberOrNull(price), f = numberOrNull(fee), logi = numberOrNull(logisticsPerUnit);
+  if (p === null || f === null || f >= 1 || logi === null) return null;
+  return p * (1 - f) - logi;
+}
+
+// 정산금·마진·마진율·최소 ROAS를 한 번에 — 최소 ROAS = 판매가 ÷ (정산금 − 원가), 마진이 0 이하면 광고로는 못 맞춤(null).
+export function channelBreakdown(price, cost, fee, logisticsPerUnit = 0) {
+  const p = numberOrNull(price), c = numberOrNull(cost);
+  const settlement = channelSettlement(price, fee, logisticsPerUnit);
+  if (settlement === null) return { settlement: null, margin: null, marginRate: null, roas: null };
+  const margin = c === null ? null : settlement - c;
+  const marginRate = margin !== null && p > 0 ? margin / p * 100 : null;
+  const roas = margin !== null && margin > 0 ? p / margin * 100 : null;
+  return { settlement, margin, marginRate, roas };
+}
+
+// 실제 등록가가 대부분 'X900원'으로 끝나는 관례(20261106 분류표 '쿠팡 전략' 탭 실례)에 맞춰 올림.
+function roundUpTo900(value) {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) return null;
+  return Math.max(900, Math.ceil((value - 900) / 1000) * 1000 + 900);
+}
+
+// 쿠팡 단품·2개·3개 묶음 자동 추천 — 1702 규칙 ①~④ 그대로.
+// settings: targetRoas(기본 300) · minStock(기본 10) · coupangMarkup(기본 0, 쿠팡가 가산율) · coupangLogistics(기본 2250, 묶음당 1번) · stock(판매 가능 수량, 모르면 null).
+export function coupangBundleOptions(storePrice, unitCost, settings = {}) {
+  const p = numberOrNull(storePrice);
+  if (p === null) return null;
+  const targetRoas = numberOrNull(settings.targetRoas) ?? DEFAULT_TARGET_ROAS;
+  const minStock = numberOrNull(settings.minStock) ?? DEFAULT_MIN_LISTING_STOCK;
+  const markup = numberOrNull(settings.coupangMarkup) ?? 0;
+  const logistics = numberOrNull(settings.coupangLogistics) ?? COUPANG_LOGISTICS_DEFAULT;
+  const cost = numberOrNull(unitCost);
+  const stock = settings.stock == null ? null : nonnegativeInteger(settings.stock);
+  const bundles = [1, 2, 3].map(qty => {
+    const suggested = roundUpTo900(p * qty * (1 + markup));
+    const coupangPrice = numberOrNull(settings.priceOverride?.[qty]) ?? suggested;
+    const bundleCost = cost === null ? null : cost * qty;
+    const breakdown = channelBreakdown(coupangPrice, bundleCost, CHANNEL_FEES.coupang, logistics);
+    const withinTarget = breakdown.roas !== null && breakdown.roas <= targetRoas;
+    return { qty, suggestedPrice: suggested, coupangPrice, ...breakdown, withinTarget };
+  });
+  const lowStock = stock !== null && stock < minStock;
+  let pick = null, reason = '';
+  if (lowStock) {
+    reason = `입고(판매 가능) 수량이 ${minStock}개 미만이라 안 올림 추천`;
+  } else if (bundles[0].withinTarget) {
+    pick = 1; reason = `단품이 최소 ROAS 목표(${targetRoas}%) 안이라 단품 추천`;
+  } else {
+    const next = bundles.find(b => b.qty > 1 && b.withinTarget);
+    if (next) { pick = next.qty; reason = `단품은 ${bundles[0].margin !== null && bundles[0].margin <= 0 ? '적자' : '목표 밖'}라 ${next.qty}개 묶음(최소 ROAS ${next.roas === null ? '확인 필요' : Math.round(next.roas) + '%'})이 추천`; }
+    else reason = `3개 묶음도 최소 ROAS 목표(${targetRoas}%) 밖이라 쿠팡 안 올림 추천`;
+  }
+  return { bundles, recommend: lowStock || !pick ? null : pick, lowStock, reason };
+}
 
 export function numberOrNull(value) {
   if (typeof value !== 'number' && typeof value !== 'string') return null;

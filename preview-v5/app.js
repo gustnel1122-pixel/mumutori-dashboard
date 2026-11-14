@@ -1,6 +1,6 @@
 const buildVersion = new URL(import.meta.url).searchParams.get('v');
 const buildQuery = buildVersion ? `?v=${encodeURIComponent(buildVersion)}` : '';
-const {calcProduct, calcSet, validateMaterialLinks, validateMaterialLinkUpdate, receiptAllocation, receiptCurrency, minimumRoas, FEES} = await import('./model.js' + buildQuery);
+const {calcProduct, calcSet, validateMaterialLinks, validateMaterialLinkUpdate, receiptAllocation, receiptCurrency, minimumRoas, FEES, CHANNEL_FEES, COUPANG_LOGISTICS_DEFAULT, DEFAULT_TARGET_ROAS, channelBreakdown, coupangBundleOptions} = await import('./model.js' + buildQuery);
 const {createMemoryStore} = await import('./store.js' + buildQuery);
 const {normalizeSale, saleStatus, saleMargin} = await import('./sale-model.js' + buildQuery);
 
@@ -131,6 +131,37 @@ function saleMarginRows(p,sale){
     return `<div><span>${esc(label)}</span><span>${result.margin===null?'확인 필요':`${money(result.margin)} · ${pct(result.marginRate)}`}</span></div>`;
   }).join('')}</div>`;
 }
+// 1702: 판매가 하나(자사몰 칸 = 매장·자사몰 공통 기준가)로 채널별 정산금·마진·마진율·최소 ROAS를 자동 계산.
+// 매장 카드수수료는 아직 확인 전이라 0%로 두고 '확인 필요'를 같이 보여준다(지어내지 않음).
+const channelMarginTable = [['store','매장(토스 포스)'],['smart','스마트스토어'],['own','자사몰'],['coupang','쿠팡(단품)']];
+function channelClass(result){
+  if (result.margin===null) return 'b';
+  if (result.margin<=0) return 'b';
+  if (result.roas===null || result.roas>DEFAULT_TARGET_ROAS) return 'w';
+  return 'g';
+}
+function channelMarginRows(p,sale){
+  if (!canViewCost()) return '';
+  const costResult=calculate(p),cost=costResult.partialCost?null:costResult.cost;
+  const basePrice=sale.prices.own;
+  if (basePrice===null) return '<p class="sale-margin-note">매장·자사몰 판매가를 적으면 채널별 마진이 자동으로 나와요.</p>';
+  return `<div class="channel-margins"><strong>채널별 마진 자동</strong><div class="tablewrap"><table><thead><tr><th>채널</th><th>정산금</th><th>마진</th><th>마진율</th><th>최소 ROAS</th></tr></thead><tbody>${channelMarginTable.map(([key,label])=>{
+    const price=key==='own'||key==='store'?basePrice:sale.prices[key]??basePrice;
+    const logi=key==='coupang'?COUPANG_LOGISTICS_DEFAULT:0;
+    const result=channelBreakdown(price,cost,CHANNEL_FEES[key],logi);
+    const cls=channelClass(result);
+    const flag=key==='store'?' <small>(카드수수료 확인 필요)</small>':cls==='b'&&result.margin!==null&&result.margin<=0?' <small class="flag-bad">적자</small>':cls==='w'?' <small class="flag-warn">광고 어려움</small>':'';
+    return `<tr class="${cls}"><td>${esc(label)}${flag}</td><td>${money(result.settlement)}</td><td>${money(result.margin)}</td><td>${pct(result.marginRate)}</td><td>${pct(result.roas)}</td></tr>`;
+  }).join('')}</tbody></table></div></div>${coupangBundleRows(p,sale,basePrice,cost)}`;
+}
+function coupangBundleRows(p,sale,basePrice,cost){
+  const r=coupangBundleOptions(basePrice,cost,{stock:typeof p.stock==='number'?p.stock:null});
+  if (!r) return '';
+  return `<div class="coupang-bundle"><strong>쿠팡 단품 · 묶음 자동 추천</strong><div class="tablewrap"><table><thead><tr><th>구성</th><th>쿠팡가(제안)</th><th>정산금</th><th>마진</th><th>최소 ROAS</th><th></th></tr></thead><tbody>${r.bundles.map(b=>{
+    const isPick=r.recommend===b.qty;
+    return `<tr class="${channelClass(b)}">${b.qty===1?'<td>단품</td>':`<td>${b.qty}개 묶음</td>`}<td>${money(b.coupangPrice)}</td><td>${money(b.settlement)}</td><td>${money(b.margin)}</td><td>${pct(b.roas)}</td><td>${isPick?'<span class="flag-pick">추천</span>':''}</td></tr>`;
+  }).join('')}</tbody></table></div><p class="sale-margin-note">${r.lowStock?'⚠ ':''}${esc(r.reason)}${r.recommend===null?' — 쿠팡 안 올림 추천':''}</p></div>`;
+}
 function salePanel(p){
   const sale=normalizeSale(p.sale), status=state.saleMessages.get(p.id)||'';
   return `<section class="sale-prep" aria-label="${esc(p.name)} 판매 준비">
@@ -139,7 +170,7 @@ function salePanel(p){
     <details data-sale-details ${state.openSale.has(p.id)?'open':''}><summary>판매가 · 온라인 등록</summary>
       <div class="sale-fields"><p class="sale-field-hint">스마트스토어·쿠팡 가격을 비우면 자사몰 가격과 같아요.</p>
       ${saleChannels.map(([key,label])=>`<label>${label} 판매가 <span class="sale-input"><input type="number" inputmode="numeric" min="0" step="1" data-sale-price="${key}" aria-label="${esc(p.name)} ${label} 판매가" placeholder="${key==='own'?'가격 입력':'자사몰과 같음'}" value="${sale.prices[key]??''}"><span>원</span></span></label>`).join('')}
-      ${saleMarginRows(p,sale)}
+      <div class="sale-margin-wrap">${saleMarginRows(p,sale)}${channelMarginRows(p,sale)}</div>
       <div class="sale-listings"><h4>온라인 등록</h4>${saleChannels.map(([key,label])=>{const l=sale.listings[key];return `<div class="sale-listing"><label class="sale-check"><input type="checkbox" data-sale-registered="${key}" aria-label="${esc(p.name)} ${label} 등록" ${l.registered?'checked':''}> ${label} 등록</label><label>${label} 상품 주소 <input type="url" inputmode="url" data-sale-url="${key}" aria-label="${esc(p.name)} ${label} 상품 주소" placeholder="https://" value="${esc(l.url)}"></label><label>상세 준비 <select data-sale-detail="${key}" aria-label="${esc(p.name)} ${label} 상세 준비">${['없음','만드는 중','완료'].map(v=>`<option value="${v}" ${l.detail===v?'selected':''}>${v}</option>`).join('')}</select></label></div>`;}).join('')}</div></div>
     </details></section>`;
 }
@@ -290,7 +321,7 @@ async function persistSale(t,patch,expected){
     updateRowSummary(card,saved);
     const step=card.querySelector('.sale-step');if(step)step.textContent=saleStatus(saved.sale);
     for(const button of card.querySelectorAll('[data-sale-decision]'))button.setAttribute('aria-pressed',String(button.dataset.saleDecision===normalizeSale(saved.sale).decision));
-    const margin=card.querySelector('.sale-margins,.sale-margin-note');if(margin)margin.outerHTML=saleMarginRows(saved,normalizeSale(saved.sale));
+    const margin=card.querySelector('.sale-margin-wrap');if(margin){const savedSale=normalizeSale(saved.sale);margin.outerHTML=`<div class="sale-margin-wrap">${saleMarginRows(saved,savedSale)}${channelMarginRows(saved,savedSale)}</div>`;}
     renderSaleFilters();
     if(!matching(saved)){card.hidden=true;const count=document.querySelectorAll('#grid-p [data-product]:not([hidden])').length;$('sum-p').innerHTML=`<span>상품 <b>${count}</b>개</span><span>${isLive?'새 상품 장부':'금액과 상품은 가상의 예시'}</span>`;}
   }catch(error){
