@@ -11,14 +11,15 @@ export const DEPARTMENTS=[
  {id:'sales',label:'판매·정산',owner:'판매팀',english:'SALES & SETTLEMENT',number:'05',icon:'receipt',color:'pink',description:'주문·수금·출고 연결',related:['bank','stock','finance']},
  {id:'stock',label:'물류·재고',owner:'물류팀',english:'STOCK ROOM',number:'06',icon:'box',color:'green',description:'실사·입고·출고 관리',related:['products','purchases','sales']},
  {id:'partners',label:'거래처',owner:'협력관리',english:'OUR PARTNERS',number:'07',icon:'people',color:'blue',description:'함께 일하는 파트너',related:['purchases','sales']},
- // 쿠팡 매일 아침 점검(총괄 2026-11-14): 광고 수익률·재고 경보·문의 — 원 단위 숫자는 로그인 전엔 전혀 안 보임(hub/coupangDaily, 사장님·다희님 전용).
- {id:'coupang',label:'쿠팡',owner:'쿠팡 담당',english:'COUPANG DAILY',number:'05·K',icon:'receipt',color:'orange',description:'매일 아침 점검 — 광고·재고·문의',related:['sales','stock','overview']},
+ // 광고 통합 관리(사장님 2026-11-14 11:04 "광고통합관리페이지"): 쿠팡·네이버·메타·카카오·구글을 한 곳에서. 원 단위 숫자는 로그인 전엔 전혀 안 보임(hub/adsDaily, 사장님·다희님 전용).
+ {id:'ads',label:'광고',owner:'광고 담당',english:'ADS HUB',number:'05·K',icon:'chart',color:'pink',description:'채널 통합 — 수익률·캠페인·재고 경보',related:['sales','stock','overview']},
  {id:'audit',admin:true,label:'변경 이력',owner:'운영관리',english:'ACTIVITY LOG',number:'08',icon:'clock',color:'green',description:'기록의 발자취',related:['settings','overview']},
  {id:'agents',admin:true,label:'AI 조직도',owner:'총괄',english:'AI ORGANIZATION',number:'10',icon:'people',color:'green',description:'AI 담당과 연결 상태',related:['sourcing','overview']},
  {id:'settings',admin:true,label:'설정·백업',owner:'운영관리',english:'WORKSPACE SETTINGS',number:'09',icon:'settings',color:'green',description:'계좌·창고·자료 보관',related:['bank','stock','audit']}
 ];
 // 메뉴: 매일 보는 다섯 개만 위에, 나머지는 '더보기'(검수 기준 5). 통장은 재무의 탭이라 메뉴에 따로 두지 않는다.
-export const DAILY=['overview','finance','sales','stock','sourcing'];
+// 11/14 사장님이 광고 통합 화면을 바로 찾음(총괄 20261114_1112) — '소싱'을 더보기로 내리고 그 자리에 '광고'.
+export const DAILY=['overview','finance','sales','stock','ads'];
 // Product navigation uses the main address; the previous screen has its own link.
 export function hrefFor(id){return `${id==='overview'?'index':id}.html`;}
 export function menuGroups(){

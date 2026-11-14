@@ -24,7 +24,7 @@ generate_icons(R)
 # Existing published seed is byte-preserved. Rebuilding never appends data.
 seed=R/'data/seed.json'
 if seed.exists(): (R/'data/seed.json.gz').write_bytes(gzip.compress(seed.read_bytes(),mtime=0))
-pages={'index':('overview','운영 홈'),'finance':('finance','재무'),'bank':('bank','재무 · 계좌별'),'products':('products','상품'),'purchases':('purchases','구매·원가'),'sourcing':('sourcing','소싱'),'sales':('sales','판매·정산'),'stock':('stock','물류·재고'),'partners':('partners','거래처'),'audit':('audit','변경 이력'),'settings':('settings','설정·백업'),'branding':('branding','브랜딩'),'characters':('characters','캐릭터'),'agents':('agents','AI 조직도'),'coupang':('coupang','쿠팡')}
+pages={'index':('overview','운영 홈'),'finance':('finance','재무'),'bank':('bank','재무 · 계좌별'),'products':('products','상품'),'purchases':('purchases','구매·원가'),'sourcing':('sourcing','소싱'),'sales':('sales','판매·정산'),'stock':('stock','물류·재고'),'partners':('partners','거래처'),'audit':('audit','변경 이력'),'settings':('settings','설정·백업'),'branding':('branding','브랜딩'),'characters':('characters','캐릭터'),'agents':('agents','AI 조직도'),'ads':('ads','광고')}
 private_documents=['letter-hub.html']
 network_only_documents=['products-preview.html','preview-v5/fresh.html']
 version_files=[R/'build.py',R/'manifest.webmanifest',R/'offline.html',R/'firebase-messaging-sw.js']
@@ -86,7 +86,8 @@ quick=(R/'src/quick-shell.html').read_text(encoding='utf-8').replace('{{PWA_HEAD
 # Public operations pages share versioned source templates; keep their source in src.
 operations_pages={'store-opening':'store-opening-shell.html','project-hub':'project-hub-shell.html','qr':'qr-shell.html'}   # qr: QR 현황(11/4 사장님) — 레터 사이트 go/ 넘김 페이지만 읽음
 # Keep old bookmarks as network-only redirects; checklist code lives in the project repo.
-redirect_pages={'palsibo-shopping':'shopping-redirect-shell.html'}
+# coupang.html -> ads.html: 11/14 사장님 "광고통합관리페이지"로 쿠팡 탭을 넓힘(20261114_1112).
+redirect_pages={'palsibo-shopping':'shopping-redirect-shell.html','coupang':'coupang-redirect-shell.html'}
 for name,template in {**operations_pages,**redirect_pages}.items():
     shell=(R/'src'/template).read_text(encoding='utf-8').replace('{{PWA_HEAD}}',PWA_HEAD).replace('{{VERSION}}',version)
     if name in operations_pages:
@@ -105,7 +106,7 @@ assets['offline.html']=hashlib.sha256(content_bytes(R/'offline.html')).hexdigest
 assets['manifest.webmanifest']=hashlib.sha256(content_bytes(R/'manifest.webmanifest')).hexdigest()
 # Network-backed/private screens fall back to the neutral offline screen, never cached HTML.
 cached_pages={f'{name}.html':hashlib.sha256(content_bytes(R/f'{name}.html')).hexdigest()
-              for name in pages if name not in {'index','finance','bank','products','sourcing','characters','branding','settings','coupang'}}
+              for name in pages if name not in {'index','finance','bank','products','sourcing','characters','branding','settings','ads'}}
 cached_pages.update({f'{name}.html':hashlib.sha256(content_bytes(R/f'{name}.html')).hexdigest() for name in operations_pages})
 worker=(R/'_tools/sw-template.js').read_text(encoding='utf-8').replace('__PWA_VERSION__',version).replace('__PWA_ASSETS__',json.dumps(assets,ensure_ascii=False,sort_keys=True)).replace('__PWA_PAGES__',json.dumps(cached_pages,sort_keys=True)).replace('__PWA_DOCUMENTS__',json.dumps([name+'.html' for name in pages]+[name+'.html' for name in operations_pages]+[name+'.html' for name in redirect_pages]+['quick.html','offline.html']+private_documents+network_only_documents))
 (R/'sw.js').write_text(worker,encoding='utf-8',newline=chr(10))
