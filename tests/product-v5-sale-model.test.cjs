@@ -29,6 +29,17 @@ test('missing sale is unknown; blank channel prices inherit own while explicit z
  assert.equal(saleMargin(s,'own',200).margin,null);
  assert.equal(saleMargin(s,'own',null,true).margin,null);
 });
+test('storePrice and barcode normalize, patch, and record history like other sale fields (20261114_1823)',async()=>{
+ const {normalizeSale,mergeSalePatch,prepareSaleChange}=await model;
+ const initial=normalizeSale(null); assert.equal(initial.storePrice,null);assert.equal(initial.barcode,'');
+ const s=mergeSalePatch(initial,{storePrice:9900,barcode:'20000029'});
+ assert.equal(s.storePrice,9900);assert.equal(s.barcode,'20000029');
+ assert.throws(()=>mergeSalePatch(s,{storePrice:-1}));
+ assert.throws(()=>mergeSalePatch(s,{barcode:'x'.repeat(41)}));
+ const {sale,changed}=prepareSaleChange(initial,{storePrice:9900,barcode:'20000029'},'owner');
+ assert.equal(changed,true);
+ assert.deepEqual(sale.history.map(x=>x.field).sort(),['barcode','storePrice']);
+});
 test('statuses reflect decision and registrations without inferring unregistered channels',async()=>{
  const {saleStatus}=await model;
  assert.equal(saleStatus({decision:'판매'}),'판매 확정 미등록');

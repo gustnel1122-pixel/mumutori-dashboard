@@ -183,7 +183,7 @@ button,input,select{min-height:36px}
 .sale-decisions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
 .sale-decisions button{min-height:44px;padding:5px 2px;border:1px solid var(--line);border-radius:8px;background:var(--card);cursor:pointer;font-size:12px;white-space:nowrap}
 .sale-decisions button[aria-pressed="true"]{background:var(--bark);border-color:var(--bark);color:var(--card)}
-.sale-prep select,.sale-prep input[type=number],.sale-prep input[type=url]{width:100%;max-width:100%;min-height:44px;background:var(--card);border:1px solid var(--line);border-radius:8px;color:var(--bark);padding:7px 9px;font:inherit}
+.sale-prep select,.sale-prep input[type=number],.sale-prep input[type=url],.sale-prep input[type=text]{width:100%;max-width:100%;min-height:44px;background:var(--card);border:1px solid var(--line);border-radius:8px;color:var(--bark);padding:7px 9px;font:inherit}
 .sale-prep details{border-top:1px dashed var(--line);padding-top:5px}
 .sale-prep summary{min-height:44px;display:flex;align-items:center;cursor:pointer;color:var(--bark);font-weight:700;font-size:13px;list-style:none}
 .sale-prep summary::-webkit-details-marker{display:none}

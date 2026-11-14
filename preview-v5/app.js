@@ -1,6 +1,6 @@
 const buildVersion = new URL(import.meta.url).searchParams.get('v');
 const buildQuery = buildVersion ? `?v=${encodeURIComponent(buildVersion)}` : '';
-const {calcProduct, calcSet, validateMaterialLinks, validateMaterialLinkUpdate, receiptAllocation, receiptCurrency, minimumRoas, FEES, CHANNEL_FEES, COUPANG_LOGISTICS_DEFAULT, DEFAULT_TARGET_ROAS, channelBreakdown, coupangBundleOptions} = await import('./model.js' + buildQuery);
+const {calcProduct, calcSet, validateMaterialLinks, validateMaterialLinkUpdate, receiptAllocation, receiptCurrency, minimumRoas, CHANNEL_FEES, COUPANG_LOGISTICS_DEFAULT, DEFAULT_TARGET_ROAS, channelBreakdown, coupangBundleOptions} = await import('./model.js' + buildQuery);
 const {createMemoryStore} = await import('./store.js' + buildQuery);
 const {normalizeSale, saleStatus, saleMargin} = await import('./sale-model.js' + buildQuery);
 
@@ -143,10 +143,10 @@ function channelClass(result){
 function channelMarginRows(p,sale){
   if (!canViewCost()) return '';
   const costResult=calculate(p),cost=costResult.partialCost?null:costResult.cost;
-  const basePrice=sale.prices.own;
-  if (basePrice===null) return '<p class="sale-margin-note">매장·자사몰 판매가를 적으면 채널별 마진이 자동으로 나와요.</p>';
+  const basePrice=sale.storePrice;
+  if (basePrice===null) return '<p class="sale-margin-note">매장 판매가를 적으면 채널별 마진이 자동으로 나와요.</p>';
   return `<div class="channel-margins"><strong>채널별 마진 자동</strong><div class="tablewrap"><table><thead><tr><th>채널</th><th>정산금</th><th>마진</th><th>마진율</th><th>최소 ROAS</th></tr></thead><tbody>${channelMarginTable.map(([key,label])=>{
-    const price=key==='own'||key==='store'?basePrice:sale.prices[key]??basePrice;
+    const price=key==='store'?basePrice:sale.prices[key]??basePrice;
     const logi=key==='coupang'?COUPANG_LOGISTICS_DEFAULT:0;
     const result=channelBreakdown(price,cost,CHANNEL_FEES[key],logi);
     const cls=channelClass(result);
@@ -168,8 +168,10 @@ function salePanel(p){
     <div class="sale-prep-head"><div><strong>판매 준비</strong><span class="sale-step">${esc(saleStatus(sale))}</span></div><span class="sale-save-status" role="status" aria-live="polite" data-sale-save-status>${esc(status)}</span></div>
     <div class="sale-decision"><span>판매 결정</span><div class="sale-decisions" role="group" aria-label="${esc(p.name)} 판매 결정">${['미정','판매','보류','안 팜'].map(v=>`<button type="button" data-sale-decision="${v}" aria-pressed="${v===sale.decision}">${v}</button>`).join('')}</div></div>
     <details data-sale-details ${state.openSale.has(p.id)?'open':''}><summary>판매가 · 온라인 등록</summary>
-      <div class="sale-fields"><p class="sale-field-hint">스마트스토어·쿠팡 가격을 비우면 자사몰 가격과 같아요.</p>
-      ${saleChannels.map(([key,label])=>`<label>${label} 판매가 <span class="sale-input"><input type="number" inputmode="numeric" min="0" step="1" data-sale-price="${key}" aria-label="${esc(p.name)} ${label} 판매가" placeholder="${key==='own'?'가격 입력':'자사몰과 같음'}" value="${sale.prices[key]??''}"><span>원</span></span></label>`).join('')}
+      <div class="sale-fields"><p class="sale-field-hint">매장 판매가가 기준이에요 — 자사몰·스마트스토어·쿠팡 가격을 비우면 매장 가격과 같아요.</p>
+      <label>매장 판매가 <span class="sale-input"><input type="number" inputmode="numeric" min="0" step="1" data-sale-store-price aria-label="${esc(p.name)} 매장 판매가" placeholder="가격 입력" value="${sale.storePrice??''}"><span>원</span></span></label>
+      ${saleChannels.map(([key,label])=>`<label>${label} 판매가 <span class="sale-input"><input type="number" inputmode="numeric" min="0" step="1" data-sale-price="${key}" aria-label="${esc(p.name)} ${label} 판매가" placeholder="매장과 같음" value="${sale.prices[key]??''}"><span>원</span></span></label>`).join('')}
+      <label>바코드 <input type="text" inputmode="numeric" maxlength="40" data-sale-barcode aria-label="${esc(p.name)} 바코드" placeholder="바코드 장부 번호" value="${esc(sale.barcode)}"></label>
       <div class="sale-margin-wrap">${saleMarginRows(p,sale)}${channelMarginRows(p,sale)}</div>
       <div class="sale-listings"><h4>온라인 등록</h4>${saleChannels.map(([key,label])=>{const l=sale.listings[key];return `<div class="sale-listing"><label class="sale-check"><input type="checkbox" data-sale-registered="${key}" aria-label="${esc(p.name)} ${label} 등록" ${l.registered?'checked':''}> ${label} 등록</label><label>${label} 상품 주소 <input type="url" inputmode="url" data-sale-url="${key}" aria-label="${esc(p.name)} ${label} 상품 주소" placeholder="https://" value="${esc(l.url)}"></label><label>상세 준비 <select data-sale-detail="${key}" aria-label="${esc(p.name)} ${label} 상세 준비">${['없음','만드는 중','완료'].map(v=>`<option value="${v}" ${l.detail===v?'selected':''}>${v}</option>`).join('')}</select></label></div>`;}).join('')}</div></div>
     </details></section>`;
@@ -181,12 +183,12 @@ function rowSummary(p){
     ? `<img src="${esc(p.imageData)}" alt="">` : '';
   const batch=Array.isArray(p.batch)?p.batch.join(' · '):p.batch||'';
   const shortBatch=Array.isArray(p.batch)&&p.batch.length>1&&p.batch.every(x=>/^\d+차$/.test(x))?p.batch.map(x=>x.slice(0,-1)).join('·')+'차':batch;
-  const channel=sale.prices.own!==null?'own':sale.prices.smart!==null?'smart':null;
-  const price=channel===null?null:sale.prices[channel];
+  const channel=sale.storePrice!==null?'store':sale.prices.own!==null?'own':sale.prices.smart!==null?'smart':null;
+  const price=channel===null?null:channel==='store'?sale.storePrice:sale.prices[channel];
   const showCost=canViewCost();
   const calc=showCost?calculate(p):null;
   const cost=calc?.unitCost ?? null;
-  const roas=showCost && channel!==null&&!calc.partialCost?minimumRoas(price,calc.cost,FEES[channel]):null;
+  const roas=showCost && channel!==null&&!calc.partialCost?minimumRoas(price,calc.cost,CHANNEL_FEES[channel]):null;
   const colour=roasClass(roas), colourLabel=roas===null?'확인 필요':colour==='g'?'초록':colour==='w'?'주황':'빨강';
   const marks=[['own','자','자사몰'],['smart','스','스마트스토어'],['coupang','쿠','쿠팡']].map(([key,short,label])=>{
     const on=sale.listings[key].registered;
@@ -194,7 +196,7 @@ function rowSummary(p){
   }).join('');
   const costCell=showCost?`<span class="product-row-cost" aria-label="${esc(productCostText(calc))}${pendingCostText(calc)?` · ${esc(pendingCostText(calc))}`:''}" title="${esc(productCostText(calc))}${pendingCostText(calc)?` · ${esc(pendingCostText(calc))}`:''}"><small>${cost===null&&calc.costReason==='통화 확인 필요'?'통화 확인 필요':calc.provisional?'원가 · 잠정':'원가'}</small><span>${esc(cost===null?'—':money(cost))}</span>${calc.partialCost?`<small class="product-cost-note">${calc.issues.includes('부자재 통화 확인 필요')?'통화 확인 필요':'부자재 확인 필요'}</small>`:calc.costNotes?.length?`<small class="product-cost-note">${calc.costNotes.some(note=>note.includes('추가'))?'추가비용 확인':'비용 확인'}</small>`:''}</span>`:'<span class="product-row-cost-placeholder" aria-hidden="true"></span>';
   const roasCell=showCost?`<span class="product-row-roas ${colour}" role="img" aria-label="최소 ROAS ${colourLabel}" title="최소 ROAS ${colourLabel}"></span>`:'<span class="product-row-roas-placeholder" aria-hidden="true"></span>';
-  return `<span class="product-row-photo" aria-hidden="true">${img}</span><span class="product-row-name" title="${esc(p.name)}">${esc(p.name)}</span><span class="product-row-batch" aria-label="${esc(batch||'차수 미확인')}">${esc(shortBatch||'–')}</span><span class="product-row-decision ${decisionClass(sale.decision)}">${esc(sale.decision)}</span>${costCell}<span class="product-row-price" aria-label="${channel==='own'?'자사몰':channel==='smart'?'스마트스토어':''} 판매가 ${esc(price===null?'없음':money(price))}"><small>${channel==='own'?'자사몰':channel==='smart'?'스스':'판매가'}</small><span>${esc(price===null?'판매가 없음':money(price))}</span></span>${roasCell}<span class="product-row-market">${marks}</span><span class="product-row-arrow" aria-hidden="true">⌄</span>`;
+  return `<span class="product-row-photo" aria-hidden="true">${img}</span><span class="product-row-name" title="${esc(p.name)}">${esc(p.name)}</span><span class="product-row-batch" aria-label="${esc(batch||'차수 미확인')}">${esc(shortBatch||'–')}</span><span class="product-row-decision ${decisionClass(sale.decision)}">${esc(sale.decision)}</span>${costCell}<span class="product-row-price" aria-label="${channel==='store'?'매장':channel==='own'?'자사몰':channel==='smart'?'스마트스토어':''} 판매가 ${esc(price===null?'없음':money(price))}"><small>${channel==='store'?'매장':channel==='own'?'자사몰':channel==='smart'?'스스':'판매가'}</small><span>${esc(price===null?'판매가 없음':money(price))}</span></span>${roasCell}<span class="product-row-market">${marks}</span><span class="product-row-arrow" aria-hidden="true">⌄</span>`;
 }
 function updateRowSummary(card,p){
   const button=card?.querySelector('[data-product-toggle]');
@@ -219,7 +221,7 @@ function renderProducts(){
   const shown=ordered(products.filter(matching));
   $('sum-p').innerHTML=`<span>상품 <b>${shown.length}</b>개</span><span>${isLive?'새 상품 장부':'금액과 상품은 가상의 예시'}</span>`;
   $('grid-p').innerHTML=shown.length?shown.map(card).join(''):'<div class="empty-card">조건에 맞는 상품이 없어요. 필터를 바꿔 주세요.</div>';
-  if(state.editReceipt.size)for(const control of $('grid-p').querySelectorAll('[data-sale-decision],[data-sale-price],[data-sale-registered],[data-sale-url],[data-sale-detail],[data-photo-product],[data-link-quantity]'))control.disabled=true;
+  if(state.editReceipt.size)for(const control of $('grid-p').querySelectorAll('[data-sale-decision],[data-sale-store-price],[data-sale-barcode],[data-sale-price],[data-sale-registered],[data-sale-url],[data-sale-detail],[data-photo-product],[data-link-quantity]'))control.disabled=true;
   const dialog=$('grid-p').querySelector('.links-dialog');
   if(dialog){
     dialog.addEventListener('cancel',event=>{event.preventDefault();closeLinks();});
@@ -275,7 +277,7 @@ function render(){
   $('cnt-p').textContent=products.length;$('cnt-s').textContent=sets.length;$('cnt-m').textContent=materials.length;
   if(state.tab==='p'){renderSaleFilters();renderFilters();renderProducts();}else if(state.tab==='s')renderSets();else renderMaterials();
 }
-const saleInputs='[data-sale-decision],[data-sale-price],[data-sale-registered],[data-sale-url],[data-sale-detail]';
+const saleInputs='[data-sale-decision],[data-sale-store-price],[data-sale-barcode],[data-sale-price],[data-sale-registered],[data-sale-url],[data-sale-detail]';
 function saleMessage(card,text,isError=false){
   const el=card?.querySelector('[data-sale-save-status]');
   if(el){el.textContent=text;el.classList.toggle('is-error',isError);}
@@ -299,7 +301,9 @@ function saleFailure(t,text,uncertain=false){
 function discardSaleDraft(id){
   const target=state.saleDrafts.get(id),p=byId(id);if(!target||!p)return;
   const sale=normalizeSale(p.sale);
-  if(target.dataset.salePrice)target.value=sale.prices[target.dataset.salePrice]??'';
+  if(target.hasAttribute('data-sale-store-price'))target.value=sale.storePrice??'';
+  else if(target.hasAttribute('data-sale-barcode'))target.value=sale.barcode;
+  else if(target.dataset.salePrice)target.value=sale.prices[target.dataset.salePrice]??'';
   else if(target.dataset.saleRegistered)target.checked=sale.listings[target.dataset.saleRegistered].registered;
   else if(target.dataset.saleUrl)target.value=sale.listings[target.dataset.saleUrl].url;
   else if(target.dataset.saleDetail)target.value=sale.listings[target.dataset.saleDetail].detail;
@@ -395,7 +399,15 @@ document.addEventListener('change',async e=>{
     const card=t.closest('[data-product]'),id=card?.dataset.product,p=byId(id);
     if(!p||state.saleBusy)return;
     let patch;
-    if(t.dataset.salePrice){
+    if(t.hasAttribute('data-sale-store-price')){
+      const raw=t.value.trim(),value=raw===''?null:Number(raw);
+      if(value!==null&&(!Number.isSafeInteger(value)||value<0)){saleFailure(t,'0 이상의 정수 금액을 입력해 주세요.');return;}
+      patch={storePrice:value};
+    }else if(t.hasAttribute('data-sale-barcode')){
+      const value=t.value.trim();
+      if(value.length>40){saleFailure(t,'바코드가 너무 길어요.');return;}
+      patch={barcode:value};
+    }else if(t.dataset.salePrice){
       const raw=t.value.trim(),value=raw===''?null:Number(raw);
       if(value!==null&&(!Number.isSafeInteger(value)||value<0)){saleFailure(t,'0 이상의 정수 금액을 입력해 주세요.');return;}
       patch={prices:{[t.dataset.salePrice]:value}};
