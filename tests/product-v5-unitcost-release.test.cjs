@@ -34,6 +34,14 @@ test('missing currency differs from missing cost; foreign and cancelled rows can
  assert.equal(receiptCurrency({}),null);
 });
 
+test('a provisional unitCost is flagged (not silently recalculated) once a lot is cancelled',async()=>{
+ const {calcProduct}=await model;
+ const provisionalBase={...base(),unitCostBasis:'회차 지출 배분(잠정 · 11/10)'};
+ const clean=calcProduct({...provisionalBase,receipts:[{quantity:one,saleQuantity:one,eventQuantity:zero,status:'배대지 창고'}]},[]);
+ assert.equal(clean.provisional,true);assert.equal(clean.unitCost,one);assert.ok(!clean.issues.includes('구매취소 있음 · 잠정 원가 다시 확인'));assert.ok(!clean.costNotes.includes('구매취소 있음 · 잠정 원가 다시 확인'));
+ const stale=calcProduct({...provisionalBase,receipts:[{quantity:one,saleQuantity:one,eventQuantity:zero,status:'구매취소'}]},[]);
+ assert.equal(stale.provisional,true);assert.equal(stale.unitCost,one);assert.ok(stale.issues.includes('구매취소 있음 · 잠정 원가 다시 확인'));assert.ok(stale.costNotes.includes('구매취소 있음 · 잠정 원가 다시 확인'));
+});
 test('existing unclassified connections may be preserved or removed but never created or edited',async()=>{
  const {validateMaterialLinkUpdate,calcProduct}=await model;
  const materials=[known('known'),{...known('legacy'),kind:'unknown'},{...known('other'),kind:'상품'}];

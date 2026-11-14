@@ -175,11 +175,19 @@ export function calcProduct(product, materials, options = {}) {
   });
   const approvedBasis = ['회차 지출 배분(잠정 · 11/10)', '상품값만(잠정 · 배송 · 관부가세 미포함 · 11/10)'].includes(p.unitCostBasis);
   const provisional = approvedBasis && p.unitCostCurrency === 'KRW' && explicitCost !== null;
+  // A provisional unitCost is a manually allocated number (not re-derived from receipts), so a
+  // later 구매취소 on one of this product's lots does not change it automatically — surface that
+  // instead of silently showing a now-possibly-stale figure (20261114_1413/1505 cost finding).
+  const provisionalStale = provisional && Array.isArray(p.receipts) && p.receipts.some(row => row?.status === '구매취소');
   const unitCost = provisional ? explicitCost : missingCostCurrency ? null : hasForeignSales ? null : explicitCost === null ? receipts.unitCost : explicitCost;
-  const costReason = unitCost === null ? (missingCostCurrency ? '통화 확인 필요' : '원가 확인 필요') : ''; 
+  const costReason = unitCost === null ? (missingCostCurrency ? '통화 확인 필요' : '원가 확인 필요') : '';
   const costBases = provisional ? [p.unitCostBasis] : [];
-  const costNotes = provisional && typeof p.unitCostNote === 'string' && p.unitCostNote.trim() ? [p.unitCostNote.trim()] : [];
+  const costNotes = [
+    ...(provisional && typeof p.unitCostNote === 'string' && p.unitCostNote.trim() ? [p.unitCostNote.trim()] : []),
+    ...(provisionalStale ? ['구매취소 있음 · 잠정 원가 다시 확인'] : []),
+  ];
   if (unitCost === null) issues.push(costReason);
+  if (provisionalStale) issues.push('구매취소 있음 · 잠정 원가 다시 확인');
   const activeLinks = Array.isArray(p.links) ? p.links.filter(x => x?.always === true) : [];
   const materialCost = sumMaterialCost(activeLinks, materials, issues);
   const partialCost = includeMaterials && issues.includes('일부 부자재 제외 · 확인 필요');
