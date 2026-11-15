@@ -6,6 +6,10 @@
 // 2026-11-15 08:04~08:05 사장님 "원가,마진,고객정보도 다 넣어" · "그런제한된규칙을너맘대로 만들지마" (20261115_0801_v2):
 //  총괄이 0801에 적었던 원가·마진·고객정보 제외 규칙을 지우고, productCatalogPrivate/products_v5(원가·판매가·재고)로 원가·마진 표,
 //  hub/customers/<판매처>/<id>로 고객 목록(이름·전화·주소 그대로 표시)을 더함. 로그인 구조는 그대로(새 보안 규칙 없음).
+// 2026-11-15 09:20 총괄이 캡처 보고 고칠 것(20261115_0801_v3): 오늘 보고 0/9면 가장 최근(어제) 보고 자동 표시,
+//  순서를 사장님 정할 것→숫자 타일→원가·마진 요약→자리 카드→키워드 표→원가·마진 상품별 표→고객 목록으로,
+//  키워드 표 기본 정렬을 우리 상품군 단어 포함 + (검색량×경쟁 쉬움 가중치) 기회 점수로, 숫자 타일에
+//  hub/adsDaily·products_v5·hub/customers 실제 숫자를 더함(자료 없는 칸은 '아직 없음', 0으로 안 씀).
 function el(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!=null)n.textContent=String(text);return n;}
 // Date.getTime() is always UTC-absolute; a fixed +9h shift read back with toISOString() gives the
 // KST date on every machine. Mixing in getTimezoneOffset() double-counts the shift once the OS
@@ -142,16 +146,49 @@ export function marginRows(products){
   if(!products||typeof products!=='object')return [];
   const rows=[];
   for(const p of Object.values(products)){
-    if(!p||typeof p!=='object')continue;
+    if(!p||typeof p!=='object'||Array.isArray(p))continue;
     const name=typeof p.name==='string'&&p.name?p.name:'(이름 없음)';
     const cost=typeof p.unitCost==='number'&&Number.isFinite(p.unitCost)?p.unitCost:null;
     const price=typeof p.sale?.storePrice==='number'&&Number.isFinite(p.sale.storePrice)?p.sale.storePrice:null;
     const stock=typeof p.stock==='number'&&Number.isFinite(p.stock)?p.stock:null;
     const margin=(cost!=null&&price!=null)?price-cost:null;
     const marginRate=(margin!=null&&price)?Math.round(margin/price*1000)/10:null;
-    rows.push({id:typeof p.id==='string'?p.id:name,name,cost,price,stock,margin,marginRate});
+    rows.push({id:typeof p.id==='string'?p.id:name,name,cost,price,stock,margin,marginRate,decision:typeof p.sale?.decision==='string'?p.sale.decision:''});
   }
   return rows;
+}
+
+// 숫자 타일(②)에 쓸 요약값 — marginRows와 따로 도는 건, 상품 세어 매기는 기준(배열·null 다 거르기)을 이 쪽도
+// 그대로 지키되 "상품 수·판매 확정 수·재고 합·재고 0 개수"처럼 원가·마진표와는 다른 숫자라 분리함.
+export function productStats(rows){
+  if(!rows.length)return null;
+  let confirmed=0,stockSum=0,hasStock=false,zeroStock=0;
+  for(const r of rows){
+    if(r.decision==='판매')confirmed++;
+    if(typeof r.stock==='number'){hasStock=true;stockSum+=r.stock;if(r.stock===0)zeroStock++;}
+  }
+  return {total:rows.length,confirmed,stockSum:hasStock?stockSum:null,zeroStock};
+}
+
+// hub/adsDaily/<날짜>는 채널별로 '어제·7일·30일' 롤업을 담아 두는 광고 화면(ads-private.js)과 같은 자료 —
+// 그 화면이 쓰는 'yesterday' 묶음을 그대로 합쳐서 쓴다(여기서 날짜 범위를 새로 계산하지 않음).
+const ADS_CHANNELS=['coupang','naver','meta','kakao','google'];
+export function adsDailyTotals(adsDaily){
+  if(!adsDaily||typeof adsDaily!=='object'||Array.isArray(adsDaily))return null;
+  let spend=0,revenue=0,any=false;
+  for(const id of ADS_CHANNELS){
+    const p=adsDaily[id]?.yesterday;
+    if(p&&typeof p==='object'){any=true;spend+=Number(p.spend)||0;revenue+=Number(p.revenue)||0;}
+  }
+  return any?{spend,revenue,roas:spend>0?Math.round(revenue/spend*1000)/10:null}:null;
+}
+
+export function customerStats(customers){
+  let total=0,repeat=0,any=false;
+  for(const entries of Object.values(customers||{})){
+    for(const c of Object.values(entries||{})){any=true;total++;if(c.repeat)repeat++;}
+  }
+  return any?{total,repeat}:null;
 }
 
 const CUSTOMER_FIELD_MAX={name:60,phone:30,address:200,items:300,memo:200};
@@ -219,22 +256,67 @@ function numsSection(day,yesterday){
   return wrap;
 }
 
+// ② 숫자 타일 — 사장님 09:20(20261115_0801_v3) "지금 3칸이 보고 수·막힘·코멘트뿐" → 이미 있는 자료(광고·상품·고객)로 채움.
+// 자료가 없으면 0이 아니라 '아직 없음'으로(숫자 지어내지 않기).
+function won(v){return v==null?'아직 없음':Number(v).toLocaleString('ko-KR')+'원';}
+function pct(v){return v==null?'아직 없음':Number(v).toLocaleString('ko-KR')+'%';}
+function cnt(v){return v==null?'아직 없음':String(v);}
+function statsSection(reported,blocked,pendingComments,adsStats,prodStats,custStats){
+  const wrap=el('div','section-gap');
+  wrap.append(el('h3','','숫자 타일'));
+  const tiles=el('div','metrics');
+  tiles.append(
+    (()=>{const d=el('div','metric');d.append(el('small','','보고 온 자리'),el('strong','',`${reported}/9`));return d;})(),
+    (()=>{const d=el('div','metric');d.append(el('small','','막힘'),el('strong','',String(blocked)));return d;})(),
+    (()=>{const d=el('div','metric'+(pendingComments?' amber':''));d.append(el('small','','답 기다리는 코멘트'),el('strong','',String(pendingComments)));return d;})(),
+    (()=>{const d=el('div','metric');d.append(el('small','','광고비(어제)'),el('strong','',won(adsStats?.spend)));return d;})(),
+    (()=>{const d=el('div','metric');d.append(el('small','','광고 매출(어제)'),el('strong','',won(adsStats?.revenue)));return d;})(),
+    (()=>{const d=el('div','metric');d.append(el('small','','수익률(어제)'),el('strong','',pct(adsStats?.roas)));return d;})(),
+    (()=>{const d=el('div','metric');d.append(el('small','','상품 수'),el('strong','',cnt(prodStats?.total)));return d;})(),
+    (()=>{const d=el('div','metric');d.append(el('small','','판매 확정 수'),el('strong','',cnt(prodStats?.confirmed)));return d;})(),
+    (()=>{const d=el('div','metric');d.append(el('small','','재고 합'),el('strong','',cnt(prodStats?.stockSum)));return d;})(),
+    (()=>{const d=el('div','metric'+(prodStats?.zeroStock?' amber':''));d.append(el('small','','재고 0 상품 수'),el('strong','',cnt(prodStats?.zeroStock)));return d;})(),
+    (()=>{const d=el('div','metric');d.append(el('small','','고객 수'),el('strong','',cnt(custStats?.total)));return d;})(),
+    (()=>{const d=el('div','metric');d.append(el('small','','재구매 고객'),el('strong','',cnt(custStats?.repeat)));return d;})(),
+  );
+  wrap.append(tiles);
+  return wrap;
+}
+
+// 사장님 08:07·09:20(20261115_0801_v3) — '롤·영수증·카드지갑'처럼 상품군 칸은 있어도 실제로 우리 상품과
+// 상관없는 일반어가 검색량 상위를 차지해 분석에 안 쓰였음. 키워드 글자 자체에 상품 낱말이 있는지로 가린다.
+export const PRODUCT_WORDS=['키링','봉제','인형','말랑이','동전지갑','헤어핀','야광'];
+export function keywordRelevant(kw){return typeof kw==='string'&&PRODUCT_WORDS.some(w=>kw.includes(w));}
+const COMPETE_WEIGHT={'낮음':3,'보통':2,'높음':1,'확인 필요':1};
+// "검색량 ÷ 경쟁" 요청을 실제 쓸모대로 풀면: 경쟁이 낮을수록 기회가 커야 하니 나누기가 아니라
+// 쉬움 가중치(낮음3·보통2·높음1)를 곱한다 — 그래야 검색 많고 경쟁 낮은 말이 위로 온다.
+export function keywordOpportunity(monthly,compete){return (typeof monthly==='number'&&Number.isFinite(monthly)?monthly:0)*(COMPETE_WEIGHT[compete]??1);}
+
 function keywordSection(keywords){
   if(!keywords||!keywords.length)return null;
+  const tagged=keywords.map(r=>({...r,relevant:keywordRelevant(r.kw),opportunity:keywordOpportunity(r.monthly,r.compete)}));
+  const relevant=tagged.filter(r=>r.relevant);
+  const other=tagged.filter(r=>!r.relevant);
+
   const wrap=el('div','section-gap');
   wrap.append(el('h3','','키워드 표'));
+  const top3=relevant.slice().sort((a,b)=>b.opportunity-a.opportunity).slice(0,3).map(r=>r.kw);
+  wrap.append(el('p','note',top3.length?('우리 상품과 맞는 검색어 중 많이 찾고 경쟁 낮은 말: '+top3.join(' · ')+'.'):'우리 상품과 맞는 검색어를 아직 못 찾았어요.'));
+
   const controls=el('div','toolbar');
   const search=el('input');search.type='search';search.placeholder='키워드 찾기';search.setAttribute('aria-label','키워드 찾기');
-  const groups=[...new Set(keywords.map(r=>r.group).filter(Boolean))];
+  const groups=[...new Set(relevant.map(r=>r.group).filter(Boolean))];
   const groupSel=el('select');groupSel.setAttribute('aria-label','상품군 걸러보기');
-  const allOpt=el('option','','전체 상품군');allOpt.value='';groupSel.append(allOpt);
+  const allOpt=el('option','','전체(우리 상품과 맞는 말)');allOpt.value='';groupSel.append(allOpt);
   for(const g of groups){const o=el('option','',g);o.value=g;groupSel.append(o);}
+  const otherOpt=el('option','',`기타(상품과 상관없는 말, ${other.length}개)`);otherOpt.value='__other__';groupSel.append(otherOpt);
   controls.append(search,groupSel);wrap.append(controls);
+
   const tableWrap=el('div','tablewrap');
   const table=el('table','table');
   const thead=el('thead');const trh=el('tr');
   const cols=[['kw','키워드'],['monthly','월 검색량'],['compete','경쟁'],['where','판매처'],['note','메모']];
-  let sortKey='monthly',sortDir=-1;
+  let sortKey='opportunity',sortDir=-1,showAll=false;
   for(const [key,label] of cols){
     const th=el('th','',label);
     if(key==='monthly'||key==='compete'||key==='kw'){
@@ -247,20 +329,24 @@ function keywordSection(keywords){
   thead.append(trh);table.append(thead);
   const tbody=el('tbody');table.append(tbody);
   tableWrap.append(table);wrap.append(tableWrap);
+  const more=el('button','','더 보기(20줄만 먼저 보여요)');more.type='button';more.onclick=()=>{showAll=true;draw();};
+  wrap.append(more);
   const COMPETE_ORDER={'낮음':0,'보통':1,'높음':2,'확인 필요':3};
   function draw(){
     const q=search.value.trim();
     const g=groupSel.value;
-    let rows=keywords.filter(r=>(!q||r.kw.includes(q))&&(!g||r.group===g));
+    const pool=g==='__other__'?other:(g?relevant.filter(r=>r.group===g):relevant);
+    let rows=pool.filter(r=>!q||r.kw.includes(q));
     rows=rows.slice().sort((a,b)=>{
       let av=a[sortKey],bv=b[sortKey];
       if(sortKey==='compete'){av=COMPETE_ORDER[av]??9;bv=COMPETE_ORDER[bv]??9;}
-      if(av==null)av=sortKey==='monthly'?-1:'';
-      if(bv==null)bv=sortKey==='monthly'?-1:'';
+      if(av==null)av=typeof a.opportunity==='number'?-1:'';
+      if(bv==null)bv=typeof b.opportunity==='number'?-1:'';
       if(av<bv)return -1*sortDir;if(av>bv)return 1*sortDir;return 0;
     });
+    const limited=showAll?rows:rows.slice(0,20);
     tbody.replaceChildren();
-    for(const r of rows.slice(0,200)){
+    for(const r of limited){
       const tr=el('tr');
       tr.append(
         el('td','',r.kw),
@@ -272,28 +358,42 @@ function keywordSection(keywords){
       tbody.append(tr);
     }
     if(!rows.length){const tr=el('tr');const td=el('td','note','조건에 맞는 키워드가 없어요.');td.colSpan=cols.length;tr.append(td);tbody.append(tr);}
+    more.hidden=showAll||rows.length<=20;
   }
-  search.oninput=draw;groupSel.onchange=draw;
+  search.oninput=()=>{showAll=false;draw();};groupSel.onchange=()=>{showAll=false;draw();};
   draw();
   return wrap;
 }
 
-function marginSection(rows){
-  if(!rows.length)return null;
+const LOW_MARGIN_RATE=20; // 마진율 20% 미만을 "낮음"으로 봄 — 사장님이 숫자를 정하지 않아 총괄이 정한 기준(바꿀 수 있음, 결과 파일에 적어 둠).
+function marginLowCount(rows){
   const withRate=rows.filter(r=>r.marginRate!=null);
-  const avgRate=withRate.length?Math.round(withRate.reduce((s,r)=>s+r.marginRate,0)/withRate.length*10)/10:null;
-  const LOW_RATE=20; // 마진율 20% 미만을 "낮음"으로 봄 — 사장님이 숫자를 정하지 않아 총괄이 정한 기준(바꿀 수 있음, 결과 파일에 적어 둠).
-  const lowCount=withRate.filter(r=>r.marginRate<LOW_RATE).length;
-
+  return withRate.filter(r=>r.marginRate<LOW_MARGIN_RATE).length;
+}
+function marginAvgRate(rows){
+  const withRate=rows.filter(r=>r.marginRate!=null);
+  return withRate.length?Math.round(withRate.reduce((s,r)=>s+r.marginRate,0)/withRate.length*10)/10:null;
+}
+// ③ 원가·마진 요약(숫자 타일만) — 사장님이 "한눈에" 먼저 보시라고 자리 카드보다 위에 둠. 상품별 표(⑥)는 아래에 따로.
+function marginSummary(rows){
+  if(!rows.length)return null;
+  const avgRate=marginAvgRate(rows);
+  const lowCount=marginLowCount(rows);
   const wrap=el('div','section-gap');
-  wrap.append(el('h3','','원가·마진 표'));
+  wrap.append(el('h3','','원가·마진 요약'));
   const tiles=el('div','metrics');
   tiles.append(
     (()=>{const d=el('div','metric');d.append(el('small','','평균 마진율'),el('strong','',avgRate!=null?avgRate+'%':'—'));return d;})(),
-    (()=>{const d=el('div','metric'+(lowCount?' amber':''));d.append(el('small','',`마진율 ${LOW_RATE}% 미만 상품`),el('strong','',String(lowCount)));return d;})(),
+    (()=>{const d=el('div','metric'+(lowCount?' amber':''));d.append(el('small','',`마진율 ${LOW_MARGIN_RATE}% 미만 상품`),el('strong','',String(lowCount)));return d;})(),
   );
   wrap.append(tiles);
-
+  return wrap;
+}
+// ⑥ 원가·마진 상품별 표(검색·정렬 가능한 전체 표) — summary 타일은 위(③)에 이미 보여 줬으니 여기선 표만.
+function marginTable(rows){
+  if(!rows.length)return null;
+  const wrap=el('div','section-gap');
+  wrap.append(el('h3','','원가·마진 표(상품별)'));
   const search=el('input');search.type='search';search.placeholder='상품 이름 찾기';search.setAttribute('aria-label','상품 이름 찾기');
   const controls=el('div','toolbar');controls.append(search);wrap.append(controls);
   const tableWrap=el('div','tablewrap');
@@ -460,7 +560,7 @@ function seatCard(id,label,model,rec,comments,byLabel,auth,date,reload){
   return card;
 }
 
-function renderBoard(host,auth,user,date,day,yesterday,comments,keywords,products,customers,setDate,reload){
+function renderBoard(host,auth,user,date,day,yesterday,comments,keywords,products,customers,adsDaily,fallbackActive,setDate,reload){
   host.replaceChildren();
   const isToday=date===kstToday();
   const byLabel=(user?.name||'').trim()||(user?.email||'').trim()||'로그인 계정';
@@ -472,6 +572,10 @@ function renderBoard(host,auth,user,date,day,yesterday,comments,keywords,product
   const title=el('strong','',dateLabel(date)+(isToday?' (오늘)':''));
   nav.append(prev,title,todayBtn,next);host.append(nav);
 
+  // ② 숫자 타일보다도 위 — 사장님 09:20(v3) "아침엔 늘 비어 있음" → 가장 최근 보고 날을 자동으로 보여준다고 바로 알려줌.
+  if(fallbackActive)host.append(el('p','note amber','오늘 보고는 17:40에 와요 — 어제 보고를 보여드려요.'));
+
+  // ① 사장님이 정할 것 모음
   const decisions=SEATS.map(([id,label])=>{const b=day[id]?.bossDecide?.trim();return b&&b!=='없음'?[label,b]:null;}).filter(Boolean);
   if(decisions.length){
     const box=el('div','section-gap');
@@ -480,22 +584,19 @@ function renderBoard(host,auth,user,date,day,yesterday,comments,keywords,product
     host.append(box);
   }
 
+  // ② 숫자 타일
   const pendingComments=SEATS.reduce((n,[id])=>n+Object.values(comments?.[id]||{}).filter(c=>c.status==='new').length,0);
   const reported=SEATS.filter(([id])=>day[id]&&Object.keys(day[id]).length).length;
   const blocked=SEATS.filter(([id])=>{const b=day[id]?.blocked?.trim();return b&&b!=='없음';}).length;
-  const metrics=el('div','metrics');
-  metrics.append(
-    (()=>{const d=el('div','metric');d.append(el('small','','보고 온 자리'),el('strong','',`${reported}/9`));return d;})(),
-    (()=>{const d=el('div','metric');d.append(el('small','','막힘'),el('strong','',String(blocked)));return d;})(),
-    (()=>{const d=el('div','metric'+(pendingComments?' amber':''));d.append(el('small','','답 기다리는 코멘트'),el('strong','',String(pendingComments)));return d;})(),
-  );
-  host.append(metrics);
+  const marginData=marginRows(products);
+  host.append(statsSection(reported,blocked,pendingComments,adsDailyTotals(adsDaily),productStats(marginData),customerStats(customers)));
 
   const nums=numsSection(day,yesterday);if(nums)host.append(nums);
-  const margin=marginSection(marginRows(products));if(margin)host.append(margin);
-  host.append(customersSection(customers));
-  const kw=keywordSection(keywords);if(kw)host.append(kw);
 
+  // ③ 원가·마진 요약
+  const marginSum=marginSummary(marginData);if(marginSum)host.append(marginSum);
+
+  // ④ 자리 카드 9개
   const cardsWrap=el('div','sx-sets');
   for(const [id,label,model] of SEATS)cardsWrap.append(seatCard(id,label,model,day[id],comments,byLabel,auth,date,reload));
   host.append(cardsWrap);
@@ -506,7 +607,14 @@ function renderBoard(host,auth,user,date,day,yesterday,comments,keywords,product
     for(const [label,text] of upgrades){const p=el('p','note');p.textContent=label+' — '+text;host.append(p);}
   }
 
-  if(isToday){
+  // ⑤ 키워드 표
+  const kw=keywordSection(keywords);if(kw)host.append(kw);
+  // ⑥ 원가·마진 상품별 표
+  const marginTbl=marginTable(marginData);if(marginTbl)host.append(marginTbl);
+  // ⑦ 고객 목록
+  host.append(customersSection(customers));
+
+  if(isToday||fallbackActive){
     const details=el('details','section-gap');
     const summary=el('summary','','보고 넣기(자리 창에서 하루 한 번)');details.append(summary);
     const panel=el('div','panel');
@@ -552,7 +660,8 @@ function renderBoard(host,auth,user,date,day,yesterday,comments,keywords,product
         const nums={};for(const [key,{input,label,unit}] of Object.entries(numsInputs)){const v=input.value.trim();if(v!==''&&Number.isFinite(Number(v)))nums[key]={label,value:Number(v),unit};}
         if(Object.keys(nums).length)fields.nums=nums;
         fields.at=new Date().toISOString();
-        const url=await auth.dbUrl(`hub/agentsDaily/${date}/${seat}`);
+        // 날짜가 어제 보고(자동 표시)를 보고 있어도, 지금 새로 넣는 보고는 항상 '진짜 오늘'에 쓴다.
+        const url=await auth.dbUrl(`hub/agentsDaily/${kstToday()}/${seat}`);
         const r=await fetch(url,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(fields)});
         if(!r.ok)throw Error('저장하지 못했습니다.');
         for(const ta of Object.values(areas))ta.value='';
@@ -568,7 +677,7 @@ function renderBoard(host,auth,user,date,day,yesterday,comments,keywords,product
 }
 
 export function mountAgentsDaily(host){
-  let closed=false,epoch=0,abort=null,unsubscribe=()=>{},currentAuth=null,currentUser=null,date=kstToday();
+  let closed=false,epoch=0,abort=null,unsubscribe=()=>{},currentAuth=null,currentUser=null,date=kstToday(),autoFallback=false;
   const active=v=>!closed&&host.isConnected&&epoch===v;
   function message(text,retry,label){
     host.replaceChildren();
@@ -588,25 +697,34 @@ export function mountAgentsDaily(host){
       const keywords=validatedKeywords(window.__MMT_TEST_AGENTS_KEYWORDS__||null);
       const products=window.__MMT_TEST_AGENTS_PRODUCTS__||null;
       const customers=validatedCustomers(window.__MMT_TEST_AGENTS_CUSTOMERS__||null);
-      renderBoard(host,currentAuth,currentUser,date,validatedDay(test),yesterday,comments,keywords,products,customers,setDate,load);
+      const adsDaily=window.__MMT_TEST_AGENTS_ADSDAILY__||null;
+      renderBoard(host,currentAuth,currentUser,date,validatedDay(test),yesterday,comments,keywords,products,customers,adsDaily,!!window.__MMT_TEST_AGENTS_FALLBACK__,setDate,load);
       return;
     }
     message('불러오는 중이에요.');
     const controller=new AbortController();abort=controller;const timer=setTimeout(()=>controller.abort(),10000);
     try{
-      const [dayRaw,yRaw,cRaw,kRaw,pRaw,cuRaw]=await Promise.all([
+      const [dayRaw,yRaw,cRaw,kRaw,pRaw,cuRaw,adRaw]=await Promise.all([
         fetchJson(currentAuth,`hub/agentsDaily/${date}`,controller),
         fetchJson(currentAuth,`hub/agentsDaily/${addDays(date,-1)}`,controller).catch(()=>null),
         fetchJson(currentAuth,'hub/agentsComments',controller).catch(()=>null),
         fetchJson(currentAuth,'hub/adsKeywords/'+kstWeek(),controller).catch(()=>null),
         fetchJson(currentAuth,'productCatalogPrivate/products_v5/products',controller).catch(()=>null),
         fetchJson(currentAuth,'hub/customers',controller).catch(()=>null),
+        fetchJson(currentAuth,'hub/adsDaily/'+kstToday(),controller).catch(()=>null),
       ]);
       if(!active(version)||currentAuth.current()?.uid!==currentUser.uid)return;
       if(dayRaw==='unauthorized'){message('이 계정의 접근 권한을 확인해 주세요.');return;}
+      let dayValidated=validatedDay(dayRaw);
+      let yesterdayValidated=validatedDay(yRaw);
+      // 사장님 09:20(v3) "아침엔 늘 비어 있음" — 오늘 보고가 하나도 없으면 한 번만 어제로 자동 이동(무한 되돌이 막음).
+      if(date===kstToday()&&!autoFallback&&Object.keys(dayValidated).length===0){
+        autoFallback=true;date=addDays(date,-1);load();return;
+      }
       const products=pRaw==='unauthorized'?null:pRaw;
       const customers=cuRaw==='unauthorized'?{}:validatedCustomers(cuRaw);
-      renderBoard(host,currentAuth,currentUser,date,validatedDay(dayRaw),validatedDay(yRaw),validatedComments(cRaw),validatedKeywords(kRaw),products,customers,setDate,load);
+      const adsDaily=adRaw==='unauthorized'?null:adRaw;
+      renderBoard(host,currentAuth,currentUser,date,dayValidated,yesterdayValidated,validatedComments(cRaw),validatedKeywords(kRaw),products,customers,adsDaily,autoFallback,setDate,load);
     }catch(_){if(active(version))message('불러오지 못했어요. 연결을 확인해 주세요.',load);}
     finally{clearTimeout(timer);if(abort===controller)abort=null;}
   }
@@ -617,7 +735,7 @@ export function mountAgentsDaily(host){
     if(!response.ok)throw Error('load');
     return response.json();
   }
-  function setDate(next){date=next;load();}
+  function setDate(next){date=next;autoFallback=false;load();}
   import('./fbauth.js?v=access20261028').then(auth=>{if(closed||!host.isConnected)return;unsubscribe=auth.onAuth(user=>{currentAuth=auth;currentUser=user;load();});}).catch(()=>{if(!closed&&host.isConnected)message('로그인 연결을 확인해 주세요.');});
   return ()=>{closed=true;++epoch;abort?.abort();unsubscribe();host.replaceChildren();};
 }

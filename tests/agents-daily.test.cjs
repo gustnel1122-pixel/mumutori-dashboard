@@ -127,3 +127,53 @@ test('20261115_0801_v2: validatedCustomers drops unknown-shaped top-level input 
   assert.deepEqual(validatedCustomers('문자열'),{});
   assert.deepEqual(validatedCustomers({own:'문자열'}),{});
 });
+
+test('20261115_0801_v3: keywordRelevant keeps only keywords whose text contains a real product word', async () => {
+  const {keywordRelevant} = await mod;
+  assert.equal(keywordRelevant('롤'),false);
+  assert.equal(keywordRelevant('영수증'),false);
+  assert.equal(keywordRelevant('카드지갑'),false);
+  assert.equal(keywordRelevant('인형키링'),true);
+  assert.equal(keywordRelevant('말랑이'),true);
+  assert.equal(keywordRelevant('야광테이프'),true);
+});
+
+test('20261115_0801_v3: keywordOpportunity rewards high search volume with low competition over high volume with high competition', async () => {
+  const {keywordOpportunity} = await mod;
+  const lowCompeteSmallVolume = keywordOpportunity(1000,'낮음');
+  const highCompeteSameVolume = keywordOpportunity(1000,'높음');
+  assert(lowCompeteSmallVolume > highCompeteSameVolume);
+  assert.equal(keywordOpportunity(null,'낮음'),0);
+});
+
+test('20261115_0801_v3: productStats counts confirmed sales and zero-stock without fabricating missing stock', async () => {
+  const {marginRows, productStats} = await mod;
+  const rows = marginRows({
+    a:{id:'a',name:'팜',unitCost:100,sale:{storePrice:200,decision:'판매'},stock:0},
+    b:{id:'b',name:'비확정',unitCost:100,sale:{storePrice:200,decision:'미정'},stock:5},
+    c:{id:'c',name:'재고 모름',unitCost:100,sale:{storePrice:200,decision:'판매'}},
+  });
+  const stats = productStats(rows);
+  assert.equal(stats.total,3);
+  assert.equal(stats.confirmed,2);
+  assert.equal(stats.zeroStock,1);
+  assert.equal(stats.stockSum,5);
+});
+
+test('20261115_0801_v3: adsDailyTotals sums yesterday spend/revenue across channels, null when nothing is there', async () => {
+  const {adsDailyTotals} = await mod;
+  assert.equal(adsDailyTotals(null),null);
+  assert.equal(adsDailyTotals({coupang:{}}),null);
+  const t = adsDailyTotals({coupang:{yesterday:{spend:1000,revenue:3000}},naver:{yesterday:{spend:500,revenue:500}}});
+  assert.equal(t.spend,1500);
+  assert.equal(t.revenue,3500);
+});
+
+test('20261115_0801_v3: customerStats counts total and repeat customers across channels, null when empty', async () => {
+  const {customerStats, validatedCustomers} = await mod;
+  assert.equal(customerStats({}),null);
+  const customers = validatedCustomers({own:{c1:{name:'김현수',repeat:true}},smartstore:{c2:{name:'안서진'}}});
+  const stats = customerStats(customers);
+  assert.equal(stats.total,2);
+  assert.equal(stats.repeat,1);
+});
