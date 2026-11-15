@@ -44,10 +44,13 @@ const EASY_FIELDS=[['did','오늘 한 일'],['found','알아낸 것'],['ask','�
 const NUMS_MAX=8;
 // 자리마다 날마다 같은 이름(키)으로 적어야 추이가 나온다 — 자유 입력칸이 아니라 고정 목록(사장님 1단계 목록 그대로, 있는 자리만).
 const NUMS_SCHEMA={
-  coupang:[['coupangInquiry','쿠팡 문의','건'],['coupangReturn','쿠팡 반품','건']],
+  // 20261115_1822_v2: coupang 자리가 쿠팡뿐 아니라 네이버 스마트스토어도 보게 넓어져서(11/14 13:25) 쿠팡 전용 두 칸만으론
+  // 오늘 실제로 보는 숫자(스마트스토어 방문·주문)를 담을 칸이 없었다 — 추가(기존 두 칸은 그대로 둠).
+  coupang:[['coupangInquiry','쿠팡 문의','건'],['coupangReturn','쿠팡 반품','건'],['ssVisitors','스마트스토어 방문','회'],['ssOrders','스마트스토어 주문','건']],
   'detail-mall':[['visitors','방문자','명'],['orders','주문','건'],['revenue','매출','원']],
   kakao:[['friends','채널 친구','명'],['newFriends','새 친구','명'],['messagesSent','보낸 메시지','건']],
-  purchase:[['openLedger','안 끝난 장부 건','건'],['received','들어온 물건 수','개']],
+  // 20261115_1822_v2: 바코드 매김은 구매·장부 자리가 자주 하는 실제 일인데 담을 칸이 없었다 — 추가.
+  purchase:[['openLedger','안 끝난 장부 건','건'],['received','들어온 물건 수','개'],['barcodesAssigned','바코드 새로 매김','개']],
   sourcing:[['newCandidates','새 후보 상품','개'],['checked1688','1688 확인한 상품','개']],
   video:[['videosMade','만든 영상','개'],['views','조회수','회'],['likes','좋아요','개'],['saves','저장','개']],
   'video-analysis':[['videosMade','만든 영상','개'],['views','조회수','회'],['likes','좋아요','개'],['saves','저장','개']],
