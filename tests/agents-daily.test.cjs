@@ -79,3 +79,44 @@ test('20261115_0801: validatedKeywords falls back to 확인 필요 for an unknow
   const out = validatedKeywords([{kw:'x',monthly:1,compete:'모름'}]);
   assert.equal(out[0].compete,'확인 필요');
 });
+
+test('20261115_0801_v2: marginRows computes margin from unitCost+sale.storePrice, never fabricates missing cost/price', async () => {
+  const {marginRows} = await mod;
+  const rows = marginRows({
+    a:{id:'a',name:'카드지갑',unitCost:1000,sale:{storePrice:5000},stock:10},
+    b:{id:'b',name:'원가 없음 상품',sale:{storePrice:3000},stock:2},
+    c:{id:'c',name:'판매가 없음 상품',unitCost:500,stock:0},
+  });
+  const a = rows.find(r=>r.id==='a');
+  assert.equal(a.margin,4000);
+  assert.equal(a.marginRate,80);
+  const b = rows.find(r=>r.id==='b');
+  assert.equal(b.cost,null);
+  assert.equal(b.margin,null);
+  const c = rows.find(r=>r.id==='c');
+  assert.equal(c.price,null);
+  assert.equal(c.margin,null);
+});
+
+test('20261115_0801_v2: marginRows ignores malformed product entries without throwing', async () => {
+  const {marginRows} = await mod;
+  const rows = marginRows({a:null,b:{name:'ok',unitCost:100,sale:{storePrice:200}},c:'문자열 아님'});
+  assert.equal(rows.length,1);
+});
+
+test('20261115_0801_v2: validatedCustomers keeps real name/phone/address as-is (no masking), drops entries without a name', async () => {
+  const {validatedCustomers} = await mod;
+  const out = validatedCustomers({own:{c1:{at:'2026-11-15T00:00:00.000Z',name:'김현수',phone:'010-0000-0000',address:'서울 강남구',items:'카드지갑 x1',amount:5000,repeat:true},c2:{phone:'010-1111-1111'}}});
+  assert.equal(out.own.c1.name,'김현수');
+  assert.equal(out.own.c1.phone,'010-0000-0000');
+  assert.equal(out.own.c1.address,'서울 강남구');
+  assert.equal(out.own.c1.repeat,true);
+  assert.equal(out.own.c2,undefined);
+});
+
+test('20261115_0801_v2: validatedCustomers drops unknown-shaped top-level input without throwing', async () => {
+  const {validatedCustomers} = await mod;
+  assert.deepEqual(validatedCustomers(null),{});
+  assert.deepEqual(validatedCustomers('문자열'),{});
+  assert.deepEqual(validatedCustomers({own:'문자열'}),{});
+});

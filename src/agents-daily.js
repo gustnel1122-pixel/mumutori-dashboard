@@ -1,8 +1,11 @@
 // AI 자리 하루 보고 — Firebase hub/agentsDaily/<날짜>/<자리> (사장님 구글 로그인 전용 칸, hub 기존 보안 규칙을 그대로 물려받음 — fin-hub.js·ads-private.js와 같은 길).
 // 9개 자리가 매일 17:40 루틴으로 각자 결과 파일(results\하루보고_<날짜>.md)에 적은 내용을, 로그인된 자리 창(같은 "현수(직장)" 프로필)에서
-// 이 화면의 '보고 넣기'로 눌러 넣는다(20261114_1655 ②안) — 새 서버·새 키·새 OAuth 범위 없음. 원가·개인정보는 여기 적지 않는다.
+// 이 화면의 '보고 넣기'로 눌러 넣는다(20261114_1655 ②안) — 새 서버·새 키·새 OAuth 범위 없음.
 // 2026-11-15 사장님 07:59 "알아들을 수 있게 쉽게 설명하라 그래 · 코멘트 달게 해줘 · 한눈에 보고 분석 가능하게" (20261115_0801):
 //  easy{did,found,ask} 쉬운 말 3줄, nums{키:{label,value,unit}} 숫자 타일(어제 대비), agentsComments 코멘트, adsKeywords 키워드 표를 더함.
+// 2026-11-15 08:04~08:05 사장님 "원가,마진,고객정보도 다 넣어" · "그런제한된규칙을너맘대로 만들지마" (20261115_0801_v2):
+//  총괄이 0801에 적었던 원가·마진·고객정보 제외 규칙을 지우고, productCatalogPrivate/products_v5(원가·판매가·재고)로 원가·마진 표,
+//  hub/customers/<판매처>/<id>로 고객 목록(이름·전화·주소 그대로 표시)을 더함. 로그인 구조는 그대로(새 보안 규칙 없음).
 function el(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!=null)n.textContent=String(text);return n;}
 // Date.getTime() is always UTC-absolute; a fixed +9h shift read back with toISOString() gives the
 // KST date on every machine. Mixing in getTimezoneOffset() double-counts the shift once the OS
@@ -131,6 +134,46 @@ export function validatedKeywords(x){
   return out;
 }
 
+// productCatalogPrivate/products_v5는 상품 관리 v5 화면이 쓰는 우리 쪽 비공개 자료라 agentsDaily류 hub 입력값과 달리
+// 바깥에서 들어오는 값이 아니다 — 형식을 거부(throw)하지 않고, 읽을 수 없는 칸만 조용히 비워 둔다(지어내지 않기).
+export function marginRows(products){
+  if(!products||typeof products!=='object'||Array.isArray(products))return [];
+  const rows=[];
+  for(const p of Object.values(products)){
+    if(!p||typeof p!=='object')continue;
+    const name=typeof p.name==='string'&&p.name?p.name:'(이름 없음)';
+    const cost=typeof p.unitCost==='number'&&Number.isFinite(p.unitCost)?p.unitCost:null;
+    const price=typeof p.sale?.storePrice==='number'&&Number.isFinite(p.sale.storePrice)?p.sale.storePrice:null;
+    const stock=typeof p.stock==='number'&&Number.isFinite(p.stock)?p.stock:null;
+    const margin=(cost!=null&&price!=null)?price-cost:null;
+    const marginRate=(margin!=null&&price)?Math.round(margin/price*1000)/10:null;
+    rows.push({id:typeof p.id==='string'?p.id:name,name,cost,price,stock,margin,marginRate});
+  }
+  return rows;
+}
+
+const CUSTOMER_FIELD_MAX={name:60,phone:30,address:200,items:300,memo:200};
+export function validatedCustomers(x){
+  if(x==null)return {};
+  if(typeof x!=='object'||Array.isArray(x))return {};
+  const out={};
+  for(const [channel,entries] of Object.entries(x)){
+    if(!entries||typeof entries!=='object'||Array.isArray(entries))continue;
+    const list={};
+    for(const [cid,v] of Object.entries(entries)){
+      if(!v||typeof v!=='object'||Array.isArray(v))continue;
+      if(typeof v.name!=='string'||!v.name)continue;
+      const rec={at:typeof v.at==='string'?v.at:''};
+      for(const [k,max] of Object.entries(CUSTOMER_FIELD_MAX))rec[k]=typeof v[k]==='string'?v[k].slice(0,max):'';
+      rec.amount=typeof v.amount==='number'&&Number.isFinite(v.amount)?v.amount:null;
+      rec.repeat=!!v.repeat;
+      list[cid]=rec;
+    }
+    out[channel]=list;
+  }
+  return out;
+}
+
 function easyBlock(easy){
   const wrap=el('div','agent-easy');
   const rows=[['did','오늘 한 일'],['found','알아낸 것'],['ask','사장님께']];
@@ -233,6 +276,125 @@ function keywordSection(keywords){
   return wrap;
 }
 
+function marginSection(rows){
+  if(!rows.length)return null;
+  const withRate=rows.filter(r=>r.marginRate!=null);
+  const avgRate=withRate.length?Math.round(withRate.reduce((s,r)=>s+r.marginRate,0)/withRate.length*10)/10:null;
+  const LOW_RATE=20; // 마진율 20% 미만을 "낮음"으로 봄 — 사장님이 숫자를 정하지 않아 총괄이 정한 기준(바꿀 수 있음, 결과 파일에 적어 둠).
+  const lowCount=withRate.filter(r=>r.marginRate<LOW_RATE).length;
+
+  const wrap=el('div','section-gap');
+  wrap.append(el('h3','','원가·마진 표'));
+  const tiles=el('div','metrics');
+  tiles.append(
+    (()=>{const d=el('div','metric');d.append(el('small','','평균 마진율'),el('strong','',avgRate!=null?avgRate+'%':'—'));return d;})(),
+    (()=>{const d=el('div','metric'+(lowCount?' amber':''));d.append(el('small','',`마진율 ${LOW_RATE}% 미만 상품`),el('strong','',String(lowCount)));return d;})(),
+  );
+  wrap.append(tiles);
+
+  const search=el('input');search.type='search';search.placeholder='상품 이름 찾기';search.setAttribute('aria-label','상품 이름 찾기');
+  const controls=el('div','toolbar');controls.append(search);wrap.append(controls);
+  const tableWrap=el('div','tablewrap');
+  const table=el('table','table');
+  const thead=el('thead');const trh=el('tr');
+  const cols=[['name','상품명'],['price','판매가'],['cost','개당 원가'],['margin','마진(원)'],['marginRate','마진율'],['stock','재고']];
+  let sortKey='marginRate',sortDir=1;
+  for(const [key,label] of cols){
+    const th=el('th','',label);
+    if(key!=='name'){
+      th.classList.add('sortable');th.setAttribute('role','button');th.tabIndex=0;
+      const activate=()=>{sortDir=sortKey===key?-sortDir:1;sortKey=key;draw();};
+      th.onclick=activate;th.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();activate();}};
+    }
+    trh.append(th);
+  }
+  thead.append(trh);table.append(thead);
+  const tbody=el('tbody');table.append(tbody);
+  tableWrap.append(table);wrap.append(tableWrap);
+  function draw(){
+    const q=search.value.trim();
+    let list=rows.filter(r=>!q||r.name.includes(q));
+    list=list.slice().sort((a,b)=>{
+      let av=a[sortKey],bv=b[sortKey];
+      if(av==null&&bv==null)return 0;if(av==null)return 1;if(bv==null)return -1;
+      if(av<bv)return -1*sortDir;if(av>bv)return 1*sortDir;return 0;
+    });
+    tbody.replaceChildren();
+    for(const r of list){
+      const tr=el('tr');
+      tr.append(
+        el('td','',r.name),
+        el('td','',r.price!=null?r.price.toLocaleString('ko-KR')+'원':'판매가 없음'),
+        el('td','',r.cost!=null?r.cost.toLocaleString('ko-KR')+'원':'원가 없음'),
+        el('td','',r.margin!=null?r.margin.toLocaleString('ko-KR')+'원':'—'),
+        el('td','',r.marginRate!=null?r.marginRate+'%':'—'),
+        el('td','',r.stock!=null?String(r.stock):'—'),
+      );
+      tbody.append(tr);
+    }
+    if(!list.length){const tr=el('tr');const td=el('td','note','조건에 맞는 상품이 없어요.');td.colSpan=cols.length;tr.append(td);tbody.append(tr);}
+  }
+  search.oninput=draw;
+  draw();
+  return wrap;
+}
+
+const CUSTOMER_CHANNELS=[['own','자사몰'],['coupang','쿠팡'],['kakao','카카오']];
+function customersSection(customers){
+  const wrap=el('div','section-gap');
+  wrap.append(el('h3','','고객 목록(최근 주문 순)'));
+  const rows=[];
+  for(const [ch,label] of CUSTOMER_CHANNELS){
+    const entries=customers?.[ch];
+    if(!entries||!Object.keys(entries).length)continue;
+    for(const c of Object.values(entries))rows.push({...c,channel:label});
+  }
+  const connected=CUSTOMER_CHANNELS.filter(([ch])=>customers?.[ch]&&Object.keys(customers[ch]).length).map(([,l])=>l);
+  const notConnected=CUSTOMER_CHANNELS.filter(([ch])=>!customers?.[ch]||!Object.keys(customers[ch]).length).map(([,l])=>l);
+  if(notConnected.length)wrap.append(el('p','note',notConnected.join('·')+' — 아직 연결 전.'));
+  if(!rows.length){
+    wrap.append(el('p','note','고객 자료가 아직 없어요.'));
+    return wrap;
+  }
+  rows.sort((a,b)=>(b.at||'').localeCompare(a.at||''));
+  const repeatCount=rows.filter(r=>r.repeat).length;
+  const regions=new Map();
+  for(const r of rows){const region=(r.address||'').trim().split(/\s+/)[0]||'확인 필요';regions.set(region,(regions.get(region)||0)+1);}
+  const tiles=el('div','metrics');
+  tiles.append(
+    (()=>{const d=el('div','metric');d.append(el('small','','연결된 판매처'),el('strong','',connected.length?connected.join('·'):'없음'));return d;})(),
+    (()=>{const d=el('div','metric');d.append(el('small','','재구매 고객'),el('strong','',String(repeatCount)));return d;})(),
+  );
+  wrap.append(tiles);
+  if(regions.size){
+    const regionP=el('p','note');
+    regionP.textContent='지역별: '+[...regions.entries()].sort((a,b)=>b[1]-a[1]).map(([r,n])=>`${r} ${n}`).join(' · ');
+    wrap.append(regionP);
+  }
+  const tableWrap=el('div','tablewrap');
+  const table=el('table','table');
+  const thead=el('thead');const trh=el('tr');
+  for(const h of ['판매처','이름','전화','주소','산 것','금액','재구매','메모'])trh.append(el('th','',h));
+  thead.append(trh);table.append(thead);
+  const tbody=el('tbody');
+  for(const r of rows.slice(0,200)){
+    const tr=el('tr');
+    tr.append(
+      el('td','',r.channel),
+      el('td','',r.name),
+      el('td','',r.phone||'—'),
+      el('td','',r.address||'—'),
+      el('td','',r.items||'—'),
+      el('td','',r.amount!=null?r.amount.toLocaleString('ko-KR')+'원':'—'),
+      el('td','',r.repeat?'예':'아니오'),
+      el('td','',r.memo||''),
+    );
+    tbody.append(tr);
+  }
+  table.append(tbody);tableWrap.append(table);wrap.append(tableWrap);
+  return wrap;
+}
+
 function commentStatusLabel(status){return status==='done'?'반영함':status==='read'?'읽음':'새 글';}
 
 function commentsBlock(seatId,allComments,byLabel,auth,date,reload){
@@ -296,7 +458,7 @@ function seatCard(id,label,model,rec,comments,byLabel,auth,date,reload){
   return card;
 }
 
-function renderBoard(host,auth,user,date,day,yesterday,comments,keywords,setDate,reload){
+function renderBoard(host,auth,user,date,day,yesterday,comments,keywords,products,customers,setDate,reload){
   host.replaceChildren();
   const isToday=date===kstToday();
   const byLabel=(user?.name||'').trim()||(user?.email||'').trim()||'로그인 계정';
@@ -328,6 +490,8 @@ function renderBoard(host,auth,user,date,day,yesterday,comments,keywords,setDate
   host.append(metrics);
 
   const nums=numsSection(day,yesterday);if(nums)host.append(nums);
+  const margin=marginSection(marginRows(products));if(margin)host.append(margin);
+  host.append(customersSection(customers));
   const kw=keywordSection(keywords);if(kw)host.append(kw);
 
   const cardsWrap=el('div','sx-sets');
@@ -420,21 +584,27 @@ export function mountAgentsDaily(host){
       const yesterday=validatedDay(window.__MMT_TEST_AGENTS_YESTERDAY__||null);
       const comments=validatedComments(window.__MMT_TEST_AGENTS_COMMENTS__||null);
       const keywords=validatedKeywords(window.__MMT_TEST_AGENTS_KEYWORDS__||null);
-      renderBoard(host,currentAuth,currentUser,date,validatedDay(test),yesterday,comments,keywords,setDate,load);
+      const products=window.__MMT_TEST_AGENTS_PRODUCTS__||null;
+      const customers=validatedCustomers(window.__MMT_TEST_AGENTS_CUSTOMERS__||null);
+      renderBoard(host,currentAuth,currentUser,date,validatedDay(test),yesterday,comments,keywords,products,customers,setDate,load);
       return;
     }
     message('불러오는 중이에요.');
     const controller=new AbortController();abort=controller;const timer=setTimeout(()=>controller.abort(),10000);
     try{
-      const [dayRaw,yRaw,cRaw,kRaw]=await Promise.all([
+      const [dayRaw,yRaw,cRaw,kRaw,pRaw,cuRaw]=await Promise.all([
         fetchJson(currentAuth,`hub/agentsDaily/${date}`,controller),
         fetchJson(currentAuth,`hub/agentsDaily/${addDays(date,-1)}`,controller).catch(()=>null),
         fetchJson(currentAuth,'hub/agentsComments',controller).catch(()=>null),
         fetchJson(currentAuth,'hub/adsKeywords/'+kstWeek(),controller).catch(()=>null),
+        fetchJson(currentAuth,'productCatalogPrivate/products_v5/products',controller).catch(()=>null),
+        fetchJson(currentAuth,'hub/customers',controller).catch(()=>null),
       ]);
       if(!active(version)||currentAuth.current()?.uid!==currentUser.uid)return;
       if(dayRaw==='unauthorized'){message('이 계정의 접근 권한을 확인해 주세요.');return;}
-      renderBoard(host,currentAuth,currentUser,date,validatedDay(dayRaw),validatedDay(yRaw),validatedComments(cRaw),validatedKeywords(kRaw),setDate,load);
+      const products=pRaw==='unauthorized'?null:pRaw;
+      const customers=cuRaw==='unauthorized'?{}:validatedCustomers(cuRaw);
+      renderBoard(host,currentAuth,currentUser,date,validatedDay(dayRaw),validatedDay(yRaw),validatedComments(cRaw),validatedKeywords(kRaw),products,customers,setDate,load);
     }catch(_){if(active(version))message('불러오지 못했어요. 연결을 확인해 주세요.',load);}
     finally{clearTimeout(timer);if(abort===controller)abort=null;}
   }
