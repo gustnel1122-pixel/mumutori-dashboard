@@ -65,7 +65,7 @@ const byId = id => products.find(p=>p.id===id);
 const groups = [
   {key:'batch',label:'입고',values:['1차','2차']},
   {key:'channel',label:'판매처',values:['자사몰','스마트스토어','쿠팡']},
-  {key:'kind',label:'종류',values:['인형','생활','소품','기타']},
+  {key:'kind',label:'종류',values:['인형','생활','소품','제작상품','기타']},
   {key:'status',label:'상태',values:['판매 중','판매 준비','배송 중','배대지 창고','구매취소','확인 필요']},
 ];
 const saleFilters = ['전체','미정','판매 확정 미등록','등록 완료','보류/안 팜'];
