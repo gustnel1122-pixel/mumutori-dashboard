@@ -575,8 +575,9 @@ function renderBoard(host,auth,user,date,day,yesterday,comments,keywords,product
   // ② 숫자 타일보다도 위 — 사장님 09:20(v3) "아침엔 늘 비어 있음" → 가장 최근 보고 날을 자동으로 보여준다고 바로 알려줌.
   if(fallbackActive)host.append(el('p','note amber','오늘 보고는 17:40에 와요 — 어제 보고를 보여드려요.'));
 
-  // ① 사장님이 정할 것 모음
-  const decisions=SEATS.map(([id,label])=>{const b=day[id]?.bossDecide?.trim();return b&&b!=='없음'?[label,b]:null;}).filter(Boolean);
+  // ① 사장님이 정할 것 모음 — 20261115_1822: "없음(…)"처럼 '없음'으로 시작하는 줄도
+  // 정할 게 없다는 뜻이라 똑같이 뺀다(정확히 '없음'만 거르면 뒤에 설명이 붙은 줄이 섞여 보임).
+  const decisions=SEATS.map(([id,label])=>{const b=day[id]?.bossDecide?.trim();return b&&!b.startsWith('없음')?[label,b]:null;}).filter(Boolean);
   if(decisions.length){
     const box=el('div','section-gap');
     box.append(el('h3','','사장님이 정할 것 모음'));
