@@ -42,6 +42,9 @@ const FIELDS=[['done','오늘 한 일'],['upgrade','업그레이드'],['blocked'
 const EASY_MAX=120;
 const EASY_FIELDS=[['did','오늘 한 일'],['found','알아낸 것'],['ask','사장님께']];
 const NUMS_MAX=8;
+// 20261116_0040: 방문자·유입 경로 — 사장님 "방문자, 어디서 유입된 건지가 중요". nums(label·value·unit 고정 모양)
+// 안에 억지로 넣으면 숫자 타일 코드가 전부 그 모양을 가정하고 있어 깨지므로, nums와 나란한 자리마다 선택 칸으로 둔다.
+const VISITORS_SOURCES_MAX=10,SOURCE_NAME_MAX=30;
 // 자리마다 날마다 같은 이름(키)으로 적어야 추이가 나온다 — 자유 입력칸이 아니라 고정 목록(사장님 1단계 목록 그대로, 있는 자리만).
 const NUMS_SCHEMA={
   // 20261115_1822_v2: coupang 자리가 쿠팡뿐 아니라 네이버 스마트스토어도 보게 넓어져서(11/14 13:25) 쿠팡 전용 두 칸만으론
@@ -89,6 +92,21 @@ export function validatedDay(x){
         nums[key]={label:n.label,value:n.value,unit};
       }
       rec.nums=nums;
+    }
+    if(v.visitors!=null){
+      if(typeof v.visitors!=='object'||Array.isArray(v.visitors))throw Error('format');
+      const vis={};
+      if(v.visitors.today!=null){if(typeof v.visitors.today!=='number'||!Number.isFinite(v.visitors.today))throw Error('format');vis.today=v.visitors.today;}
+      if(v.visitors.week!=null){if(typeof v.visitors.week!=='number'||!Number.isFinite(v.visitors.week))throw Error('format');vis.week=v.visitors.week;}
+      rec.visitors=vis;
+    }
+    if(v.sources!=null){
+      if(!Array.isArray(v.sources)||v.sources.length>VISITORS_SOURCES_MAX)throw Error('format');
+      rec.sources=v.sources.map(s=>{
+        if(!s||typeof s!=='object'||typeof s.name!=='string'||!s.name||s.name.length>SOURCE_NAME_MAX)throw Error('format');
+        if(typeof s.n!=='number'||!Number.isFinite(s.n))throw Error('format');
+        return {name:s.name,n:s.n};
+      });
     }
     out[id]=rec;
   }
@@ -476,6 +494,48 @@ function marginChart(rows){
   return wrap;
 }
 
+// 20261116_0040: 방문자·어디서 왔나 — 사장님 "중요한 건 방문자, 어디서 유입된 건지" + "카카오 안에서 고객을
+// 모으는 전략". 고객 목록(⑦) 바로 위에 자리별로 오늘/7일 방문자 + 유입 경로 막대. 자료 없는 자리는 안 보여줌(지어내지 않기).
+function visitorsSection(day){
+  const groups=[];
+  for(const [id,label] of SEATS){
+    const vis=day[id]?.visitors,src=day[id]?.sources;
+    const hasVis=vis&&(vis.today!=null||vis.week!=null);
+    const hasSrc=src&&src.length;
+    if(!hasVis&&!hasSrc)continue;
+    groups.push([label,hasVis?vis:null,hasSrc?src:null]);
+  }
+  if(!groups.length)return null;
+  const wrap=el('div','section-gap');
+  wrap.append(el('h3','','방문자 · 어디서 왔나'));
+  for(const [label,vis,src] of groups){
+    const box=el('div','visitors-seat-box');
+    box.append(el('h4','agent-nums-seat',label));
+    if(vis){
+      const tiles=el('div','metrics');
+      if(vis.today!=null)tiles.append((()=>{const d=el('div','metric');d.append(el('small','','오늘 방문'),el('strong','',cnt(vis.today)));return d;})());
+      if(vis.week!=null)tiles.append((()=>{const d=el('div','metric');d.append(el('small','','7일 방문'),el('strong','',cnt(vis.week)));return d;})());
+      box.append(tiles);
+    }
+    if(src){
+      const chart=el('div','source-chart');
+      const max=Math.max(1,...src.map(s=>s.n));
+      for(const s of src){
+        const row=el('div','source-chart-row');
+        row.append(el('span','source-chart-name',s.name));
+        const barWrap=el('span','source-chart-barwrap');
+        const bar=el('span','source-chart-bar');bar.style.width=Math.max(4,s.n/max*100)+'%';
+        barWrap.append(bar);
+        row.append(barWrap,el('span','source-chart-val',s.n.toLocaleString('ko-KR')));
+        chart.append(row);
+      }
+      box.append(chart);
+    }
+    wrap.append(box);
+  }
+  return wrap;
+}
+
 const CUSTOMER_CHANNELS=[['own','자사몰'],['smartstore','스마트스토어'],['coupang','쿠팡'],['kakao','카카오']];
 const CUSTOMER_CHANNEL_COLOR={own:'#174d3c',smartstore:'#c9a227',coupang:'#b23b3b',kakao:'#fee500'};
 // 20261115_2045: 판매처별 도넛(CSS conic-gradient — 새 그리기 라이브러리 없이) + 지역 막대 + 최근 주문 카드.
@@ -718,6 +778,8 @@ function renderBoard(host,auth,user,date,day,yesterday,comments,keywords,product
   const kw=keywordSection(keywords);if(kw)host.append(kw);
   // ⑥ 마진율 낮은 상품 그림
   const marginCh=marginChart(marginData);if(marginCh)host.append(marginCh);
+  // ⑥-2 방문자·어디서 왔나(20261116_0040) — 고객 칸 바로 위
+  const visitorsEl=visitorsSection(day);if(visitorsEl)host.append(visitorsEl);
   // ⑦ 고객
   host.append(customersSection(customers));
 

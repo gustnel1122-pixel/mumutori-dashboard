@@ -44,6 +44,20 @@ test('20261115_0801: validatedDay drops unknown seats and fields without throwin
   assert.equal(out.coupang.unknownField,undefined);
 });
 
+test('20261116_0040: validatedDay accepts visitors(today·week) and sources([{name,n}]), rejects malformed ones', async () => {
+  const {validatedDay} = await mod;
+  const out = validatedDay({coupang:{done:'x',visitors:{today:59,week:120},sources:[{name:'네이버 검색',n:40},{name:'direct',n:19}]}});
+  assert.deepEqual(out.coupang.visitors,{today:59,week:120});
+  assert.deepEqual(out.coupang.sources,[{name:'네이버 검색',n:40},{name:'direct',n:19}]);
+  // 옛 보고(visitors·sources 자체가 없음)도 그대로 통과해야 한다.
+  assert.equal(validatedDay({coupang:{done:'x'}}).coupang.visitors,undefined);
+  assert.throws(() => validatedDay({coupang:{visitors:{today:'59'}}}),/format/);
+  const tooMany = Array.from({length:11},(_,i)=>({name:'s'+i,n:1}));
+  assert.throws(() => validatedDay({coupang:{sources:tooMany}}),/format/);
+  assert.throws(() => validatedDay({coupang:{sources:[{name:'',n:1}]}}),/format/);
+  assert.throws(() => validatedDay({coupang:{sources:[{name:'x',n:'1'}]}}),/format/);
+});
+
 test('20261115_0801: validatedComments normalizes status and carries a reply through (코멘트 상태 바뀜)', async () => {
   const {validatedComments} = await mod;
   const out = validatedComments({coupang:{

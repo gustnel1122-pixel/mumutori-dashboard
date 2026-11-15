@@ -232,15 +232,19 @@ a{color:inherit;text-decoration:none}button,a,input,select,textarea{-webkit-tap-
 .agent-status-dot.agent-status-gray{background:#b7bdae}
 .agent-status-dot.agent-status-red{background:#c24a3f}
 .sx-set.sx-status-red{border-color:#e3b3ab}
-.margin-chart,.keyword-chart{display:flex;flex-direction:column;gap:7px;margin-top:8px}
-.margin-chart-row,.keyword-chart-row{display:grid;grid-template-columns:minmax(80px,140px) 1fr 70px;align-items:center;gap:8px;font-size:12px}
-.margin-chart-name,.keyword-chart-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.margin-chart-barwrap,.keyword-chart-barwrap{background:#eef0e5;border-radius:5px;height:10px;overflow:hidden}
+.margin-chart,.keyword-chart,.source-chart{display:flex;flex-direction:column;gap:7px;margin-top:8px}
+.margin-chart-row,.keyword-chart-row,.source-chart-row{display:grid;grid-template-columns:minmax(80px,140px) 1fr 70px;align-items:center;gap:8px;font-size:12px}
+.margin-chart-name,.keyword-chart-name,.source-chart-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.margin-chart-barwrap,.keyword-chart-barwrap,.source-chart-barwrap{background:#eef0e5;border-radius:5px;height:10px;overflow:hidden}
 .margin-chart-bar{display:block;height:100%;background:#3f8c4a;border-radius:5px}
 .margin-chart-bar.warn{background:#c9a227}
 .margin-chart-bar.bad{background:#c24a3f}
 .keyword-chart-bar{display:block;height:100%;background:#4c6ef5;border-radius:5px}
-.margin-chart-pct,.keyword-chart-val{text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+.source-chart-bar{display:block;height:100%;background:#c9a227;border-radius:5px}
+.margin-chart-pct,.keyword-chart-val,.source-chart-val{text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+/* 20261116_0040: 방문자·유입 경로 — 자리별로 작게 묶어서 보여줌(판매처 섹션 바로 위) */
+.visitors-seat-box{margin-top:10px;padding-top:8px;border-top:1px dashed #e0e4d8}
+.visitors-seat-box:first-of-type{border-top:0;padding-top:0;margin-top:4px}
 .customer-overview{display:flex;flex-wrap:wrap;gap:20px;margin:10px 0}
 .customer-donut-box{display:flex;align-items:center;gap:14px}
 .customer-donut{position:relative;width:96px;height:96px;border-radius:50%;flex:none}
@@ -259,7 +263,7 @@ a{color:inherit;text-decoration:none}button,a,input,select,textarea{-webkit-tap-
 .customer-recent-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:10px}
 .customer-card{background:#fffefa;border:1px solid #e0e4d8;border-radius:10px;padding:10px 12px;font-size:12px;display:flex;flex-direction:column;gap:4px}
 .customer-card-head{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-@media(max-width:480px){.customer-overview{flex-direction:column}.margin-chart-row,.keyword-chart-row{grid-template-columns:90px 1fr 54px}}
+@media(max-width:480px){.customer-overview{flex-direction:column}.margin-chart-row,.keyword-chart-row,.source-chart-row{grid-template-columns:90px 1fr 54px}}
 @media(max-width:720px){.ops-shopping-card{grid-template-columns:minmax(0,1fr) 95px;gap:8px;padding:22px 20px;border-radius:14px;margin-bottom:28px}.ops-shopping-kicker{font-size:10px;gap:7px;line-height:1.5;margin-bottom:11px}.ops-date-badge{font-size:10px;min-height:23px}.ops-shopping-copy h2{font-size:24px;letter-spacing:-1px;gap:8px;line-height:1.35}.ops-shopping-copy h2 span{font-size:20px}.ops-shopping-copy p{font-size:12px;margin-bottom:15px;line-height:1.8}.ops-shopping-copy p br{display:none}.ops-shopping-action{font-size:12px;padding:11px 12px;gap:14px}.ops-shopping-art{min-height:145px;align-self:center;transform:rotate(7deg) scale(.82);transform-origin:center right}.ops-note-sheet{width:95px;height:126px;padding:20px 12px}.ops-art-label{width:59px;height:59px;font-size:7px;right:-6px;bottom:-3px}.ops-shopping-progress{font-size:10px;margin-top:11px}.ops-section-head{align-items:flex-start;flex-direction:column;gap:9px;margin-bottom:15px}.ops-section-head h2{font-size:20px}.ops-section-head>p{text-align:left;display:flex;gap:7px;flex-wrap:wrap;font-size:10px}.ops-section-head>p>span{font-size:10px}.ops-eyebrow{font-size:9px;margin-bottom:7px}.ops-project-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.ops-project-card{padding:16px 14px 12px;border-radius:11px}.ops-project-meta{font-size:9px;margin-bottom:12px;gap:5px}.ops-project-number{font-size:10px}.ops-project-card h3{font-size:15px;margin-bottom:13px;letter-spacing:-.55px;min-height:40px}.ops-project-card h3 a{gap:4px}.ops-status-list{font-size:11px;gap:8px;line-height:1.65;margin-bottom:13px}.ops-status-list li{padding-left:9px;word-break:normal}.ops-status-list li:before{width:3px;height:3px}.ops-next{padding-top:11px}.ops-next>p{font-size:11px;word-break:normal;line-height:1.65}.ops-next>span{font-size:9px}.ops-project-link{font-size:10px;margin-top:11px;gap:9px;min-height:36px}.ops-page-header{padding:18px 18px;gap:12px}.ops-wordmark{font-size:20px}.ops-wordmark span{font-size:9px;display:block;margin:4px 0 0;letter-spacing:1px}.ops-home-button{font-size:11px;padding:10px 12px}.ops-page-main{padding:29px 18px 25px}.ops-detail-heading{margin-bottom:22px}.ops-detail-heading h1{font-size:29px}.ops-detail-heading>p{font-size:11px}.ops-detail-grid{grid-template-columns:1fr;gap:14px}.ops-detail-panel{padding:22px 20px;border-radius:12px}.ops-detail-panel h2{font-size:16px}.ops-detail-status{margin:20px 0;gap:16px}.ops-detail-status li>p{font-size:14px}.ops-detail-next{padding:14px 15px}.ops-detail-next>p{font-size:13px}.ops-destination-list>a{font-size:13px}.ops-other-projects{margin-top:28px}.ops-page-footer{padding:0 18px 30px;font-size:10px}}
 @media(max-width:390px){.ops-shopping-card{grid-template-columns:minmax(0,1fr) 65px;padding:19px 16px}.ops-shopping-art{transform:rotate(7deg) scale(.65)}.ops-shopping-copy h2{font-size:23px}.ops-shopping-copy p{font-size:11px}.ops-project-grid{grid-template-columns:1fr}.ops-project-card{padding:18px}.ops-project-card h3{min-height:0;font-size:17px}.ops-status-list{font-size:12px}.ops-next>p{font-size:12px}.ops-project-link{font-size:11px}.ops-shopping-kicker>span:last-child{font-size:9px}}
 @media(prefers-reduced-motion:reduce){.ops-shopping-card{transition:none}.ops-shopping-card:hover{transform:none}}
