@@ -339,7 +339,7 @@ function marginSection(rows){
   return wrap;
 }
 
-const CUSTOMER_CHANNELS=[['own','자사몰'],['coupang','쿠팡'],['kakao','카카오']];
+const CUSTOMER_CHANNELS=[['own','자사몰'],['smartstore','스마트스토어'],['coupang','쿠팡'],['kakao','카카오']];
 function customersSection(customers){
   const wrap=el('div','section-gap');
   wrap.append(el('h3','','고객 목록(최근 주문 순)'));
