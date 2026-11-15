@@ -186,10 +186,14 @@ export function adsDailyTotals(adsDaily){
   return any?{spend,revenue,roas:spend>0?Math.round(revenue/spend*1000)/10:null}:null;
 }
 
+// 20261115_2045: 사장님 본인 번호로 들어온 시험 주문 3건(2026-11-15 확인)은 손님 숫자·목록에서 뺀다(사장님 지시
+// "4번 빼"). 원본은 지우지 않고 test:true만 붙임 — 이 번호로 또 들어와도 자동으로 계속 빠진다.
+const OWNER_PHONE='010-5738-9051';
+const isTestCustomer=c=>c.test===true||c.phone===OWNER_PHONE;
 export function customerStats(customers){
   let total=0,repeat=0,any=false;
   for(const entries of Object.values(customers||{})){
-    for(const c of Object.values(entries||{})){any=true;total++;if(c.repeat)repeat++;}
+    for(const c of Object.values(entries||{})){if(isTestCustomer(c))continue;any=true;total++;if(c.repeat)repeat++;}
   }
   return any?{total,repeat}:null;
 }
@@ -209,6 +213,7 @@ export function validatedCustomers(x){
       for(const [k,max] of Object.entries(CUSTOMER_FIELD_MAX))rec[k]=typeof v[k]==='string'?v[k].slice(0,max):'';
       rec.amount=typeof v.amount==='number'&&Number.isFinite(v.amount)?v.amount:null;
       rec.repeat=!!v.repeat;
+      rec.test=v.test===true;
       list[cid]=rec;
     }
     out[channel]=list;
@@ -264,22 +269,52 @@ function numsSection(day,yesterday){
 function won(v){return v==null?'아직 없음':Number(v).toLocaleString('ko-KR')+'원';}
 function pct(v){return v==null?'아직 없음':Number(v).toLocaleString('ko-KR')+'%';}
 function cnt(v){return v==null?'아직 없음':String(v);}
-function statsSection(reported,blocked,pendingComments,adsStats,prodStats,custStats){
+// 20261115_2045: 꺾은선 하나 그릴 7개 값(없는 날은 null) -> 작은 SVG. 2점 미만이면 안 그림(지어내지 않기).
+function sparkline(values){
+  if(!Array.isArray(values))return null;
+  const known=values.filter(v=>typeof v==='number'&&Number.isFinite(v));
+  if(known.length<2)return null;
+  const w=64,h=20,pad=2;
+  const min=Math.min(...known),max=Math.max(...known),range=max-min||1;
+  const step=(w-pad*2)/(values.length-1);
+  let d='',started=false;
+  values.forEach((v,i)=>{
+    if(typeof v!=='number'||!Number.isFinite(v))return;
+    const x=pad+i*step,y=h-pad-((v-min)/range)*(h-pad*2);
+    d+=(started?'L':'M')+x.toFixed(1)+','+y.toFixed(1)+' ';
+    started=true;
+  });
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.setAttribute('viewBox',`0 0 ${w} ${h}`);svg.setAttribute('class','agent-spark');svg.setAttribute('aria-hidden','true');
+  const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+  path.setAttribute('d',d.trim());path.setAttribute('fill','none');path.setAttribute('stroke','currentColor');path.setAttribute('stroke-width','1.5');
+  svg.append(path);
+  return svg;
+}
+function iconTile(icon,label,text,spark,amber){
+  const d=el('div','metric metric-icon'+(amber?' amber':''));
+  const head=el('div','metric-icon-head');head.append(el('span','metric-icon-emoji',icon),el('small','',label));
+  d.append(head,el('strong','',text));
+  const sp=sparkline(spark);if(sp)d.append(sp);
+  return d;
+}
+// ② 숫자 타일 — 20261115_2045 사장님 "이미지식으로, 재고·판매가는 안 다뤄도 돼": 큰 아이콘 + (있으면) 7일 추이.
+// 재고·판매가는 이 화면에서 뺌(상품 탭에 있음). 고객 수는 날짜별 기록이 아직 없어 추이선 없이 지금 값만.
+function statsSection(reported,blocked,pendingComments,adsStats,prodStats,custStats,spark){
   const wrap=el('div','section-gap');
   wrap.append(el('h3','','숫자 타일'));
   const tiles=el('div','metrics');
   tiles.append(
     (()=>{const d=el('div','metric');d.append(el('small','','보고 온 자리'),el('strong','',`${reported}/9`));return d;})(),
-    (()=>{const d=el('div','metric');d.append(el('small','','막힘'),el('strong','',String(blocked)));return d;})(),
+    (()=>{const d=el('div','metric'+(blocked?' amber':''));d.append(el('small','','막힘'),el('strong','',String(blocked)));return d;})(),
     (()=>{const d=el('div','metric'+(pendingComments?' amber':''));d.append(el('small','','답 기다리는 코멘트'),el('strong','',String(pendingComments)));return d;})(),
-    (()=>{const d=el('div','metric');d.append(el('small','','광고비(어제)'),el('strong','',won(adsStats?.spend)));return d;})(),
-    (()=>{const d=el('div','metric');d.append(el('small','','광고 매출(어제)'),el('strong','',won(adsStats?.revenue)));return d;})(),
-    (()=>{const d=el('div','metric');d.append(el('small','','수익률(어제)'),el('strong','',pct(adsStats?.roas)));return d;})(),
-    (()=>{const d=el('div','metric');d.append(el('small','','상품 수'),el('strong','',cnt(prodStats?.total)));return d;})(),
-    (()=>{const d=el('div','metric');d.append(el('small','','판매 확정 수'),el('strong','',cnt(prodStats?.confirmed)));return d;})(),
-    (()=>{const d=el('div','metric');d.append(el('small','','재고 합'),el('strong','',cnt(prodStats?.stockSum)));return d;})(),
-    (()=>{const d=el('div','metric'+(prodStats?.zeroStock?' amber':''));d.append(el('small','','재고 0 상품 수'),el('strong','',cnt(prodStats?.zeroStock)));return d;})(),
-    (()=>{const d=el('div','metric');d.append(el('small','','고객 수'),el('strong','',cnt(custStats?.total)));return d;})(),
+    iconTile('📢','광고비(어제)',won(adsStats?.spend),spark?.adsSpend),
+    iconTile('💰','광고 매출(어제)',won(adsStats?.revenue),spark?.adsRevenue),
+    iconTile('👁️','스마트스토어 방문',cnt(spark?.ssVisitors?.at(-1)),spark?.ssVisitors),
+    iconTile('🛒','스마트스토어 주문',cnt(spark?.ssOrders?.at(-1)),spark?.ssOrders),
+    iconTile('💬','카카오 친구',cnt(spark?.kakaoFriends?.at(-1)),spark?.kakaoFriends),
+    iconTile('👤','고객 수',cnt(custStats?.total),null),
+    (()=>{const d=el('div','metric');d.append(el('small','','판매 확정 수'),el('strong','',cnt(prodStats?.confirmed)+' / '+cnt(prodStats?.total)));return d;})(),
     (()=>{const d=el('div','metric');d.append(el('small','','재구매 고객'),el('strong','',cnt(custStats?.repeat)));return d;})(),
   );
   wrap.append(tiles);
@@ -302,9 +337,30 @@ function keywordSection(keywords){
   const other=tagged.filter(r=>!r.relevant);
 
   const wrap=el('div','section-gap');
-  wrap.append(el('h3','','키워드 표'));
-  const top3=relevant.slice().sort((a,b)=>b.opportunity-a.opportunity).slice(0,3).map(r=>r.kw);
+  wrap.append(el('h3','','키워드'));
+  const sortedRelevant=relevant.slice().sort((a,b)=>b.opportunity-a.opportunity);
+  const top3=sortedRelevant.slice(0,3).map(r=>r.kw);
   wrap.append(el('p','note',top3.length?('우리 상품과 맞는 검색어 중 많이 찾고 경쟁 낮은 말: '+top3.join(' · ')+'.'):'우리 상품과 맞는 검색어를 아직 못 찾았어요.'));
+
+  // 20261115_2045: 위 10개는 막대로 바로 보이게, 전체 표는 눌러야 보이게(더 보기).
+  const top10=sortedRelevant.slice(0,10);
+  if(top10.length){
+    const chart=el('div','keyword-chart');
+    const maxOpp=Math.max(1,...top10.map(r=>r.opportunity));
+    for(const r of top10){
+      const row=el('div','keyword-chart-row');
+      row.append(el('span','keyword-chart-name',r.kw));
+      const barWrap=el('span','keyword-chart-barwrap');
+      const bar=el('span','keyword-chart-bar');bar.style.width=Math.max(4,r.opportunity/maxOpp*100)+'%';
+      barWrap.append(bar);
+      row.append(barWrap,el('span','keyword-chart-val',r.monthly!=null?r.monthly.toLocaleString('ko-KR'):'—'));
+      chart.append(row);
+    }
+    wrap.append(chart);
+  }
+  const tableDetails=el('details','section-gap');
+  tableDetails.append(el('summary','',`표로 더 보기(검색·걸러보기)`));
+  const tablePanel=el('div','');tableDetails.append(tablePanel);
 
   const controls=el('div','toolbar');
   const search=el('input');search.type='search';search.placeholder='키워드 찾기';search.setAttribute('aria-label','키워드 찾기');
@@ -313,7 +369,7 @@ function keywordSection(keywords){
   const allOpt=el('option','','전체(우리 상품과 맞는 말)');allOpt.value='';groupSel.append(allOpt);
   for(const g of groups){const o=el('option','',g);o.value=g;groupSel.append(o);}
   const otherOpt=el('option','',`기타(상품과 상관없는 말, ${other.length}개)`);otherOpt.value='__other__';groupSel.append(otherOpt);
-  controls.append(search,groupSel);wrap.append(controls);
+  controls.append(search,groupSel);tablePanel.append(controls);
 
   const tableWrap=el('div','tablewrap');
   const table=el('table','table');
@@ -331,9 +387,9 @@ function keywordSection(keywords){
   }
   thead.append(trh);table.append(thead);
   const tbody=el('tbody');table.append(tbody);
-  tableWrap.append(table);wrap.append(tableWrap);
+  tableWrap.append(table);tablePanel.append(tableWrap);
   const more=el('button','','더 보기(20줄만 먼저 보여요)');more.type='button';more.onclick=()=>{showAll=true;draw();};
-  wrap.append(more);
+  tablePanel.append(more);
   const COMPETE_ORDER={'낮음':0,'보통':1,'높음':2,'확인 필요':3};
   function draw(){
     const q=search.value.trim();
@@ -365,6 +421,7 @@ function keywordSection(keywords){
   }
   search.oninput=()=>{showAll=false;draw();};groupSel.onchange=()=>{showAll=false;draw();};
   draw();
+  wrap.append(tableDetails);
   return wrap;
 }
 
@@ -392,69 +449,65 @@ function marginSummary(rows){
   wrap.append(tiles);
   return wrap;
 }
-// ⑥ 원가·마진 상품별 표(검색·정렬 가능한 전체 표) — summary 타일은 위(③)에 이미 보여 줬으니 여기선 표만.
-function marginTable(rows){
-  if(!rows.length)return null;
+// ⑥ 원가·마진 — 20261115_2045 사장님 "판매가·원가 숫자 대신 막대와 % 하나": 마진율 낮은 순 10개만 막대그래프로.
+// 판매가·원가·재고 숫자는 안 보여줌(상품 탭에 있음) — 막대 길이와 마진율 %만.
+export function lowestMarginRows(rows,n=10){
+  return rows.filter(r=>r.marginRate!=null).slice().sort((a,b)=>a.marginRate-b.marginRate).slice(0,n);
+}
+function marginChart(rows){
+  const low=lowestMarginRows(rows);
+  if(!low.length)return null;
   const wrap=el('div','section-gap');
-  wrap.append(el('h3','','원가·마진 표(상품별)'));
-  const search=el('input');search.type='search';search.placeholder='상품 이름 찾기';search.setAttribute('aria-label','상품 이름 찾기');
-  const controls=el('div','toolbar');controls.append(search);wrap.append(controls);
-  const tableWrap=el('div','tablewrap');
-  const table=el('table','table');
-  const thead=el('thead');const trh=el('tr');
-  const cols=[['name','상품명'],['price','판매가'],['cost','개당 원가'],['margin','마진(원)'],['marginRate','마진율'],['stock','재고']];
-  let sortKey='marginRate',sortDir=1;
-  for(const [key,label] of cols){
-    const th=el('th','',label);
-    if(key!=='name'){
-      th.classList.add('sortable');th.setAttribute('role','button');th.tabIndex=0;
-      const activate=()=>{sortDir=sortKey===key?-sortDir:1;sortKey=key;draw();};
-      th.onclick=activate;th.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();activate();}};
-    }
-    trh.append(th);
+  wrap.append(el('h3','','마진율 낮은 상품 10개'));
+  wrap.append(el('p','note','판매가·원가 숫자 대신 막대와 마진율만 보여요(원가·판매가는 상품 탭에서).'));
+  const chart=el('div','margin-chart');
+  const maxAbs=Math.max(10,...low.map(r=>Math.abs(r.marginRate)));
+  for(const r of low){
+    const row=el('div','margin-chart-row');
+    row.append(el('span','margin-chart-name',r.name));
+    const barWrap=el('span','margin-chart-barwrap');
+    const bar=el('span','margin-chart-bar'+(r.marginRate<0?' bad':r.marginRate<LOW_MARGIN_RATE?' warn':''));
+    bar.style.width=Math.max(2,Math.abs(r.marginRate)/maxAbs*100)+'%';
+    barWrap.append(bar);
+    row.append(barWrap,el('span','margin-chart-pct',r.marginRate+'%'));
+    chart.append(row);
   }
-  thead.append(trh);table.append(thead);
-  const tbody=el('tbody');table.append(tbody);
-  tableWrap.append(table);wrap.append(tableWrap);
-  function draw(){
-    const q=search.value.trim();
-    let list=rows.filter(r=>!q||r.name.includes(q));
-    list=list.slice().sort((a,b)=>{
-      let av=a[sortKey],bv=b[sortKey];
-      if(av==null&&bv==null)return 0;if(av==null)return 1;if(bv==null)return -1;
-      if(av<bv)return -1*sortDir;if(av>bv)return 1*sortDir;return 0;
-    });
-    tbody.replaceChildren();
-    for(const r of list){
-      const tr=el('tr');
-      tr.append(
-        el('td','',r.name),
-        el('td','',r.price!=null?r.price.toLocaleString('ko-KR')+'원':'판매가 없음'),
-        el('td','',r.cost!=null?r.cost.toLocaleString('ko-KR')+'원':'원가 없음'),
-        el('td','',r.margin!=null?r.margin.toLocaleString('ko-KR')+'원':'—'),
-        el('td','',r.marginRate!=null?r.marginRate+'%':'—'),
-        el('td','',r.stock!=null?String(r.stock):'—'),
-      );
-      tbody.append(tr);
-    }
-    if(!list.length){const tr=el('tr');const td=el('td','note','조건에 맞는 상품이 없어요.');td.colSpan=cols.length;tr.append(td);tbody.append(tr);}
-  }
-  search.oninput=draw;
-  draw();
+  wrap.append(chart);
   return wrap;
 }
 
 const CUSTOMER_CHANNELS=[['own','자사몰'],['smartstore','스마트스토어'],['coupang','쿠팡'],['kakao','카카오']];
+const CUSTOMER_CHANNEL_COLOR={own:'#174d3c',smartstore:'#c9a227',coupang:'#b23b3b',kakao:'#fee500'};
+// 20261115_2045: 판매처별 도넛(CSS conic-gradient — 새 그리기 라이브러리 없이) + 지역 막대 + 최근 주문 카드.
+// 전체 표는 눌러야 보이게(더 보기) 접어 둠.
+function donut(counts){
+  const total=counts.reduce((s,[,n])=>s+n,0);
+  if(!total)return null;
+  let acc=0;
+  const stops=counts.map(([ch,n])=>{
+    const from=acc/total*100;acc+=n;const to=acc/total*100;
+    return `${CUSTOMER_CHANNEL_COLOR[ch]||'#999'} ${from}% ${to}%`;
+  });
+  const ring=el('div','customer-donut');
+  ring.style.background=`conic-gradient(${stops.join(',')})`;
+  ring.setAttribute('role','img');
+  ring.setAttribute('aria-label','판매처별 고객 비율: '+counts.map(([ch,n])=>`${CUSTOMER_CHANNELS.find(([c])=>c===ch)?.[1]||ch} ${n}명`).join(', '));
+  const hole=el('div','customer-donut-hole');hole.append(el('strong','',String(total)),el('small','','고객'));
+  ring.append(hole);
+  return ring;
+}
 function customersSection(customers){
   const wrap=el('div','section-gap');
-  wrap.append(el('h3','','고객 목록(최근 주문 순)'));
+  wrap.append(el('h3','','고객'));
   const rows=[];
+  const counts=[];
   for(const [ch,label] of CUSTOMER_CHANNELS){
     const entries=customers?.[ch];
     if(!entries||!Object.keys(entries).length)continue;
-    for(const c of Object.values(entries))rows.push({...c,channel:label});
+    let n=0;
+    for(const c of Object.values(entries)){if(isTestCustomer(c))continue;rows.push({...c,channel:label,channelKey:ch});n++;}
+    if(n)counts.push([ch,n]);
   }
-  const connected=CUSTOMER_CHANNELS.filter(([ch])=>customers?.[ch]&&Object.keys(customers[ch]).length).map(([,l])=>l);
   const notConnected=CUSTOMER_CHANNELS.filter(([ch])=>!customers?.[ch]||!Object.keys(customers[ch]).length).map(([,l])=>l);
   if(notConnected.length)wrap.append(el('p','note',notConnected.join('·')+' — 아직 연결 전.'));
   if(!rows.length){
@@ -462,20 +515,56 @@ function customersSection(customers){
     return wrap;
   }
   rows.sort((a,b)=>(b.at||'').localeCompare(a.at||''));
-  const repeatCount=rows.filter(r=>r.repeat).length;
   const regions=new Map();
   for(const r of rows){const region=(r.address||'').trim().split(/\s+/)[0]||'확인 필요';regions.set(region,(regions.get(region)||0)+1);}
-  const tiles=el('div','metrics');
-  tiles.append(
-    (()=>{const d=el('div','metric');d.append(el('small','','연결된 판매처'),el('strong','',connected.length?connected.join('·'):'없음'));return d;})(),
-    (()=>{const d=el('div','metric');d.append(el('small','','재구매 고객'),el('strong','',String(repeatCount)));return d;})(),
-  );
-  wrap.append(tiles);
-  if(regions.size){
-    const regionP=el('p','note');
-    regionP.textContent='지역별: '+[...regions.entries()].sort((a,b)=>b[1]-a[1]).map(([r,n])=>`${r} ${n}`).join(' · ');
-    wrap.append(regionP);
+  const regionList=[...regions.entries()].sort((a,b)=>b[1]-a[1]);
+  const maxRegion=regionList.length?regionList[0][1]:1;
+
+  const grid=el('div','customer-overview');
+  const ring=donut(counts);
+  if(ring){
+    const legend=el('div','customer-donut-legend');
+    for(const [ch,n] of counts){
+      const item=el('span','customer-legend-item');
+      const dot=el('span','customer-legend-dot');dot.style.background=CUSTOMER_CHANNEL_COLOR[ch]||'#999';
+      item.append(dot,document.createTextNode(`${CUSTOMER_CHANNELS.find(([c])=>c===ch)?.[1]||ch} ${n}`));
+      legend.append(item);
+    }
+    const donutBox=el('div','customer-donut-box');donutBox.append(ring,legend);
+    grid.append(donutBox);
   }
+  if(regionList.length){
+    const regionBox=el('div','customer-region-bars');
+    regionBox.append(el('h4','','지역별'));
+    for(const [region,n] of regionList.slice(0,8)){
+      const row=el('div','region-bar-row');
+      row.append(el('span','region-bar-name',region));
+      const barWrap=el('span','region-bar-wrap');
+      const bar=el('span','region-bar');bar.style.width=Math.max(4,n/maxRegion*100)+'%';
+      barWrap.append(bar);
+      row.append(barWrap,el('span','region-bar-count',String(n)));
+      regionBox.append(row);
+    }
+    grid.append(regionBox);
+  }
+  wrap.append(grid);
+
+  const recentHead=el('h4','','최근 주문');wrap.append(recentHead);
+  const cards=el('div','customer-recent-cards');
+  for(const r of rows.slice(0,5)){
+    const card=el('div','customer-card');
+    const head=el('div','customer-card-head');
+    head.append(el('strong','',r.name),el('span','pill',r.channel));
+    if(r.repeat)head.append(el('span','pill st-on','재구매'));
+    card.append(head);
+    if(r.items)card.append(el('p','note',r.items));
+    if(r.phone)card.append(el('small','sub',r.phone));
+    cards.append(card);
+  }
+  wrap.append(cards);
+
+  const details=el('details','section-gap');
+  details.append(el('summary','',`전체 표로 더 보기(${rows.length}명)`));
   const tableWrap=el('div','tablewrap');
   const table=el('table','table');
   const thead=el('thead');const trh=el('tr');
@@ -496,7 +585,8 @@ function customersSection(customers){
     );
     tbody.append(tr);
   }
-  table.append(tbody);tableWrap.append(table);wrap.append(tableWrap);
+  table.append(tbody);tableWrap.append(table);details.append(tableWrap);
+  wrap.append(details);
   return wrap;
 }
 
@@ -539,10 +629,23 @@ function commentsBlock(seatId,allComments,byLabel,auth,date,reload){
   return wrap;
 }
 
+// 20261115_2045: 자리마다 캐릭터 그림을 쓰자고 하셨는데 조직도에는 실제 캐릭터 그림이 없어(글·선으로만 된
+// 도표) 이모지로 대신함 — 결과 파일에 그대로 적어 둠. 상태 색: 초록(막힘 없이 보고 옴)·회색(오늘 보고 전)·빨강(막힘).
+const SEAT_ICON={coupang:'📢','detail-mall':'🛍️',kakao:'💬',purchase:'📦',sourcing:'🔍',design3d:'🎨',video:'🎬','video-analysis':'📊',hamili:'🐹'};
+function seatStatus(rec){
+  if(!rec)return ['gray','오늘 보고 전'];
+  const blocked=(rec.blocked||'').trim();
+  if(blocked&&!blocked.startsWith('없음'))return ['red','막힘'];
+  return ['green','일함'];
+}
 function seatCard(id,label,model,rec,comments,byLabel,auth,date,reload){
   const card=el('div','sx-set');
+  const [statusColor,statusLabel]=seatStatus(rec);
+  card.classList.add('sx-status-'+statusColor);
   const head=el('div','dept-top');
-  head.append(el('strong','',label),el('span','badge'+(model==='페이블'?' badge':''),model));
+  const icon=el('span','agent-seat-icon',SEAT_ICON[id]||'🧑‍💻');icon.setAttribute('aria-hidden','true');
+  const dot=el('span','agent-status-dot agent-status-'+statusColor,'');dot.setAttribute('role','img');dot.setAttribute('aria-label',statusLabel);
+  head.append(icon,dot,el('strong','',label),el('span','badge'+(model==='페이블'?' badge':''),model));
   card.append(head);
   if(!rec){
     card.append(el('p','note','아직 오늘 보고 안 옴.'));
@@ -563,7 +666,7 @@ function seatCard(id,label,model,rec,comments,byLabel,auth,date,reload){
   return card;
 }
 
-function renderBoard(host,auth,user,date,day,yesterday,comments,keywords,products,customers,adsDaily,fallbackActive,setDate,reload){
+function renderBoard(host,auth,user,date,day,yesterday,comments,keywords,products,customers,adsDaily,fallbackActive,setDate,reload,spark){
   host.replaceChildren();
   const isToday=date===kstToday();
   const byLabel=(user?.name||'').trim()||(user?.email||'').trim()||'로그인 계정';
@@ -588,22 +691,22 @@ function renderBoard(host,auth,user,date,day,yesterday,comments,keywords,product
     host.append(box);
   }
 
-  // ② 숫자 타일
+  // ② 숫자 타일 — 20261115_2045 사장님 "정할 것 → 숫자 → 자리 카드가 먼저 보이게": 숫자 타일 바로 다음에 자리 카드.
   const pendingComments=SEATS.reduce((n,[id])=>n+Object.values(comments?.[id]||{}).filter(c=>c.status==='new').length,0);
   const reported=SEATS.filter(([id])=>day[id]&&Object.keys(day[id]).length).length;
   const blocked=SEATS.filter(([id])=>{const b=day[id]?.blocked?.trim();return b&&b!=='없음';}).length;
   const marginData=marginRows(products);
-  host.append(statsSection(reported,blocked,pendingComments,adsDailyTotals(adsDaily),productStats(marginData),customerStats(customers)));
+  host.append(statsSection(reported,blocked,pendingComments,adsDailyTotals(adsDaily),productStats(marginData),customerStats(customers),spark));
 
-  const nums=numsSection(day,yesterday);if(nums)host.append(nums);
-
-  // ③ 원가·마진 요약
-  const marginSum=marginSummary(marginData);if(marginSum)host.append(marginSum);
-
-  // ④ 자리 카드 9개
+  // ③ 자리 카드 9개
   const cardsWrap=el('div','sx-sets');
   for(const [id,label,model] of SEATS)cardsWrap.append(seatCard(id,label,model,day[id],comments,byLabel,auth,date,reload));
   host.append(cardsWrap);
+
+  const nums=numsSection(day,yesterday);if(nums)host.append(nums);
+
+  // ④ 원가·마진 요약
+  const marginSum=marginSummary(marginData);if(marginSum)host.append(marginSum);
 
   const upgrades=SEATS.map(([id,label])=>{const u=day[id]?.upgrade?.trim();return u&&u!=='없음'?[label,u]:null;}).filter(Boolean);
   if(upgrades.length){
@@ -611,11 +714,11 @@ function renderBoard(host,auth,user,date,day,yesterday,comments,keywords,product
     for(const [label,text] of upgrades){const p=el('p','note');p.textContent=label+' — '+text;host.append(p);}
   }
 
-  // ⑤ 키워드 표
+  // ⑤ 키워드
   const kw=keywordSection(keywords);if(kw)host.append(kw);
-  // ⑥ 원가·마진 상품별 표
-  const marginTbl=marginTable(marginData);if(marginTbl)host.append(marginTbl);
-  // ⑦ 고객 목록
+  // ⑥ 마진율 낮은 상품 그림
+  const marginCh=marginChart(marginData);if(marginCh)host.append(marginCh);
+  // ⑦ 고객
   host.append(customersSection(customers));
 
   if(isToday||fallbackActive){
@@ -702,13 +805,16 @@ export function mountAgentsDaily(host){
       const products=window.__MMT_TEST_AGENTS_PRODUCTS__||null;
       const customers=validatedCustomers(window.__MMT_TEST_AGENTS_CUSTOMERS__||null);
       const adsDaily=window.__MMT_TEST_AGENTS_ADSDAILY__||null;
-      renderBoard(host,currentAuth,currentUser,date,validatedDay(test),yesterday,comments,keywords,products,customers,adsDaily,!!window.__MMT_TEST_AGENTS_FALLBACK__,setDate,load);
+      renderBoard(host,currentAuth,currentUser,date,validatedDay(test),yesterday,comments,keywords,products,customers,adsDaily,!!window.__MMT_TEST_AGENTS_FALLBACK__,setDate,load,window.__MMT_TEST_AGENTS_SPARK__||null);
       return;
     }
     message('불러오는 중이에요.');
     const controller=new AbortController();abort=controller;const timer=setTimeout(()=>controller.abort(),10000);
     try{
-      const [dayRaw,yRaw,cRaw,kRaw,pRaw,cuRaw,adRaw]=await Promise.all([
+      // 20261115_2045: 숫자 타일 아래 7일 꺾은선용 — 실제로 날마다 쌓이는 자료만(hub/agentsDaily의 coupang·kakao
+      // nums, hub/adsDaily). 고객 수처럼 날짜별 기록이 없는 숫자는 추이를 지어내지 않고 선을 안 그린다.
+      const historyDates=Array.from({length:7},(_,i)=>addDays(kstToday(),-6+i));
+      const [dayRaw,yRaw,cRaw,kRaw,pRaw,cuRaw,adRaw,dayHistRaw,adHistRaw]=await Promise.all([
         fetchJson(currentAuth,`hub/agentsDaily/${date}`,controller),
         fetchJson(currentAuth,`hub/agentsDaily/${addDays(date,-1)}`,controller).catch(()=>null),
         fetchJson(currentAuth,'hub/agentsComments',controller).catch(()=>null),
@@ -716,6 +822,8 @@ export function mountAgentsDaily(host){
         fetchJson(currentAuth,'productCatalogPrivate/products_v5/products',controller).catch(()=>null),
         fetchJson(currentAuth,'hub/customers',controller).catch(()=>null),
         fetchJson(currentAuth,'hub/adsDaily/'+kstToday(),controller).catch(()=>null),
+        Promise.all(historyDates.map(d=>fetchJson(currentAuth,`hub/agentsDaily/${d}`,controller).catch(()=>null))),
+        Promise.all(historyDates.map(d=>fetchJson(currentAuth,`hub/adsDaily/${d}`,controller).catch(()=>null))),
       ]);
       if(!active(version)||currentAuth.current()?.uid!==currentUser.uid)return;
       if(dayRaw==='unauthorized'){message('이 계정의 접근 권한을 확인해 주세요.');return;}
@@ -728,7 +836,15 @@ export function mountAgentsDaily(host){
       const products=pRaw==='unauthorized'?null:pRaw;
       const customers=cuRaw==='unauthorized'?{}:validatedCustomers(cuRaw);
       const adsDaily=adRaw==='unauthorized'?null:adRaw;
-      renderBoard(host,currentAuth,currentUser,date,dayValidated,yesterdayValidated,validatedComments(cRaw),validatedKeywords(kRaw),products,customers,adsDaily,autoFallback,setDate,load);
+      const rawDay=d=>(d&&d!=='unauthorized'&&typeof d==='object')?d:null;
+      const spark={
+        adsSpend:adHistRaw.map(a=>adsDailyTotals(rawDay(a))?.spend??null),
+        adsRevenue:adHistRaw.map(a=>adsDailyTotals(rawDay(a))?.revenue??null),
+        ssVisitors:dayHistRaw.map(d=>rawDay(d)?.coupang?.nums?.ssVisitors?.value??null),
+        ssOrders:dayHistRaw.map(d=>rawDay(d)?.coupang?.nums?.ssOrders?.value??null),
+        kakaoFriends:dayHistRaw.map(d=>rawDay(d)?.kakao?.nums?.friends?.value??null),
+      };
+      renderBoard(host,currentAuth,currentUser,date,dayValidated,yesterdayValidated,validatedComments(cRaw),validatedKeywords(kRaw),products,customers,adsDaily,autoFallback,setDate,load,spark);
     }catch(_){if(active(version))message('불러오지 못했어요. 연결을 확인해 주세요.',load);}
     finally{clearTimeout(timer);if(abort===controller)abort=null;}
   }

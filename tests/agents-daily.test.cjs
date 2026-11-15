@@ -177,3 +177,27 @@ test('20261115_0801_v3: customerStats counts total and repeat customers across c
   assert.equal(stats.total,2);
   assert.equal(stats.repeat,1);
 });
+
+test('20261115_2045: lowestMarginRows sorts ascending by marginRate and skips rows with no known rate, capped at n', async () => {
+  const {lowestMarginRows} = await mod;
+  const rows = [
+    {name:'a', marginRate:50}, {name:'b', marginRate:-10}, {name:'c', marginRate:null},
+    {name:'d', marginRate:5}, {name:'e', marginRate:30},
+  ];
+  const low = lowestMarginRows(rows, 3);
+  assert.deepEqual(low.map(r=>r.name), ['b','d','e']);
+});
+
+test('20261115_2045: validatedCustomers carries test flag through; customerStats excludes test:true and the owner\'s own phone number', async () => {
+  const {customerStats, validatedCustomers} = await mod;
+  const customers = validatedCustomers({own:{
+    c1:{name:'안서진',phone:'010-1111-1111',repeat:false},
+    c2:{name:'김현수',phone:'010-5738-9051',repeat:true,test:true},
+    c3:{name:'김현수',phone:'010-5738-9051',repeat:true},
+  }});
+  assert.equal(customers.own.c2.test,true);
+  assert.equal(customers.own.c3.test,false);
+  const stats = customerStats(customers);
+  assert.equal(stats.total,1);
+  assert.equal(stats.repeat,0);
+});
