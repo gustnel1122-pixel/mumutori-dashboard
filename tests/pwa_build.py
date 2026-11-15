@@ -49,7 +49,11 @@ class BuildContract(unittest.TestCase):
         manifest = json.loads((ROOT / 'manifest.webmanifest').read_text(encoding='utf-8'))
         self.assertEqual(manifest['name'], '무무토리 스튜디오')
         self.assertEqual(manifest['short_name'], '무무토리')
-        self.assertEqual(manifest['scope'], '/')  # Shared-order sibling stays in the installed app.
+        # 20261115_1255: scope was '/' so a shared-order sibling repo stayed inside the installed
+        # app, but that also hijacked unrelated same-domain repos (church-contacts) into this app
+        # when opened on a phone with it installed. Narrowed to this repo's own path; other
+        # gustnel1122-pixel.github.io repos now correctly open as a normal browser tab.
+        self.assertEqual(manifest['scope'], '/mumutori-dashboard/')
         self.assertEqual(manifest['start_url'], './')
         self.assertEqual(manifest['display'], 'standalone')
         for file, size in [('icon-192.png', 192), ('icon-512.png', 512), ('icon-maskable-512.png', 512), ('apple-touch-icon.png', 180)]:
