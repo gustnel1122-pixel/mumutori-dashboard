@@ -6,7 +6,8 @@ export const MARGIN_VISIBLE_TO = 'allowed';
 const DECISIONS = new Set(['미정', '판매', '보류', '안 팜']);
 const DETAILS = new Set(['없음', '만드는 중', '완료']);
 // 20261115_0815: 택 요청 — 택 인쇄가 필요하다는 신호이자 판매 확정 신호(사장님 직접 지시: 택 요청=판매 확정으로 본다).
-const TAG_STATUSES = new Set(['요청', '라벨 완료']);
+// 흐름(0815 원문): 요청 -> 라벨 완료 -> 포스 파일 완료 -> 포스 등록함(사장님이 누름).
+const TAG_STATUSES = new Set(['요청', '라벨 완료', '포스 파일 완료', '포스 등록함']);
 const object = x => x !== null && typeof x === 'object' && !Array.isArray(x);
 const owns = (x, k) => Object.prototype.hasOwnProperty.call(x, k);
 const fail = () => { throw Error('판매 준비 내용을 확인해 주세요.'); };

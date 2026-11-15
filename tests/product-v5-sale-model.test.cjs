@@ -134,6 +134,13 @@ test('20261115_0815: normalizeSale leaves tagRequest absent by default and round
  // 20261114 이전부터 저장된, tagRequest 자체가 없는 기록도 그대로 통과해야 한다(옛 기록 호환).
  assert.equal(normalizeSale({decision:'판매',prices:{own:1000}}).tagRequest,null);
 });
+test('20261116_0040: normalizeSale accepts the later tagRequest statuses (포스 파일 완료·포스 등록함) in the 0815 flow',async()=>{
+ const {mergeSalePatch}=await model;
+ for(const status of ['포스 파일 완료','포스 등록함']){
+  const result=mergeSalePatch(null,{tagRequest:{at:'2026-11-16T00:00:00.000Z',by:'총괄',qty:13,status}});
+  assert.equal(result.tagRequest.status,status);
+ }
+});
 test('20261115_0815: prepareSaleChange records only the tagRequest.status transition in history and can bump decision in the same write',async()=>{
  const {prepareSaleChange}=await model;
  const {sale,changed}=prepareSaleChange(null,{decision:'판매',tagRequest:{at:'2026-11-15T00:00:00.000Z',by:'owner',qty:14,status:'요청'}},'owner');
