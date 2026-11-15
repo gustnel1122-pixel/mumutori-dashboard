@@ -214,6 +214,14 @@ button,input,select{min-height:36px}
 .channel-margins th:first-child,.channel-margins td:first-child,.coupang-bundle th:first-child,.coupang-bundle td:first-child{text-align:left}
 .flag-bad{color:var(--bad);font-weight:600}.flag-warn{color:var(--warn);font-weight:600}
 .flag-pick{display:inline-block;background:var(--good);color:#fff;border-radius:5px;padding:2px 6px;font-size:10px;font-weight:700}
+/* 20261115_0815: 택 요청 — 한 줄 폼(acts 안) · 여러 상품 한 번에 보내는 상단 바 */
+.tag-request{display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:12px;min-height:44px}
+.tag-request label{display:flex;align-items:center;gap:5px;color:var(--muted)}
+.tag-request input[type=number]{width:72px;min-height:40px;background:var(--card);border:1px solid var(--line);border-radius:7px;padding:6px 7px;font:inherit}
+.tag-request-status{font-weight:700;color:var(--bark)}
+.tag-batch-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:9px 10px;margin-bottom:6px;border:1px solid var(--line);border-radius:10px;background:var(--butter-soft);font-size:12px}
+.tag-batch-bar label{display:flex;align-items:center;gap:5px;color:var(--muted)}
+.tag-batch-bar input[type=number]{width:72px;min-height:40px;background:var(--card);border:1px solid var(--line);border-radius:7px;padding:6px 7px;font:inherit}
 .sale-listings{display:grid;gap:8px}.sale-listings h4{margin:0;color:var(--bark);font-size:13px}
 .sale-listing{display:grid;gap:7px;padding:9px;background:var(--card);border:1px solid var(--line);border-radius:9px}
 .sale-listing .sale-check{display:flex;align-items:center;gap:8px;min-height:44px;font-size:13px}
@@ -222,7 +230,10 @@ button,input,select{min-height:36px}
 
 /* 상품마다 한 줄로 훑고, 필요한 항목만 바로 아래에서 펼친다. */
 #grid-p{grid-template-columns:minmax(0,1fr);gap:6px}
-.product-row.card{display:block;padding:0;overflow:hidden;border-radius:10px}
+.product-row.card{display:block;padding:0;overflow:hidden;border-radius:10px;position:relative}
+/* 20261115_0815: 택 요청용 선택 체크박스 — 사진 칸 위에 작게 얹는다 */
+.tag-pick-row{position:absolute;top:6px;left:6px;z-index:2;line-height:0;background:var(--card);border-radius:6px;padding:2px}
+.tag-pick-row input{width:18px;height:18px;margin:0;accent-color:var(--bark)}
 .product-row-toggle{display:grid;grid-template-columns:40px minmax(35px,1fr) auto auto minmax(0,82px) minmax(0,88px) 10px auto 12px;align-items:center;gap:7px;width:100%;min-height:56px;padding:7px 10px;border:0;background:var(--card);text-align:left;cursor:pointer}
 .product-row-toggle:hover{background:var(--butter-soft)}
 .product-row-toggle:focus-visible{outline:2px solid var(--focus);outline-offset:-3px}

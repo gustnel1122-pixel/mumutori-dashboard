@@ -5,6 +5,8 @@ export const SALE_CHANNELS = Object.freeze(['own', 'smart', 'coupang']);
 export const MARGIN_VISIBLE_TO = 'allowed';
 const DECISIONS = new Set(['미정', '판매', '보류', '안 팜']);
 const DETAILS = new Set(['없음', '만드는 중', '완료']);
+// 20261115_0815: 택 요청 — 택 인쇄가 필요하다는 신호이자 판매 확정 신호(사장님 직접 지시: 택 요청=판매 확정으로 본다).
+const TAG_STATUSES = new Set(['요청', '라벨 완료']);
 const object = x => x !== null && typeof x === 'object' && !Array.isArray(x);
 const owns = (x, k) => Object.prototype.hasOwnProperty.call(x, k);
 const fail = () => { throw Error('판매 준비 내용을 확인해 주세요.'); };
@@ -25,7 +27,7 @@ function bundlePricesFromStorage(value) {
   if (!object(value)) fail();
   return value;
 }
-const HISTORY_FIELDS = /^(?:decision|storePrice|barcode|prices\.(?:own|smart|coupang)|coupangBundlePrices\.[123]|listings\.(?:own|smart|coupang)\.(?:registered|url|detail))$/;
+const HISTORY_FIELDS = /^(?:decision|storePrice|barcode|prices\.(?:own|smart|coupang)|coupangBundlePrices\.[123]|listings\.(?:own|smart|coupang)\.(?:registered|url|detail)|tagRequest\.status)$/;
 const HISTORY_LIMIT = 30;
 const ACTOR = /^[A-Za-z0-9:_-]{1,128}$/;
 
@@ -87,6 +89,7 @@ function patchFields(patch) {
   if (owns(patch,'decision')) fields.push('decision');
   if (owns(patch,'storePrice')) fields.push('storePrice');
   if (owns(patch,'barcode')) fields.push('barcode');
+  if (owns(patch,'tagRequest')) fields.push('tagRequest.status');
   if (owns(patch,'coupangBundlePrices')) for (const qty of Object.keys(patch.coupangBundlePrices)) fields.push(`coupangBundlePrices.${qty}`);
   if (owns(patch,'prices')) for (const channel of Object.keys(patch.prices)) fields.push(`prices.${channel}`);
   if (owns(patch,'listings')) for (const channel of Object.keys(patch.listings)) {
@@ -111,6 +114,14 @@ function readListing(value) {
       (value.detail != null && !DETAILS.has(value.detail))) fail();
   return {...value, registered:value.registered === true, url:url(value.url), detail:value.detail ?? '없음'};
 }
+function readTagRequest(value) {
+  if (value == null) return null;
+  if (!object(value) || typeof value.at !== 'string' || !Number.isFinite(Date.parse(value.at)) ||
+      typeof value.by !== 'string' || !value.by.trim() || value.by.length > 128 ||
+      !Number.isSafeInteger(value.qty) || value.qty <= 0 || value.qty > 99999 ||
+      !TAG_STATUSES.has(value.status)) fail();
+  return {at:value.at, by:value.by, qty:value.qty, status:value.status};
+}
 export function normalizeSale(value) {
   if (value == null) value = {};
   if (!object(value) || (value.prices != null && !object(value.prices)) ||
@@ -127,14 +138,15 @@ export function normalizeSale(value) {
   }
   const coupangBundlePrices = {...bundlePricesFromStorage(value.coupangBundlePrices)};
   for (const qty of BUNDLE_QTYS) coupangBundlePrices[qty] = price(coupangBundlePrices[qty]);
-  return {...value, decision, prices, listings, storePrice:price(value.storePrice), barcode:barcodeText(value.barcode), coupangBundlePrices, history:historyList(value.history), updatedAt:value.updatedAt ?? null, by:value.by ?? null};
+  return {...value, decision, prices, listings, storePrice:price(value.storePrice), barcode:barcodeText(value.barcode), coupangBundlePrices, history:historyList(value.history), updatedAt:value.updatedAt ?? null, by:value.by ?? null, tagRequest:readTagRequest(value.tagRequest)};
 }
 export function mergeSalePatch(original, patch) {
-  if (!object(patch) || !Object.keys(patch).length || Object.keys(patch).some(k => !['decision','prices','listings','storePrice','barcode','coupangBundlePrices'].includes(k))) fail();
+  if (!object(patch) || !Object.keys(patch).length || Object.keys(patch).some(k => !['decision','prices','listings','storePrice','barcode','coupangBundlePrices','tagRequest'].includes(k))) fail();
   const result = normalizeSale(original);
   if (owns(patch,'decision')) result.decision = patch.decision;
   if (owns(patch,'storePrice')) result.storePrice = patch.storePrice;
   if (owns(patch,'barcode')) result.barcode = patch.barcode;
+  if (owns(patch,'tagRequest')) result.tagRequest = patch.tagRequest;
   if (owns(patch,'coupangBundlePrices')) {
     const incoming = bundlePricesFromStorage(patch.coupangBundlePrices);
     if (!Object.keys(incoming).length || Object.keys(incoming).some(k => !BUNDLE_QTYS.includes(Number(k)))) fail();

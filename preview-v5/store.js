@@ -31,6 +31,10 @@ export function createMemoryStore(initial, {marginVisibleTo = MARGIN_VISIBLE_TO}
     async saveSale(productId, patch) {
       const product = byId(data.products, productId);
       if (!product) throw new Error('상품을 찾을 수 없어요.');
+      // 20261115_0815: 미리보기에는 실제 로그인이 없어 택 요청의 by를 'preview'로 채운다(다른 저장과 같은 방식).
+      if (patch && typeof patch === 'object' && patch.tagRequest && typeof patch.tagRequest === 'object') {
+        patch = {...patch, tagRequest:{...patch.tagRequest, at: patch.tagRequest.at ?? new Date().toISOString(), by: patch.tagRequest.by ?? 'preview'}};
+      }
       const result = prepareSaleChange(product.sale, patch, 'preview');
       if (result.changed) product.sale = result.sale;
     },

@@ -149,6 +149,11 @@ export function createAuthenticatedStore({auth, fetchImpl, schema = null, onChan
     canViewMargin() { return marginVisibleTo === 'allowed' && !!auth.current()?.uid; },
     async saveSale(id, patch, expectedRevision = lastEtag) {
       if (!validId(id)) throw Error('상품을 찾을 수 없어요.');
+      // 20261115_0815: 택 요청은 누가(by)·언제(at) 보냈는지를 담지만, 화면은 로그인 정보를
+      // 따로 불러오지 않는다 — 이미 로그인에 쓰는 실제 계정 uid를 여기서 그대로 채운다(지어내지 않음).
+      if (object(patch) && object(patch.tagRequest)) {
+        patch = {...patch, tagRequest:{...patch.tagRequest, at: patch.tagRequest.at ?? new Date().toISOString(), by: patch.tagRequest.by ?? (auth.current()?.uid || '')}};
+      }
       // Validate patch before network access. A second validation uses the
       // actual current sale, preserving fields the caller did not edit.
       mergeSalePatch(null, patch);

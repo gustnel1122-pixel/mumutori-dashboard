@@ -23,7 +23,7 @@ const store = window.__MMT_V5_FRESH_STORE__ || createMemoryStore({products:examp
 let {products,materials,sets,settings} = await store.load();
 settings = normalizeSettings(settings);
 async function reload(){({products,materials,sets,settings}=await store.load());settings=normalizeSettings(settings);}
-const state = {tab:'p',filters:{batch:new Set(),channel:new Set(),kind:new Set(),status:new Set()},saleFilter:'전체',saleBusy:false,openProduct:null,openSale:new Set(),saleMessages:new Map(),saleDrafts:new Map(),saleUncertain:new Set(),sort:'name',includeMaterials:true,channel:'smart',openDetails:new Set(),openLinks:new Set(),linkMessage:'',editReceipt:new Map(),editReceiptRevision:new Map(),editMaterial:null,editMaterialRevision:null,editMaterialCurrency:null,draft:{items:{},materials:{}},settingsOpen:false,settingsBusy:false,settingsMessage:''};
+const state = {tab:'p',filters:{batch:new Set(),channel:new Set(),kind:new Set(),status:new Set()},saleFilter:'전체',saleBusy:false,openProduct:null,openSale:new Set(),saleMessages:new Map(),saleDrafts:new Map(),saleUncertain:new Set(),sort:'name',includeMaterials:true,channel:'smart',openDetails:new Set(),openLinks:new Set(),linkMessage:'',editReceipt:new Map(),editReceiptRevision:new Map(),editMaterial:null,editMaterialRevision:null,editMaterialCurrency:null,draft:{items:{},materials:{}},settingsOpen:false,settingsBusy:false,settingsMessage:'',tagPick:new Set(),tagBatchQty:'',tagBatchMessage:''};
 const saleEditRevision = new WeakMap();
 const revision = () => typeof store.revision === 'function' ? store.revision() : undefined;
 const $ = id => document.getElementById(id);
@@ -222,6 +222,23 @@ function salePanel(p){
       <div class="sale-listings"><h4>온라인 등록</h4>${saleChannels.map(([key,label])=>{const l=sale.listings[key];return `<div class="sale-listing"><label class="sale-check"><input type="checkbox" data-sale-registered="${key}" aria-label="${esc(p.name)} ${label} 등록" ${l.registered?'checked':''}> ${label} 등록</label><label>${label} 상품 주소 <input type="url" inputmode="url" data-sale-url="${key}" aria-label="${esc(p.name)} ${label} 상품 주소" placeholder="https://" value="${esc(l.url)}"></label><label>상세 준비 <select data-sale-detail="${key}" aria-label="${esc(p.name)} ${label} 상세 준비">${['없음','만드는 중','완료'].map(v=>`<option value="${v}" ${l.detail===v?'selected':''}>${v}</option>`).join('')}</select></label></div>`;}).join('')}</div></div>
     </details></section>`;
 }
+// 20261115_0815: 택 요청 — 사장님 직접 지시(택 요청 = 판매 확정으로 본다). 포스에 올릴 가격이
+// 없으면 라벨을 만들 기준가가 없으므로 요청 자체를 막고 안내만 보여준다(지어내지 않음).
+function tagRequestBlock(p,sale){
+  if (sale.storePrice===null) return '<div class="tag-request" data-tag-request-wrap><p class="sale-margin-note flag-bad">판매가 없음 — 포스 등록 전에 넣어 주세요.</p></div>';
+  const tr=sale.tagRequest;
+  const status=tr?`<span class="tag-request-status">${tr.status==='라벨 완료'?'라벨 완료':'요청됨 · 라벨 전'} · ${fmt(tr.qty)}개</span>`:'';
+  return `<div class="tag-request" data-tag-request-wrap aria-label="${esc(p.name)} 택 요청"><label>보낼 수량 <input type="number" inputmode="numeric" min="1" max="99999" step="1" data-tag-qty aria-label="${esc(p.name)} 택 요청 수량" value="${tr?tr.qty:''}"></label><button type="button" class="btn" data-tag-request>택 요청</button>${status}</div>`;
+}
+function tagBatchBar(){
+  if (!state.tagPick.size) return '';
+  const names=[...state.tagPick].map(id=>byId(id)?.name).filter(Boolean);
+  return `<div class="tag-batch-bar" role="group" aria-label="택 요청 — 여러 상품 한 번에"><span>${state.tagPick.size}개 선택됨${names.length?` (${esc(names.slice(0,3).join(', '))}${names.length>3?' 등':''})`:''}</span>
+    <label>보낼 수량(선택한 상품 모두 같게) <input type="number" inputmode="numeric" min="1" max="99999" step="1" id="tag-batch-qty" aria-label="택 요청 수량(선택 상품 모두 같은 수)" value="${esc(state.tagBatchQty)}"></label>
+    <button type="button" class="btn pri" id="tag-batch-send" ${state.saleBusy?'disabled':''}>선택 상품 택 요청</button>
+    <button type="button" class="btn" id="tag-batch-clear" ${state.saleBusy?'disabled':''}>선택 해제</button>
+    <span role="status" aria-live="polite">${esc(state.tagBatchMessage)}</span></div>`;
+}
 const decisionClass = value => ({'미정':'undecided','판매':'sell','보류':'hold','안 팜':'no-sale'}[value] || 'undecided');
 function rowSummary(p){
   const sale=normalizeSale(p.sale);
@@ -251,9 +268,10 @@ function updateRowSummary(card,p){
 function card(p){
   const c=calculate(p),rate=c.sellRate,bar=rate==null?0:Math.max(0,Math.min(100,rate));
   const showCost=canViewCost();
+  const sale=normalizeSale(p.sale);
   const attached=(p.links||[]).filter(x=>x.always).map(l=>{const m=materials.find(x=>x.id===l.materialId);return m?`${m.name} ×${l.quantity}`:'연결 확인 필요';});
   const open=state.openProduct===p.id, detailId=`product-detail-${p.id}`;
-  return `<article class="card product-row" data-product="${esc(p.id)}"><button type="button" class="product-row-toggle" data-product-toggle aria-expanded="${open}" aria-controls="${esc(detailId)}">${rowSummary(p)}</button><div class="product-detail" id="${esc(detailId)}" ${open?'':'hidden'}><div class="ctop"><div class="cname">${picture(p)}<span class="name-edit"><input type="text" data-rename-product="${esc(p.id)}" value="${esc(p.name)}" maxlength="60" aria-label="상품 이름"><small data-name-save-status role="status" aria-live="polite"></small></span></div><div class="tags"><span class="pill t-batch">${esc(Array.isArray(p.batch)?p.batch.join(' · '):p.batch)}</span><span class="pill st-on">${esc(p.status)}</span>${(p.receipts||[]).some(r=>r.status==='확인 필요')?'<span class="pill st-hold">입고 확인 필요</span>':''}</div></div>
+  return `<article class="card product-row" data-product="${esc(p.id)}"><label class="tag-pick-row"><input type="checkbox" data-tag-pick="${esc(p.id)}" ${state.tagPick.has(p.id)?'checked':''} aria-label="${esc(p.name)} 택 요청용 선택"></label><button type="button" class="product-row-toggle" data-product-toggle aria-expanded="${open}" aria-controls="${esc(detailId)}">${rowSummary(p)}</button><div class="product-detail" id="${esc(detailId)}" ${open?'':'hidden'}><div class="ctop"><div class="cname">${picture(p)}<span class="name-edit"><input type="text" data-rename-product="${esc(p.id)}" value="${esc(p.name)}" maxlength="60" aria-label="상품 이름"><small data-name-save-status role="status" aria-live="polite"></small></span></div><div class="tags"><span class="pill t-batch">${esc(Array.isArray(p.batch)?p.batch.join(' · '):p.batch)}</span><span class="pill st-on">${esc(p.status)}</span>${(p.receipts||[]).some(r=>r.status==='확인 필요')?'<span class="pill st-hold">입고 확인 필요</span>':''}</div></div>
     <div class="chs">${esc((p.channels||[]).join(' · ')||'판매처 확인 필요')}</div>
     <div class="nums">${showCost?`<div class="num"><div class="k">원가${c.provisional?' · 잠정':''}</div><div class="v">${c.cost===null?esc(c.costReason||'확인 필요'):money(c.cost)}</div><div class="s">${state.includeMaterials?'부자재 포함':'부자재 제외'}${c.partialCost?(c.issues.includes('부자재 통화 확인 필요')?' · 부자재 통화 확인 필요':' · 일부 부자재 제외 · 확인 필요'):''}${pendingCostText(c)?` · 원가 기준: ${esc(pendingCostText(c))}`:''}</div></div>`:''}
     <div class="num"><div class="k">기존 계산 기준가 <span class="ps ${p.priceStatus==='확정'?'확정':'제안'}">${esc(p.priceStatus||'제안')}</span></div><div class="v">${money(c.price)}</div></div>
@@ -261,13 +279,13 @@ function card(p){
     <div class="sell"><div class="row"><span>소진율 ${pct(rate)}</span><span>판매용 ${fmt(c.saleReceived)} · 재고 ${fmt(c.stock)}</span></div><div class="bar"><i class="g" style="width:${bar}%"></i></div></div>
     ${showCost?`<div class="earn"><span>기존 기준 번 돈</span><b>${money(c.earned)}</b><small>판매용과 현재 재고 차이 · ${state.channel==='smart'?'스마트스토어':'자사몰'} 수수료 기준</small></div>`:''}
     ${salePanel(p)}<div class="mats">${attached.length?attached.map(x=>`<span class="mtag">${esc(x)}</span>`).join(''):'<span class="example-note">연결된 부자재 없음</span>'}</div>
-    <div class="acts">${showCost?`<button type="button" class="btn" data-action="details" aria-expanded="${state.openDetails.has(p.id)}">자세히 (입고 기록)</button>`:''}<button type="button" class="btn" data-action="links" aria-expanded="${state.openLinks.has(p.id)}">부자재 연결</button><label class="btn file-control">누끼 사진 선택<input type="file" data-photo-product="${esc(p.id)}" accept="image/png,image/jpeg,image/webp" aria-label="${esc(p.name)} 누끼 사진 선택"></label></div>${showCost?receiptPanel(p):''}${linksPanel(p)}</div></article>`;
+    <div class="acts">${showCost?`<button type="button" class="btn" data-action="details" aria-expanded="${state.openDetails.has(p.id)}">자세히 (입고 기록)</button>`:''}<button type="button" class="btn" data-action="links" aria-expanded="${state.openLinks.has(p.id)}">부자재 연결</button><label class="btn file-control">누끼 사진 선택<input type="file" data-photo-product="${esc(p.id)}" accept="image/png,image/jpeg,image/webp" aria-label="${esc(p.name)} 누끼 사진 선택"></label>${tagRequestBlock(p,sale)}</div>${showCost?receiptPanel(p):''}${linksPanel(p)}</div></article>`;
 }
 function renderProducts(){
   const shown=ordered(products.filter(matching));
   $('sum-p').innerHTML=`<span>상품 <b>${shown.length}</b>개</span><span>${isLive?'새 상품 장부':'금액과 상품은 가상의 예시'}</span>`;
-  $('grid-p').innerHTML=shown.length?shown.map(card).join(''):'<div class="empty-card">조건에 맞는 상품이 없어요. 필터를 바꿔 주세요.</div>';
-  if(state.editReceipt.size)for(const control of $('grid-p').querySelectorAll('[data-sale-decision],[data-sale-store-price],[data-sale-barcode],[data-bundle-price],[data-sale-price],[data-sale-registered],[data-sale-url],[data-sale-detail],[data-photo-product],[data-rename-product],[data-link-quantity]'))control.disabled=true;
+  $('grid-p').innerHTML=tagBatchBar()+(shown.length?shown.map(card).join(''):'<div class="empty-card">조건에 맞는 상품이 없어요. 필터를 바꿔 주세요.</div>');
+  if(state.editReceipt.size)for(const control of $('grid-p').querySelectorAll('[data-sale-decision],[data-sale-store-price],[data-sale-barcode],[data-bundle-price],[data-sale-price],[data-sale-registered],[data-sale-url],[data-sale-detail],[data-photo-product],[data-rename-product],[data-link-quantity],[data-tag-request],[data-tag-qty],[data-tag-pick]'))control.disabled=true;
   const dialog=$('grid-p').querySelector('.links-dialog');
   if(dialog){
     dialog.addEventListener('cancel',event=>{event.preventDefault();closeLinks();});
@@ -323,7 +341,7 @@ function render(){
   $('cnt-p').textContent=products.length;$('cnt-s').textContent=sets.length;$('cnt-m').textContent=materials.length;
   if(state.tab==='p'){renderSaleFilters();const sp=$('settings-panel');if(sp)sp.innerHTML=canViewCost()?settingsPanel():'';renderFilters();renderProducts();}else if(state.tab==='s')renderSets();else renderMaterials();
 }
-const saleInputs='[data-sale-decision],[data-sale-store-price],[data-sale-barcode],[data-bundle-price],[data-sale-price],[data-sale-registered],[data-sale-url],[data-sale-detail]';
+const saleInputs='[data-sale-decision],[data-sale-store-price],[data-sale-barcode],[data-bundle-price],[data-sale-price],[data-sale-registered],[data-sale-url],[data-sale-detail],[data-tag-request],[data-tag-qty]';
 function saleMessage(card,text,isError=false){
   const el=card?.querySelector('[data-sale-save-status]');
   if(el){el.textContent=text;el.classList.toggle('is-error',isError);}
@@ -354,6 +372,7 @@ function discardSaleDraft(id){
   else if(target.dataset.saleRegistered)target.checked=sale.listings[target.dataset.saleRegistered].registered;
   else if(target.dataset.saleUrl)target.value=sale.listings[target.dataset.saleUrl].url;
   else if(target.dataset.saleDetail)target.value=sale.listings[target.dataset.saleDetail].detail;
+  else if(target.hasAttribute('data-tag-qty'))target.value=sale.tagRequest?.qty??'';
   const message=state.saleUncertain.has(id)?'입력을 취소했어요. 저장 여부는 다시 불러와 확인해 주세요.':'입력을 취소했어요.';
   target.removeAttribute('aria-invalid');state.saleDrafts.delete(id);state.saleUncertain.delete(id);state.saleMessages.set(id,message);
   saleMessage(target.closest('[data-product]'),message);syncSaleLocks();
@@ -373,6 +392,7 @@ async function persistSale(t,patch,expected){
     const step=card.querySelector('.sale-step');if(step)step.textContent=saleStatus(saved.sale);
     for(const button of card.querySelectorAll('[data-sale-decision]'))button.setAttribute('aria-pressed',String(button.dataset.saleDecision===normalizeSale(saved.sale).decision));
     const margin=card.querySelector('.sale-margin-wrap');if(margin){const savedSale=normalizeSale(saved.sale);margin.outerHTML=`<div class="sale-margin-wrap">${saleMarginRows(saved,savedSale)}${channelMarginRows(saved,savedSale)}</div>`;}
+    const tagWrap=card.querySelector('[data-tag-request-wrap]');if(tagWrap)tagWrap.outerHTML=tagRequestBlock(saved,normalizeSale(saved.sale));
     renderSaleFilters();
     if(!matching(saved)){card.hidden=true;const count=document.querySelectorAll('#grid-p [data-product]:not([hidden])').length;$('sum-p').innerHTML=`<span>상품 <b>${count}</b>개</span><span>${isLive?'새 상품 장부':'금액과 상품은 가상의 예시'}</span>`;}
   }catch(error){
@@ -411,6 +431,44 @@ document.addEventListener('click',async e=>{
     return;
   }
   if(t.dataset.saleDecision){const expected=saleEditRevision.has(t)?saleEditRevision.get(t):revision();saleEditRevision.delete(t);await persistSale(t,{decision:t.dataset.saleDecision},expected);return;}
+  if(t.hasAttribute('data-tag-request')){
+    const prow=t.closest('[data-product]'),id=prow?.dataset.product,p=byId(id);
+    if(!p)return;
+    const sale=normalizeSale(p.sale);
+    if(sale.storePrice===null){saleFailure(t,'판매가 없음 — 포스 등록 전에 넣어 주세요.');return;}
+    const qtyInput=prow.querySelector('[data-tag-qty]');
+    const qty=Math.floor(Number(qtyInput?.value));
+    if(!Number.isFinite(qty)||qty<=0){saleFailure(qtyInput||t,'보낼 수량을 1 이상으로 입력해 주세요.');return;}
+    const patch={tagRequest:{qty,status:'요청'}};
+    if(sale.decision==='미정')patch.decision='판매';
+    const expected=saleEditRevision.has(t)?saleEditRevision.get(t):revision();saleEditRevision.delete(t);
+    await persistSale(t,patch,expected);
+    return;
+  }
+  if(t.id==='tag-batch-clear'){state.tagPick.clear();state.tagBatchQty='';state.tagBatchMessage='';renderProducts();return;}
+  if(t.id==='tag-batch-send'){
+    if(state.saleBusy)return;
+    const qtyRaw=$('tag-batch-qty')?.value??state.tagBatchQty;
+    const qty=Math.floor(Number(qtyRaw));
+    if(!Number.isFinite(qty)||qty<=0){state.tagBatchMessage='보낼 수량을 1 이상으로 입력해 주세요.';renderProducts();return;}
+    const ids=[...state.tagPick];
+    const noPrice=ids.map(id=>byId(id)).filter(Boolean).filter(item=>normalizeSale(item.sale).storePrice===null);
+    if(noPrice.length){state.tagBatchMessage=`판매가 없음 — 포스 등록 전에 넣어 주세요: ${noPrice.map(item=>item.name).join(', ')}`;renderProducts();return;}
+    state.saleBusy=true;state.tagBatchMessage='보내는 중…';syncSaleLocks();renderProducts();
+    let done=0;const failed=[];
+    for(const id of ids){
+      const item=byId(id);if(!item)continue;
+      const sale=normalizeSale(item.sale);
+      const patch={tagRequest:{qty,status:'요청'}};
+      if(sale.decision==='미정')patch.decision='판매';
+      try{await store.saveSale(id,patch,revision());await reload();done++;}
+      catch(error){failed.push(`${item.name}: ${error?.message||'저장 못함'}`);}
+    }
+    state.saleBusy=false;state.tagPick.clear();state.tagBatchQty='';
+    state.tagBatchMessage=failed.length?`${done}개 보냄, ${failed.length}개 실패 — ${failed.join(' / ')}`:`${done}개 택 요청을 보냈어요.`;
+    syncSaleLocks();render();
+    return;
+  }
   if(t.dataset.tab){state.tab=t.dataset.tab;render();return;}
   if(t.dataset.saleFilter){state.saleFilter=t.dataset.saleFilter;render();return;}
   if(t.dataset.group){const s=state.filters[t.dataset.group];s.has(t.dataset.value)?s.delete(t.dataset.value):s.add(t.dataset.value);render();return;}
@@ -512,6 +570,8 @@ document.addEventListener('change',async e=>{
     }
     catch(error){$('product-error').textContent=error.message;}return;
   }
+  if(t.dataset.tagPick){if(t.checked)state.tagPick.add(t.dataset.tagPick);else state.tagPick.delete(t.dataset.tagPick);renderProducts();return;}
+  if(t.id==='tag-batch-qty'){state.tagBatchQty=t.value;return;}
   if(t.id==='sort'){state.sort=t.value;renderProducts();return;}
   if(t.id==='material-cost'){state.includeMaterials=t.checked;render();return;}
   if(t.dataset.linkQuantity){const p=byId(t.closest('[data-product]')?.dataset.product),link=(p?.links||[]).find(l=>l.materialId===t.dataset.linkQuantity);if(link){try{const next=p.links.map(l=>l.materialId===t.dataset.linkQuantity?{...l,quantity:Math.max(1,Math.min(999,Math.floor(Number(t.value)||1)))}:l);await store.saveProductLinks(p.id,next);await reload();state.linkMessage='';}catch(error){state.linkMessage=error.message||'부자재 개수를 저장하지 못했어요.';}}renderProducts();return;}

@@ -123,3 +123,46 @@ test('readback mismatch after successful PUT stops without retry',async()=>{
  const store=createAuthenticatedStore({auth:m.auth,fetchImpl:m.fetchImpl,schema:freshSchema,allowWrites:true,backupSale:async x=>({verified:true,rootEtag:x.rootEtag})});
  await store.load();await assert.rejects(store.saveSale('p1',{decision:'판매'}),/저장 후 자료/);assert.equal(m.puts(),1);store.stop();
 });
+test('20261115_0815: normalizeSale leaves tagRequest absent by default and round-trips a valid request; mergeSalePatch rejects a malformed one',async()=>{
+ const {normalizeSale,mergeSalePatch}=await model;
+ assert.equal(normalizeSale(null).tagRequest,null);
+ const withRequest=mergeSalePatch(null,{tagRequest:{at:'2026-11-15T00:00:00.000Z',by:'owner',qty:20,status:'요청'}});
+ assert.deepEqual(withRequest.tagRequest,{at:'2026-11-15T00:00:00.000Z',by:'owner',qty:20,status:'요청'});
+ assert.throws(()=>mergeSalePatch(null,{tagRequest:{at:'x',by:'owner',qty:20,status:'요청'}}),/확인해/);
+ assert.throws(()=>mergeSalePatch(null,{tagRequest:{at:'2026-11-15T00:00:00.000Z',by:'owner',qty:0,status:'요청'}}),/확인해/);
+ assert.throws(()=>mergeSalePatch(null,{tagRequest:{at:'2026-11-15T00:00:00.000Z',by:'owner',qty:20,status:'모름'}}),/확인해/);
+ // 20261114 이전부터 저장된, tagRequest 자체가 없는 기록도 그대로 통과해야 한다(옛 기록 호환).
+ assert.equal(normalizeSale({decision:'판매',prices:{own:1000}}).tagRequest,null);
+});
+test('20261115_0815: prepareSaleChange records only the tagRequest.status transition in history and can bump decision in the same write',async()=>{
+ const {prepareSaleChange}=await model;
+ const {sale,changed}=prepareSaleChange(null,{decision:'판매',tagRequest:{at:'2026-11-15T00:00:00.000Z',by:'owner',qty:14,status:'요청'}},'owner');
+ assert.equal(changed,true);assert.equal(sale.decision,'판매');assert.equal(sale.tagRequest.qty,14);
+ assert.deepEqual(sale.history.map(x=>x.field).sort(),['decision','tagRequest.status']);
+ const entry=sale.history.find(x=>x.field==='tagRequest.status');
+ assert.equal(entry.old.present,false);assert.equal(entry.new.value,'요청');
+ const next=prepareSaleChange(sale,{tagRequest:{at:'2026-11-16T00:00:00.000Z',by:'owner',qty:14,status:'라벨 완료'}},'owner');
+ assert.equal(next.changed,true);
+ const statusEntry=next.sale.history.find(x=>x.field==='tagRequest.status'&&x.new.value==='라벨 완료');
+ assert.equal(statusEntry.old.value,'요청');
+});
+test('20261115_0815: memory store fills tagRequest.at/by with the current preview actor when the caller omits them',async()=>{
+ const {createMemoryStore}=await storeModule;
+ const initial={products:[{id:'p1',name:'가상',sale:{storePrice:5000}}],materials:[],sets:[]};
+ const owner=createMemoryStore(initial);
+ await owner.saveSale('p1',{tagRequest:{qty:20,status:'요청'}});
+ const sale=(await owner.load()).products[0].sale;
+ assert.equal(sale.tagRequest.qty,20);assert.equal(sale.tagRequest.by,'preview');
+ assert.equal(typeof sale.tagRequest.at,'string');assert.ok(Number.isFinite(Date.parse(sale.tagRequest.at)));
+});
+test('20261115_0815: real adapter fills tagRequest.by with the signed-in uid (never fabricates a name) and writes decision+tagRequest atomically',async()=>{
+ const [{createAuthenticatedStore},{freshSchema}]=await fresh;const m=db();
+ const store=createAuthenticatedStore({auth:m.auth,fetchImpl:m.fetchImpl,schema:freshSchema,allowWrites:true});
+ await store.load();const revision=store.revision();
+ await store.saveSale('p1',{tagRequest:{qty:20,status:'요청'}},revision);
+ assert.equal(m.puts(),1);
+ const sale=m.value().products[0].sale;
+ assert.equal(sale.tagRequest.qty,20);assert.equal(sale.tagRequest.by,'owner');assert.equal(sale.decision,'미정');
+ assert.ok(Number.isFinite(Date.parse(sale.tagRequest.at)));
+ store.stop();
+});
