@@ -104,6 +104,13 @@ test('20261115_0801_v2: marginRows ignores malformed product entries without thr
   assert.equal(rows.length,1);
 });
 
+test('20261115_0801_v2: marginRows also reads products given as an array (Firebase returns numeric-keyed nodes as arrays)', async () => {
+  const {marginRows} = await mod;
+  const rows = marginRows([{id:'0',name:'감자..',unitCost:993,sale:{storePrice:3000},stock:5},{id:'1',name:'감자빵 키링',unitCost:402,sale:{storePrice:2000},stock:3}]);
+  assert.equal(rows.length,2);
+  assert.equal(rows[0].name,'감자..');
+});
+
 test('20261115_0801_v2: validatedCustomers keeps real name/phone/address as-is (no masking), drops entries without a name', async () => {
   const {validatedCustomers} = await mod;
   const out = validatedCustomers({own:{c1:{at:'2026-11-15T00:00:00.000Z',name:'김현수',phone:'010-0000-0000',address:'서울 강남구',items:'카드지갑 x1',amount:5000,repeat:true},c2:{phone:'010-1111-1111'}}});

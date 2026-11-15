@@ -137,7 +137,9 @@ export function validatedKeywords(x){
 // productCatalogPrivate/products_v5는 상품 관리 v5 화면이 쓰는 우리 쪽 비공개 자료라 agentsDaily류 hub 입력값과 달리
 // 바깥에서 들어오는 값이 아니다 — 형식을 거부(throw)하지 않고, 읽을 수 없는 칸만 조용히 비워 둔다(지어내지 않기).
 export function marginRows(products){
-  if(!products||typeof products!=='object'||Array.isArray(products))return [];
+  // Firebase RTDB가 상품 id를 숫자 문자열(0,1,2...)로 매긴 노드는 REST로 받으면 배열이 되어 온다
+  // (products_v5가 0020 묶음 나누기 뒤로 그렇게 됨) — object든 array든 Object.values로 똑같이 돈다.
+  if(!products||typeof products!=='object')return [];
   const rows=[];
   for(const p of Object.values(products)){
     if(!p||typeof p!=='object')continue;
