@@ -1,10 +1,16 @@
 import { mountOrgchart } from '../orgchart-private.js';
 
-let serial=0, cleanupDaily=()=>{}, cleanupOrg=()=>{};
+let serial=0, cleanupChongwal=()=>{}, cleanupDaily=()=>{}, cleanupOrg=()=>{};
 export default function renderPage({head}){
-  cleanupDaily();cleanupOrg();
+  cleanupChongwal();cleanupDaily();cleanupOrg();
   const generation=String(++serial);
   queueMicrotask(async()=>{
+    // 20261116_2326: 총괄 보고서 — agents-daily.js(하루 보고)와는 완전히 분리된 자료·코드 경로라 따로 끌어온다.
+    const chongwal=document.querySelector('.chongwal-report-root');
+    if(chongwal?.dataset.generation===generation){
+      const {mountChongwalReport}=await import(`../chongwal-report.js?v=${document.body.dataset.build}`);
+      if(chongwal.dataset.generation===generation)cleanupChongwal=mountChongwalReport(chongwal);
+    }
     const daily=document.querySelector('.agents-daily-root');
     if(daily?.dataset.generation===generation){
       // 20261115_0801_v3: 이 import는 agents-daily.js를 직접 끌어오는 유일한 자리라, 빌드 해시를 안 붙이면
@@ -17,6 +23,8 @@ export default function renderPage({head}){
     if(org?.dataset.generation===generation)cleanupOrg=mountOrgchart(org);
   });
   return head('AI 자리 · 하루 보고','9개 자리가 한 일 · 알아낸 것 · 숫자를 한눈에 보여줘요.')+
+    `<section class="chongwal-report-root" data-generation="${generation}" aria-label="총괄 보고서"><p class="note" role="status">불러오는 중이에요.</p></section>` +
+    `<div class="section-gap"></div>` +
     `<section class="agents-daily-root" data-generation="${generation}" aria-label="하루 보고"><p class="note" role="status">불러오는 중이에요.</p></section>` +
     `<div class="section-gap"></div>` +
     `<div class="panel"><div class="panelhead"><h2>우리의 일하는 흐름</h2></div><div class="panelbody"><p class="muted">궁금한 항목을 누르면 이어진 업무와 진행 방법을 볼 수 있어요.</p>` +

@@ -283,3 +283,29 @@ a{color:inherit;text-decoration:none}button,a,input,select,textarea{-webkit-tap-
 
 /* v1.3 정본: 기존 편집 영역과 구별되는 읽기 전용 안내 */
 .cb-canon-guide,.cb-canon{margin:0 0 16px}.cb-canon-guide .panelbody{line-height:1.65}.cb-canon-guide p{margin:0 0 10px}.cb-canon-guide p:last-child{margin-bottom:0}.cb-canon-guide ul{margin:0 0 10px;padding-left:22px}.cb-canon dl{display:grid;grid-template-columns:130px minmax(0,1fr);gap:8px 14px;margin:0;line-height:1.65}.cb-canon dt{font-weight:700;color:#174d3c}.cb-canon dd{margin:0;white-space:pre-line;overflow-wrap:anywhere}.cb-canon .cb-small{margin:12px 0 0}@media(max-width:600px){.cb-canon dl{grid-template-columns:1fr;gap:3px}.cb-canon dd{margin:0 0 10px}}
+
+/* 총괄 보고서(20261116_2326) — AI 조직도 맨 위, 이미지 중심. 모바일은 한 장씩 가로 스크롤(스냅), 데스크톱은 2~4장 나란히. */
+.chongwal-report-root{margin-bottom:10px}
+.chongwal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.chongwal-head h3{margin:0}
+.chongwal-cards{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;padding-bottom:4px}
+.chongwal-card{flex:0 0 82%;scroll-snap-align:center;display:flex;flex-direction:column;gap:6px;min-width:0}
+.chongwal-card-btn{padding:0;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff;width:100%;line-height:0}
+.chongwal-card-btn img{width:100%;height:auto;display:block;aspect-ratio:4/5;object-fit:cover}
+.chongwal-caption{font-size:12px;color:var(--muted);margin:0;line-height:1.5}
+.chongwal-past{margin-top:14px}
+.chongwal-past>summary{cursor:pointer;color:var(--green);font-weight:650;font-size:13px;min-height:44px;display:flex;align-items:center}
+.chongwal-past-body{padding-top:8px}
+.chongwal-past-list{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px}
+.chongwal-past-list button{font-size:12px;padding:9px 12px}
+.chongwal-lightbox{position:fixed;inset:0;background:#13261fcc;display:flex;flex-direction:column;z-index:200;padding:16px}
+.chongwal-lightbox-head{display:flex;align-items:center;justify-content:space-between;gap:12px;color:#fff;padding:4px 4px 12px}
+.chongwal-lightbox-head strong{font-size:14px}
+.chongwal-lightbox-close{background:transparent;border:1px solid #ffffff55;color:#fff}
+.chongwal-lightbox-close:hover{background:#ffffff22}
+.chongwal-lightbox-body{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
+.chongwal-lightbox-img{max-width:min(92vw,720px);max-height:70vh;object-fit:contain;border-radius:10px;background:#fff}
+.chongwal-lightbox-caption{color:#fff;font-size:13px;text-align:center;margin:0}
+.chongwal-lightbox-nav{display:flex;gap:10px}
+@media(min-width:720px){.chongwal-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));overflow-x:visible}.chongwal-card{flex:initial}}
+@media(min-width:1180px){.chongwal-cards{grid-template-columns:repeat(4,minmax(0,1fr))}}
