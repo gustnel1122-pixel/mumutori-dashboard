@@ -214,7 +214,7 @@ function salePanel(p){
     <div class="sale-prep-head"><div><strong>판매 준비</strong><span class="sale-step">${esc(saleStatus(sale))}</span></div><span class="sale-save-status" role="status" aria-live="polite" data-sale-save-status>${esc(status)}</span></div>
     <div class="sale-decision"><span>판매 결정</span><div class="sale-decisions" role="group" aria-label="${esc(p.name)} 판매 결정">${['미정','판매','보류','안 팜'].map(v=>`<button type="button" data-sale-decision="${v}" aria-pressed="${v===sale.decision}">${v}</button>`).join('')}</div></div>
     <details data-sale-details ${state.openSale.has(p.id)?'open':''}><summary>판매가 · 온라인 등록</summary>
-      <div class="sale-fields"><p class="sale-field-hint">매장 판매가가 기준이에요 — 자사몰·스마트스토어·쿠팡 가격을 비우면 매장 가격과 같아요.</p>
+      <div class="sale-fields"><p class="sale-field-hint">매장 판매가가 기준이에요 — 자사몰·스마트스토어는 비우면 매장 가격과 같아요 · 쿠팡은 개당 매장 가격 × 묶음 수예요.</p>
       <label>매장 판매가 <span class="sale-input"><input type="number" inputmode="numeric" min="0" step="1" data-sale-store-price aria-label="${esc(p.name)} 매장 판매가" placeholder="가격 입력" value="${sale.storePrice??''}"><span>원</span></span></label>
       ${saleChannels.map(([key,label])=>`<label>${label} 판매가 <span class="sale-input"><input type="number" inputmode="numeric" min="0" step="1" data-sale-price="${key}" aria-label="${esc(p.name)} ${label} 판매가" placeholder="매장과 같음" value="${sale.prices[key]??''}"><span>원</span></span></label>`).join('')}
       <label>바코드 <input type="text" inputmode="numeric" maxlength="40" data-sale-barcode aria-label="${esc(p.name)} 바코드" placeholder="바코드 장부 번호" value="${esc(sale.barcode)}"></label>

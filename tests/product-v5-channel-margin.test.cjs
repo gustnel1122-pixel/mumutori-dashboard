@@ -61,17 +61,19 @@ test('coupang bundle: 재고가 최소 수량 미만이면 마진과 무관하�
   assert.match(r.reason, /10개 미만/);
 });
 
-test('coupang bundle price rounds up to the common …900원 ending seen in the real 쿠팡 전략 탭', async () => {
+test('20261116: coupang bundle 개당 가격은 매장가와 같음 — 900원 올림 없이 매장가 × 묶음 수', async () => {
   const {coupangBundleOptions} = await modules;
   const r = coupangBundleOptions(5000, 1000, {stock: 20});
-  for (const b of r.bundles) assert.match(String(b.coupangPrice), /900$/);
+  assert.equal(r.bundles[0].coupangPrice, 5000);
+  assert.equal(r.bundles[1].coupangPrice, 10000);
+  assert.equal(r.bundles[2].coupangPrice, 15000);
 });
 
 test('a manual priceOverride on a bundle is used instead of the auto-suggested price', async () => {
   const {coupangBundleOptions} = await modules;
   const r = coupangBundleOptions(5000, 1000, {stock: 20, priceOverride: {2: 9900}});
   assert.equal(r.bundles[1].coupangPrice, 9900);
-  assert.equal(r.bundles[1].suggestedPrice, 10900); // 자동 제안가는 그대로 보여 손으로 바꾼 것과 비교할 수 있게
+  assert.equal(r.bundles[1].suggestedPrice, 10000); // 자동 제안가(매장가 × 2, 올림 없음)는 그대로 보여 손으로 바꾼 것과 비교할 수 있게
 });
 
 test('20261114_1823: normalizeSettings falls back to the built-in defaults for anything unset or invalid', async () => {

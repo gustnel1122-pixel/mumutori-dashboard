@@ -49,12 +49,6 @@ export function channelBreakdown(price, cost, fee, logisticsPerUnit = 0) {
   return { settlement, margin, marginRate, roas };
 }
 
-// 실제 등록가가 대부분 'X900원'으로 끝나는 관례(20261106 분류표 '쿠팡 전략' 탭 실례)에 맞춰 올림.
-function roundUpTo900(value) {
-  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) return null;
-  return Math.max(900, Math.ceil((value - 900) / 1000) * 1000 + 900);
-}
-
 // 쿠팡 단품·2개·3개 묶음 자동 추천 — 1702 규칙 ①~④ 그대로.
 // settings: targetRoas(기본 300) · minStock(기본 10) · coupangMarkup(기본 0, 쿠팡가 가산율) · coupangLogistics(기본 2250, 묶음당 1번) · stock(판매 가능 수량, 모르면 null).
 export function coupangBundleOptions(storePrice, unitCost, settings = {}) {
@@ -68,7 +62,8 @@ export function coupangBundleOptions(storePrice, unitCost, settings = {}) {
   const cost = numberOrNull(unitCost);
   const stock = settings.stock == null ? null : nonnegativeInteger(settings.stock);
   const bundles = [1, 2, 3].map(qty => {
-    const suggested = roundUpTo900(p * qty * (1 + markup));
+    // 2026-11-16 사장님 가격 규칙: 쿠팡 개당 가격은 매장가와 같음 — 900원 올림 없이 매장가 × 묶음 수.
+    const suggested = p * qty * (1 + markup);
     const coupangPrice = numberOrNull(settings.priceOverride?.[qty]) ?? suggested;
     const bundleCost = cost === null ? null : cost * qty;
     const breakdown = channelBreakdown(coupangPrice, bundleCost, coupangFee, logistics);
