@@ -1,15 +1,25 @@
 import { mountOrgchart } from '../orgchart-private.js';
 
-let serial=0, cleanupChongwal=()=>{}, cleanupDaily=()=>{}, cleanupOrg=()=>{};
+let serial=0, cleanupChongwal=()=>{}, cleanupOps=()=>{}, cleanupDaily=()=>{}, cleanupOrg=()=>{};
 export default function renderPage({head}){
-  cleanupChongwal();cleanupDaily();cleanupOrg();
+  cleanupChongwal();cleanupOps();cleanupDaily();cleanupOrg();
   const generation=String(++serial);
   queueMicrotask(async()=>{
+    // 20261117_0004: 홈 화면 작은 카드(agents.html#ops-room)에서 왔으면 운영실로 스크롤 — 이 섹션 자체는
+    // 화면에 바로 그려져 있으니(비동기 자료를 기다리지 않음) 지금 바로 맞출 수 있다.
+    if(location.hash==='#ops-room')document.getElementById('ops-room')?.scrollIntoView({block:'start'});
     // 20261116_2326: 총괄 보고서 — agents-daily.js(하루 보고)와는 완전히 분리된 자료·코드 경로라 따로 끌어온다.
     const chongwal=document.querySelector('.chongwal-report-root');
     if(chongwal?.dataset.generation===generation){
       const {mountChongwalReport}=await import(`../chongwal-report.js?v=${document.body.dataset.build}`);
       if(chongwal.dataset.generation===generation)cleanupChongwal=mountChongwalReport(chongwal);
+    }
+    // 20261117_0004: 총괄 운영실 — 제안함·실행전략→일흐름·자리별 지금(ops.json/hub/chongwalOps, 2326과도
+    // agents-daily.js와도 분리된 자료·코드 경로).
+    const ops=document.querySelector('.ops-dynamic-root');
+    if(ops?.dataset.generation===generation){
+      const {mountChongwalOps}=await import(`../chongwal-ops.js?v=${document.body.dataset.build}`);
+      if(ops.dataset.generation===generation)cleanupOps=mountChongwalOps(ops);
     }
     const daily=document.querySelector('.agents-daily-root');
     if(daily?.dataset.generation===generation){
@@ -23,7 +33,13 @@ export default function renderPage({head}){
     if(org?.dataset.generation===generation)cleanupOrg=mountOrgchart(org);
   });
   return head('AI 자리 · 하루 보고','9개 자리가 한 일 · 알아낸 것 · 숫자를 한눈에 보여줘요.')+
+    // 20261117_0004: 사장님 "총괄이 실행 전략을 세우고 에이전트를 관리하는 모습을 보고 싶어" — 보고서 카드(2326,
+    // 그대로 재사용) + 제안함 + 실행전략→일흐름 + 자리별 지금, 네 단을 '총괄 운영실' 한 섹션으로 묶는다.
+    `<section id="ops-room" class="ops-room" aria-label="총괄 운영실"><div class="ops-room-head"><h2>총괄 운영실</h2><p class="muted">총괄이 전략을 세우고 자리에 일을 나눠 주는 모습을 그림 위주로 봐요.</p></div>` +
     `<section class="chongwal-report-root" data-generation="${generation}" aria-label="총괄 보고서"><p class="note" role="status">불러오는 중이에요.</p></section>` +
+    `<div class="section-gap"></div>` +
+    `<section class="ops-dynamic-root" data-generation="${generation}" aria-label="제안함 · 일 흐름 · 자리별 지금"><p class="note" role="status">불러오는 중이에요.</p></section>` +
+    `</section>` +
     `<div class="section-gap"></div>` +
     `<section class="agents-daily-root" data-generation="${generation}" aria-label="하루 보고"><p class="note" role="status">불러오는 중이에요.</p></section>` +
     `<div class="section-gap"></div>` +

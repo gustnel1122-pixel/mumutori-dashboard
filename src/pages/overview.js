@@ -25,6 +25,10 @@ export default function overview(ctx){
   const needLine=fin.needs==null
     ?`<a class="task-link" id="home-need-line" href="finance.html"><span class="task-dept tone-blue">재무</span><b>확인 필요 결제 · 분류 안 된 줄<small class="task-basis">로그인하거나 재무 화면을 열면 건수가 보여요</small></b><strong>재무<em>에서 보기</em></strong><span class="task-arrow">↗</span></a>`
     :`<a class="task-link${fin.needs?' task-hot':''}" id="home-need-line" href="finance.html#fin-needs"><span class="task-dept tone-blue">재무</span><b>${fin.needs?'확인 필요 결제 · 분류 · 수단 빈칸':'확인 필요 없음'}<small class="task-basis">${esc(fin.basis)}</small></b><strong>${won(fin.needs)}<em>건</em></strong><span class="task-arrow">↗</span></a>`;
+  // 20261117_0004: 사장님이 "총괄이 실행 전략을 세우고 에이전트에 일을 나눠 굴리는 모습"을 운영홈에서도 보고 싶다고
+  // 하셔서 — AI 조직도(agents.html)의 '총괄 운영실' 바로가기 작은 카드 하나. 실제 숫자는 home-ops.js가 로그인
+  // 뒤 hub/chongwalOps를 읽어 이 자리(#home-ops-line)에 채운다(아래는 로딩 전 기본 글).
+  const opsLine=`<a class="task-link" id="home-ops-line" href="agents.html#ops-room"><span class="task-dept tone-green">운영실</span><b>총괄 운영실<small class="task-basis">로그인하면 보여요</small></b><strong>보기<em>↗</em></strong><span class="task-arrow">↗</span></a>`;
   // 이번 달: 공용 장부 숫자는 재무 화면 맨 위(홈에서 장부 열기는 검수 2번과 함께). 시연이면 가짜 장부로 보여 준다.
   const m=fin.month;
   const monthBody=m
@@ -35,7 +39,7 @@ export default function overview(ctx){
     `<section class="home-mobile-welcome" aria-label="자주 가는 곳"><p>필요한 일을 한곳에서 차근차근 확인해요.</p><div><a href="quick.html">장부 <span aria-hidden="true">↗</span></a><a href="sourcing.html">소싱 보드 <span aria-hidden="true">↗</span></a><a href="https://gustnel1122-pixel.github.io/mumutori-offline-pages/">주문판 <span aria-hidden="true">↗</span></a></div></section>`+
     renderProgress()+
     `<div id="projects">${renderOperationsEntrance()}</div>`+
-    `<div class="home-top"><section class="panel task-panel"><div class="panelhead"><h2>다음으로 챙길 일 <span class="accent-orange">✳</span></h2>${badge('실제 할 일')}</div><div class="task-list">${needLine}</div>`+
+    `<div class="home-top"><section class="panel task-panel"><div class="panelhead"><h2>다음으로 챙길 일 <span class="accent-orange">✳</span></h2>${badge('실제 할 일')}</div><div class="task-list">${needLine}${opsLine}</div>`+
       // 옛 장부(과거 기록 포함) 숫자는 사장님 할 일이 아니라 참고값이라 접어 둔다(검수 기준 2)
       `<details class="legacy-tasks"><summary>옛 장부 참고 숫자 <small>과거 기록 포함 · 지금 할 일 아님</small></summary><div class="task-list">${tasks.map(([v,a,dept,label,count,unit,tone])=>`<a class="task-link" href="${v}.html?attention=${a}"><span class="task-dept tone-${tone}">${dept}</span><b>${label}</b><strong>${won(count)}<em>${unit}</em></strong><span class="task-arrow">↗</span></a>`).join('')}</div><div class="task-foot">10/03 이전 옛 장부(이 PC 브라우저)에서 센 숫자예요. 실제 미수금 · 미입고 확정 건수는 아닙니다.</div></details></section>`+
       `<section class="panel month-panel"><div class="panelhead"><h2>이번 달</h2>${badge(m?'시연':'공용 장부')}</div><div class="panelbody" id="home-month-body">${monthBody}</div></section></div>`+

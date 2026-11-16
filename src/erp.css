@@ -309,3 +309,47 @@ a{color:inherit;text-decoration:none}button,a,input,select,textarea{-webkit-tap-
 .chongwal-lightbox-nav{display:flex;gap:10px}
 @media(min-width:720px){.chongwal-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));overflow-x:visible}.chongwal-card{flex:initial}}
 @media(min-width:1180px){.chongwal-cards{grid-template-columns:repeat(4,minmax(0,1fr))}}
+
+/* 총괄 운영실(20261117_0004) — 보고서 카드(2326, 위) 다음에 제안함 · 실행전략→일흐름 · 자리별 지금 */
+.ops-room{border:1px solid var(--line);border-radius:14px;padding:18px 18px 20px;background:#fbfbf6;margin-bottom:10px}
+.ops-room-head{margin-bottom:14px}
+.ops-room-head h2{font-size:19px;letter-spacing:-.5px}
+.ops-room-head p{margin:4px 0 0;font-size:12px}
+.ops-block-title{font-size:14px;margin:0 0 10px;color:#354a36}
+.ops-face-icon{width:30px;height:30px;object-fit:contain;flex:none;border-radius:50%;background:#f4f1e6;border:1px solid var(--line);padding:2px}
+.ops-face-text{font-size:10px;font-weight:700;padding:3px 7px;border-radius:7px;background:var(--pale);color:var(--green);white-space:nowrap}
+/* 제안함 */
+.ops-proposals{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.ops-proposal{border:1px solid var(--line);border-radius:12px;padding:13px;background:#fffefa;display:flex;flex-direction:column;gap:8px}
+.ops-proposal-head{display:flex;justify-content:space-between;gap:8px;align-items:baseline;flex-wrap:wrap}
+.ops-proposal-head strong{font-size:13px}
+.ops-stage-path{display:flex;gap:4px;list-style:none;margin:0;padding:0;flex-wrap:wrap}
+.ops-stage-path li{font-size:9px;padding:4px 8px;border-radius:20px;background:#eef1e8;color:#8b9683;white-space:nowrap}
+.ops-stage-path li.done{background:#e6f0e2;color:#3a6a3f}
+.ops-stage-path li.current{background:var(--green);color:#fff;font-weight:700}
+.ops-proposal-thumb{padding:0;border:1px solid var(--line);border-radius:8px;overflow:hidden;align-self:flex-start;background:#fff;line-height:0}
+.ops-proposal-thumb img{width:72px;height:72px;object-fit:cover;display:block}
+/* 실행전략 → 일흐름(총괄이 자리로 나눠 주는 느낌) */
+.ops-dispatcher{display:flex;align-items:center;gap:8px;justify-content:center;margin-bottom:12px;font-size:12px;color:var(--muted)}
+.ops-flow-columns{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.ops-flow-col{border-top:3px solid var(--green);padding-top:10px;position:relative}
+.ops-flow-col:before{content:'';position:absolute;top:-24px;left:50%;width:1px;height:24px;background:#cdd6c8}
+.ops-flow-col-head{display:flex;gap:8px;align-items:flex-start;margin-bottom:10px}
+.ops-flow-col-head strong{font-size:13px;display:block}
+.ops-flow-col-head p{margin:3px 0 0;font-size:11px}
+.ops-flow-jobs{display:flex;flex-direction:column;gap:8px}
+.ops-job-card{border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff}
+.ops-job-top{display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap}
+.ops-job-top strong{font-size:12px}
+.ops-job-chip{display:inline-block;font-size:9px;padding:3px 7px;border-radius:20px;margin-bottom:6px;font-weight:600}
+.ops-job-chip.st-sent{background:#eef1e8;color:#75806c}
+.ops-job-chip.st-doing{background:#fbf2e3;color:#8d5a14}
+.ops-job-chip.st-done{background:#e9f3eb;color:#357446}
+.ops-job-chip.st-blocked{background:#faeeec;color:#a5574a}
+/* 자리별 지금 */
+.ops-seats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.ops-seat-card{border:1px solid var(--line);border-radius:12px;padding:13px;background:#fffefa;display:flex;flex-direction:column;gap:6px}
+.ops-seat-head{display:flex;align-items:center;gap:8px}
+.ops-seat-head strong{font-size:13px}
+.ops-seat-where{display:block;font-size:9px;color:var(--muted);margin-top:2px}
+@media(max-width:860px){.ops-flow-columns{grid-template-columns:1fr}.ops-flow-col:before{display:none}}

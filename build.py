@@ -50,7 +50,7 @@ EXTRA['settings']=('',' https://mumutori-letter-default-rtdb.asia-southeast1.fir
 PAGE_HEAD={'finance':'<link rel="stylesheet" href="src/fin-form.css?v={v}">','bank':'<link rel="stylesheet" href="src/fin-form.css?v={v}">','overview':'<link rel="stylesheet" href="src/project-progress.css?v={v}">'}
 PAGE_TAGS={'settings':'<script src="assets/vendor/firebase/firebase-messaging-compat.js?sdk=12.19.0"></script><script type="module" src="src/app-push.js?v={v}"></script><script type="module" src="src/ledger-ai-receiver-ui.js?v={v}"></script>', 'finance':'<script src="src/fin-core.js?v={v}"></script><script type="module" src="src/fin-panel.js?v={v}"></script>',
            'bank':'<script src="src/fin-core.js?v={v}"></script><script type="module" src="src/fin-accounts.js?v={v}"></script>',
-           'overview':'<script src="src/fin-core.js?v={v}"></script><script type="module" src="src/home-fin.js?v={v}"></script>'}   # 홈: 공용 장부 이번 달 · 확인 필요(읽기만, 구글 로그인)
+           'overview':'<script src="src/fin-core.js?v={v}"></script><script type="module" src="src/home-fin.js?v={v}"></script><script type="module" src="src/home-ops.js?v={v}"></script>'}   # 홈: 공용 장부 이번 달 · 확인 필요(읽기만, 구글 로그인) · 20261117_0004: 총괄 운영실 작은 카드(읽기만)
 AUTH_CONNECT=' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com wss://*.asia-southeast1.firebasedatabase.app'
 AUTH_SCRIPT=' https://apis.google.com'
 AUTH_FRAME='https://mumutori-letter.firebaseapp.com https://accounts.google.com'
@@ -97,7 +97,7 @@ for name,template in {**operations_pages,**redirect_pages}.items():
         shell=shell.replace('</head>',AUTH_TAGS+NOTICE_TAGS+'</head>')
     (R/f'{name}.html').write_text(shell,encoding='utf-8',newline=chr(10))
 # A strict allowlist keeps all JSON/seed, login, finance code and APIs out of Cache Storage.
-excluded={'fbauth.js','home-fin.js','finance.js','bank.js','overview.js','app-push.js'}
+excluded={'fbauth.js','home-fin.js','home-ops.js','finance.js','bank.js','overview.js','app-push.js'}
 assets={p.relative_to(R).as_posix():hashlib.sha256(content_bytes(p)).hexdigest()
         for folder in ['src','assets'] for p in sorted((R/folder).rglob('*'))
         if p.is_file() and p.suffix in {'.js','.css','.svg','.png','.jpg','.jpeg','.webp','.woff','.woff2'}
