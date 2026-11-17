@@ -88,6 +88,9 @@ def apply_auto_status(data, results_dir, alive_text):
         jobs.append(new_job)
     out = dict(data)
     out['jobs'] = jobs
+    # revenuePlan(20261117_1030 "돈 버는 길" — 총괄이 ops.json에 직접 씀)은 jobs처럼 자동 판단할 값이 없어
+    # 그대로 둔다(dict(data)가 이미 들고 있음) — 여기서는 모양만 가볍게 확인해 빈 리스트/없음을 구분해 둔다.
+    out['revenuePlan'] = data.get('revenuePlan', [])
     return out
 
 
@@ -144,7 +147,8 @@ def sync(src=DEFAULT_SRC, results_dir=DEFAULT_RESULTS, alive_path=DEFAULT_ALIVE,
         encoding='utf-8',
     )
     changed = [j['job'] for j, j2 in zip(data.get('jobs', []), payload['jobs']) if (j.get('status') or DEFAULT_STATUS) != j2['status']]
-    print('ok — jobs:', len(payload['jobs']), '· proposals:', len(payload.get('proposals', [])), '· 상태 바뀐 일감:', changed or '없음')
+    print('ok — jobs:', len(payload['jobs']), '· proposals:', len(payload.get('proposals', [])),
+          '· revenuePlan 갈래:', len(payload.get('revenuePlan', [])), '· 상태 바뀐 일감:', changed or '없음')
     return {'skipped': False, 'changed': changed}
 
 

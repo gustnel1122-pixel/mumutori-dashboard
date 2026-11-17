@@ -1,13 +1,19 @@
 import { mountOrgchart } from '../orgchart-private.js';
 
-let serial=0, cleanupChongwal=()=>{}, cleanupOps=()=>{}, cleanupDaily=()=>{}, cleanupOrg=()=>{};
+let serial=0, cleanupChongwal=()=>{}, cleanupOps=()=>{}, cleanupDaily=()=>{}, cleanupOrg=()=>{}, cleanupRevenue=()=>{};
 export default function renderPage({head}){
-  cleanupChongwal();cleanupOps();cleanupDaily();cleanupOrg();
+  cleanupChongwal();cleanupOps();cleanupDaily();cleanupOrg();cleanupRevenue();
   const generation=String(++serial);
   queueMicrotask(async()=>{
     // 20261117_0004: 홈 화면 작은 카드(agents.html#ops-room)에서 왔으면 운영실로 스크롤 — 이 섹션 자체는
     // 화면에 바로 그려져 있으니(비동기 자료를 기다리지 않음) 지금 바로 맞출 수 있다.
     if(location.hash==='#ops-room')document.getElementById('ops-room')?.scrollIntoView({block:'start'});
+    // 20261117_1030: 돈 버는 길 — 운영실 맨 위, chongwal-report.js·chongwal-ops.js와도 분리된 자료·코드 경로.
+    const revenue=document.querySelector('.revenue-plan-root');
+    if(revenue?.dataset.generation===generation){
+      const {mountRevenuePlan}=await import(`../revenue-plan.js?v=${document.body.dataset.build}`);
+      if(revenue.dataset.generation===generation)cleanupRevenue=mountRevenuePlan(revenue);
+    }
     // 20261116_2326: 총괄 보고서 — agents-daily.js(하루 보고)와는 완전히 분리된 자료·코드 경로라 따로 끌어온다.
     const chongwal=document.querySelector('.chongwal-report-root');
     if(chongwal?.dataset.generation===generation){
@@ -36,6 +42,11 @@ export default function renderPage({head}){
     // 20261117_0004: 사장님 "총괄이 실행 전략을 세우고 에이전트를 관리하는 모습을 보고 싶어" — 보고서 카드(2326,
     // 그대로 재사용) + 제안함 + 실행전략→일흐름 + 자리별 지금, 네 단을 '총괄 운영실' 한 섹션으로 묶는다.
     `<section id="ops-room" class="ops-room" aria-label="총괄 운영실"><div class="ops-room-head"><h2>총괄 운영실</h2><p class="muted">총괄이 전략을 세우고 자리에 일을 나눠 주는 모습을 그림 위주로 봐요.</p></div>` +
+    // 20261117_1030: 사장님 피드백 "정확히 뭘 어떻게 수익을 낼 거고 언제까지 할 거다라는 말도 없다" — 돈 버는
+    // 길을 운영실 맨 위(보고서 카드보다도 위)에 둔다.
+    `<h3 class="ops-block-title">돈 버는 길</h3>` +
+    `<section class="revenue-plan-root" data-generation="${generation}" aria-label="돈 버는 길"><p class="note" role="status">불러오는 중이에요.</p></section>` +
+    `<div class="section-gap"></div>` +
     `<section class="chongwal-report-root" data-generation="${generation}" aria-label="총괄 보고서"><p class="note" role="status">불러오는 중이에요.</p></section>` +
     `<div class="section-gap"></div>` +
     `<section class="ops-dynamic-root" data-generation="${generation}" aria-label="제안함 · 일 흐름 · 자리별 지금"><p class="note" role="status">불러오는 중이에요.</p></section>` +
