@@ -1,8 +1,8 @@
 import { mountOrgchart } from '../orgchart-private.js';
 
-let serial=0, cleanupChongwal=()=>{}, cleanupOps=()=>{}, cleanupDaily=()=>{}, cleanupOrg=()=>{}, cleanupRevenue=()=>{};
+let serial=0, cleanupChongwal=()=>{}, cleanupOps=()=>{}, cleanupDaily=()=>{}, cleanupOrg=()=>{}, cleanupRevenue=()=>{}, cleanupWorkroom=()=>{}, cleanupDoneWall=()=>{};
 export default function renderPage({head}){
-  cleanupChongwal();cleanupOps();cleanupDaily();cleanupOrg();cleanupRevenue();
+  cleanupChongwal();cleanupOps();cleanupDaily();cleanupOrg();cleanupRevenue();cleanupWorkroom();cleanupDoneWall();
   const generation=String(++serial);
   queueMicrotask(async()=>{
     // 20261117_0004: 홈 화면 작은 카드(agents.html#ops-room)에서 왔으면 운영실로 스크롤 — 이 섹션 자체는
@@ -27,6 +27,18 @@ export default function renderPage({head}){
       const {mountChongwalOps}=await import(`../chongwal-ops.js?v=${document.body.dataset.build}`);
       if(ops.dataset.generation===generation)cleanupOps=mountChongwalOps(ops);
     }
+    // 20261117_1030: 자리별 작업실 — 실시간(hub/workroom, EventSource로 듣기) — 분리된 자료·코드 경로.
+    const workroom=document.querySelector('.workroom-root');
+    if(workroom?.dataset.generation===generation){
+      const {mountWorkroom}=await import(`../workroom.js?v=${document.body.dataset.build}`);
+      if(workroom.dataset.generation===generation)cleanupWorkroom=mountWorkroom(workroom);
+    }
+    // 20261117_1030: 쌓이는 판 — 11/16부터 줄지 않는 숫자 + 끝난 일 벽(hub/doneWall) — 분리된 자료·코드 경로.
+    const doneWall=document.querySelector('.done-wall-root');
+    if(doneWall?.dataset.generation===generation){
+      const {mountDoneWall}=await import(`../done-wall.js?v=${document.body.dataset.build}`);
+      if(doneWall.dataset.generation===generation)cleanupDoneWall=mountDoneWall(doneWall);
+    }
     const daily=document.querySelector('.agents-daily-root');
     if(daily?.dataset.generation===generation){
       // 20261115_0801_v3: 이 import는 agents-daily.js를 직접 끌어오는 유일한 자리라, 빌드 해시를 안 붙이면
@@ -50,6 +62,14 @@ export default function renderPage({head}){
     `<section class="chongwal-report-root" data-generation="${generation}" aria-label="총괄 보고서"><p class="note" role="status">불러오는 중이에요.</p></section>` +
     `<div class="section-gap"></div>` +
     `<section class="ops-dynamic-root" data-generation="${generation}" aria-label="제안함 · 일 흐름 · 자리별 지금"><p class="note" role="status">불러오는 중이에요.</p></section>` +
+    `<div class="section-gap"></div>` +
+    // 20261117_1030: 자리별 작업실(실시간) — "제안함·일흐름·자리별 지금" 다음, 쌓이는 판보다 위.
+    `<h3 class="ops-block-title">자리별 작업실 — 지금</h3>` +
+    `<section class="workroom-root" data-generation="${generation}" aria-label="자리별 작업실"><p class="note" role="status">불러오는 중이에요.</p></section>` +
+    `<div class="section-gap"></div>` +
+    // 20261117_1030: 쌓이는 판 — 운영실 맨 아래.
+    `<h3 class="ops-block-title">쌓이는 판</h3>` +
+    `<section class="done-wall-root" data-generation="${generation}" aria-label="쌓이는 판"><p class="note" role="status">불러오는 중이에요.</p></section>` +
     `</section>` +
     `<div class="section-gap"></div>` +
     `<section class="agents-daily-root" data-generation="${generation}" aria-label="하루 보고"><p class="note" role="status">불러오는 중이에요.</p></section>` +
