@@ -1,0 +1,374 @@
+{
+  "rules": [
+    {
+      "name": "식빵 동전지갑",
+      "aliases": [],
+      "kind": "sticker",
+      "english": "Bread Loaf Coin Purse",
+      "price": 3000,
+      "sub": ""
+    },
+    {
+      "name": "주먹밥 동전지갑",
+      "aliases": [],
+      "kind": "sticker",
+      "english": "Rice Ball Coin Purse",
+      "price": 3000,
+      "sub": ""
+    },
+    {
+      "name": "치즈",
+      "aliases": [],
+      "kind": "sticker",
+      "english": "Cheese",
+      "price": 3000,
+      "sub": ""
+    },
+    {
+      "name": "무무아상",
+      "aliases": [],
+      "kind": "sticker",
+      "english": "Mumu Croissant",
+      "price": 3000,
+      "sub": ""
+    },
+    {
+      "name": "감자 셰프",
+      "aliases": [],
+      "kind": "sticker",
+      "english": "Potato Chef",
+      "price": 3000,
+      "sub": ""
+    },
+    {
+      "name": "하감자",
+      "aliases": [],
+      "kind": "sticker",
+      "english": "",
+      "price": null,
+      "sub": ""
+    },
+    {
+      "name": "감자동전지갑",
+      "aliases": [
+        "감자 동전지갑"
+      ],
+      "kind": "sticker",
+      "english": "",
+      "price": null,
+      "sub": ""
+    },
+    {
+      "name": "샌드위치",
+      "aliases": [],
+      "kind": "sticker",
+      "english": "Sandwich",
+      "price": 3000,
+      "sub": ""
+    },
+    {
+      "name": "북극에서 온 맹수",
+      "aliases": [
+        "무서운 북극곰",
+        "공포의 펭귄",
+        "위협적인 해달"
+      ],
+      "kind": "sticker",
+      "english": "Fierce Beasts from the Arctic",
+      "price": 3000,
+      "sub": "(개당)"
+    },
+    {
+      "name": "마늘새",
+      "aliases": [
+        "마늘새 노랑",
+        "마늘새 분홍",
+        "마늘새 흰색"
+      ],
+      "kind": "sticker",
+      "english": "",
+      "price": null,
+      "sub": ""
+    },
+    {
+      "name": "무무와플",
+      "aliases": [
+        "무무 와플"
+      ],
+      "kind": "sticker",
+      "english": "",
+      "price": null,
+      "sub": ""
+    },
+    {
+      "name": "마스킹 테이프",
+      "aliases": [
+        "마스킹테이프"
+      ],
+      "kind": "sticker",
+      "english": "",
+      "price": null,
+      "sub": ""
+    },
+    {
+      "name": "500원 존",
+      "aliases": [],
+      "kind": "sticker",
+      "english": "",
+      "price": null,
+      "sub": ""
+    },
+    {
+      "name": "대파입니다",
+      "aliases": [],
+      "kind": "card",
+      "english": "I'm a Scallion",
+      "price": 3000,
+      "sub": ""
+    },
+    {
+      "name": "억울버섯",
+      "aliases": [
+        "억울 버섯"
+      ],
+      "kind": "card",
+      "english": "Wronged Mushroom",
+      "price": 3000,
+      "sub": ""
+    },
+    {
+      "name": "고추 키링",
+      "aliases": [],
+      "kind": "card",
+      "english": "Chili Pepper Keyring",
+      "price": 3000,
+      "sub": ""
+    },
+    {
+      "name": "시무룩 양파",
+      "aliases": [
+        "시무룩양파"
+      ],
+      "kind": "card",
+      "english": "Sulky Onion",
+      "price": 3000,
+      "sub": ""
+    },
+    {
+      "name": "물먹만두",
+      "aliases": [],
+      "kind": "card",
+      "english": "Water-Drinking Dumpling",
+      "price": 3000,
+      "sub": ""
+    },
+    {
+      "name": "소세지빵 키링",
+      "aliases": [
+        "소시지빵 키링"
+      ],
+      "kind": "card",
+      "english": "",
+      "price": null,
+      "sub": ""
+    },
+    {
+      "name": "식빵ㅎ",
+      "aliases": [],
+      "kind": "card",
+      "english": "Bread Loaf, Heh",
+      "price": 3000,
+      "sub": ""
+    },
+    {
+      "name": "배추입니다",
+      "aliases": [],
+      "kind": "card",
+      "english": "",
+      "price": null,
+      "sub": ""
+    },
+    {
+      "name": "생강입니다",
+      "aliases": [],
+      "kind": "card",
+      "english": "I'm Ginger",
+      "price": 3000,
+      "sub": ""
+    },
+    {
+      "name": "무무바게트",
+      "aliases": [],
+      "kind": "card",
+      "english": "",
+      "price": null,
+      "sub": ""
+    },
+    {
+      "name": "무무왕바게트",
+      "aliases": [
+        "무무 왕바게트"
+      ],
+      "kind": "card",
+      "english": "Mumu King-Size Baguette",
+      "price": 3000,
+      "sub": ""
+    },
+    {
+      "name": "걍빵",
+      "aliases": [],
+      "kind": "card",
+      "english": "Just Bread",
+      "price": 2500,
+      "sub": ""
+    },
+    {
+      "name": "무무포크",
+      "aliases": [
+        "무무토리 포크"
+      ],
+      "kind": "card",
+      "english": "Mumu Fork",
+      "price": 2500,
+      "sub": ""
+    },
+    {
+      "name": "별삐",
+      "aliases": [],
+      "kind": "card",
+      "english": "",
+      "price": null,
+      "sub": ""
+    },
+    {
+      "name": "떡메모지",
+      "aliases": [
+        "떡메모지 빼꼼",
+        "떡메모지 컴퍼니"
+      ],
+      "kind": "card",
+      "english": "",
+      "price": null,
+      "sub": ""
+    },
+    {
+      "name": "카피바라 말랑이",
+      "aliases": [],
+      "kind": "card",
+      "english": "Capybara Squishy",
+      "price": 3000,
+      "sub": ""
+    },
+    {
+      "name": "우주 카피바라",
+      "aliases": [],
+      "kind": "card",
+      "english": "",
+      "price": null,
+      "sub": ""
+    },
+    {
+      "name": "군호구마",
+      "aliases": [
+        "군 호구마"
+      ],
+      "kind": "card",
+      "english": "Roasted Sweet Potato Pushover",
+      "price": 3000,
+      "sub": ""
+    },
+    {
+      "name": "버터 말랑이",
+      "aliases": [
+        "버터스틱 말랑이"
+      ],
+      "kind": "card",
+      "english": "Butter Squishy",
+      "price": 2500,
+      "sub": ""
+    },
+    {
+      "name": "카피바라 미니어처",
+      "aliases": [
+        "모카 카피바라"
+      ],
+      "kind": "card",
+      "english": "",
+      "price": null,
+      "sub": ""
+    },
+    {
+      "name": "무무토리 엽서",
+      "aliases": [
+        "엽서",
+        "성원 엽서",
+        "엽서 완두콩",
+        "엽서 병아리콩",
+        "엽서 땅콩",
+        "엽서 밤",
+        "엽서 해바라기씨",
+        "매장지기 엽서"
+      ],
+      "kind": "card",
+      "english": "",
+      "price": null,
+      "sub": ""
+    },
+    {
+      "name": "부적",
+      "aliases": [
+        "성원 부적 카드",
+        "부적카드5종1묶음"
+      ],
+      "kind": "card",
+      "english": "",
+      "price": null,
+      "sub": ""
+    },
+    {
+      "name": "도토리",
+      "aliases": [],
+      "kind": "card",
+      "english": "",
+      "price": null,
+      "sub": ""
+    },
+    {
+      "name": "땅콩",
+      "aliases": [],
+      "kind": "card",
+      "english": "",
+      "price": null,
+      "sub": ""
+    },
+    {
+      "name": "토마토",
+      "aliases": [],
+      "kind": "card",
+      "english": "",
+      "price": null,
+      "sub": ""
+    },
+    {
+      "name": "카피바라 인형",
+      "aliases": [
+        "카피바라",
+        "카피바라 오리튜브",
+        "카피바라 핑크후드"
+      ],
+      "kind": "card",
+      "english": "",
+      "price": null,
+      "sub": ""
+    },
+    {
+      "name": "계좌이체",
+      "aliases": [],
+      "kind": "card",
+      "english": "",
+      "price": null,
+      "sub": ""
+    }
+  ],
+  "source": "11/18 + 11/19 + 20261121 v3d, English20 with2215 corrections; 21:09 owner prices"
+}

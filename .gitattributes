@@ -10,3 +10,12 @@
 /docs/LABELS.md text eol=lf
 /tests/labels.test.cjs text eol=lf
 /labels.html text eol=lf
+
+/assets/pricetags/*.py text eol=lf
+/assets/pricetags/*.json text eol=lf
+/assets/pricetags/*.txt text eol=lf
+/assets/pricetags/*.pdf -text
+/assets/pricetags/*.ttf -text
+/src/pricetags-* text eol=lf
+/src/pricetags.css text eol=lf
+/tests/pricetags.test.cjs text eol=lf

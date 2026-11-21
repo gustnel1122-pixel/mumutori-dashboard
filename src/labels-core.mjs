@@ -30,9 +30,9 @@ export function projectCatalog(raw,rules){
   if(!p||typeof p!=='object')continue;
   const barcode=clean(p.sale?.barcode||p.barcode||p.goods?.barcode),spec=rules.specs?.[barcode]||{};
   const material=clean(p.label?.material||p.material||spec.material),origin=clean(p.label?.origin||p.origin||spec.origin);
-  safe.push({id:clean(p.id),name:clean(spec.labelName||p.name),barcode,material,origin,age:clean(p.label?.age||spec.age||'14'),seller:'무무토리',sellerRole:clean(p.label?.sellerRole||spec.sellerRole||(origin==='대한민국'||origin==='한국'?'판매원':'수입·판매원')),originWord:clean(p.label?.originWord||spec.originWord||(origin==='대한민국'||origin==='한국'?'제조국':'원산지')),decision:clean(p.sale?.decision),variant:false});
+  safe.push({id:clean(p.id),productName:clean(p.name),storePrice:Number.isFinite(p.sale?.storePrice)?p.sale.storePrice:null,name:clean(spec.labelName||p.name),barcode,material,origin,age:clean(p.label?.age||spec.age||'14'),seller:'무무토리',sellerRole:clean(p.label?.sellerRole||spec.sellerRole||(origin==='대한민국'||origin==='한국'?'판매원':'수입·판매원')),originWord:clean(p.label?.originWord||spec.originWord||(origin==='대한민국'||origin==='한국'?'제조국':'원산지')),decision:clean(p.sale?.decision),variant:false});
   for(const v of rules.variants||[])if(v.parentId===p.id&&Array.isArray(p.goods?.options)&&p.goods.options.some(o=>o.name===v.option)){
-   const vs=rules.specs?.[v.barcode]||{};safe.push({id:clean(p.id)+'-'+v.barcode,name:v.name,barcode:v.barcode,material:vs.material||material,origin:vs.origin||origin,age:vs.age||'14',seller:'무무토리',sellerRole:vs.sellerRole||'판매원',originWord:vs.originWord||'제조국',decision:clean(p.sale?.decision),variant:true});
+   const vs=rules.specs?.[v.barcode]||{};safe.push({id:clean(p.id)+'-'+v.barcode,productName:v.name,storePrice:Number.isFinite(p.sale?.storePrice)?p.sale.storePrice:null,name:v.name,barcode:v.barcode,material:vs.material||material,origin:vs.origin||origin,age:vs.age||'14',seller:'무무토리',sellerRole:vs.sellerRole||'판매원',originWord:vs.originWord||'제조국',decision:clean(p.sale?.decision),variant:true});
   }
  }
  return safe;

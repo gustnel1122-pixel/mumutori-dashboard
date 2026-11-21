@@ -1,6 +1,8 @@
+import {initPricetags} from './pricetags-app.js';
 import {current,onAuth,signIn,dbUrl} from './fbauth.js?v=access20261028';
 import {SHEET,SIZE,newSheet,clonePages,rangeSelection,fillFrom,stats,labelErrors,toEngine,readCatalog,readUsed,rememberUsed} from './labels-core.mjs';
 const $=id=>document.getElementById(id);
+const priceMaker=initPricetags();
 const state={pages:[newSheet()],locked:[0],page:0,selected:new Set(),catalog:[],candidate:null,history:[],version:0,readyVersion:-1,pdf:null,bytes:null,meta:null,decoded:null,pdfUrl:null,worker:null,busy:false,user:'',loaded:false,rendering:false};
 let rules,timer,searchTimer,toastTimer,authSequence=0,paintSequence=0;
 const fields=['name','barcode','material','origin','age','seller','sellerRole','originWord'];
@@ -113,7 +115,7 @@ $('print-pdf').onclick=()=>{if(state.readyVersion===state.version)window.open(st
 function storage(){try{return window.localStorage;}catch{return null;}}
 function showRemembered(){const last=readUsed(storage());$('last-used').textContent=last?`지난번 ${last.slot}번까지 기억했어요.`:'';}
 $('remember-print').onclick=()=>{let slot=0;for(const page of state.pages)for(let s=0;s<108;s++)if(page[s])slot=s+1;if(rememberUsed(storage(),slot)){showRemembered();say(`${slot}번까지 쓴 것으로 기억했어요.`);}else say('이 브라우저에는 기억할 수 없지만 라벨은 계속 만들 수 있어요.');};
-function wipe(){++authSequence;state.user='';state.loaded=false;state.catalog=[];state.candidate=null;state.pages=[newSheet()];state.locked=[0];state.selected.clear();state.history=[];state.version++;state.readyVersion=-1;state.worker?.terminate();state.worker=null;state.busy=false;state.rendering=false;clearPdf();$('label-workspace').hidden=true;for(const k of fields)$('field-'+k).value='';$('product-results').replaceChildren();}
+function wipe(){priceMaker.reset();++authSequence;state.user='';state.loaded=false;state.catalog=[];state.candidate=null;state.pages=[newSheet()];state.locked=[0];state.selected.clear();state.history=[];state.version++;state.readyVersion=-1;state.worker?.terminate();state.worker=null;state.busy=false;state.rendering=false;clearPdf();$('label-workspace').hidden=true;for(const k of fields)$('field-'+k).value='';$('product-results').replaceChildren();}
 function authMessage(text,button,action){const root=$('auth-status');root.replaceChildren();const p=document.createElement('p');p.textContent=text;root.append(p);if(button){const b=document.createElement('button');b.textContent=button;b.onclick=async()=>{b.disabled=true;try{await action();}catch{$('auth-status').firstChild.textContent='연결하지 못했어요. 다시 시도해 주세요.';b.disabled=false;}};root.append(b);}root.hidden=false;}
 onAuth(async user=>{
  if(!user?.uid){wipe();authMessage('운영홈에서 쓰는 계정으로 로그인해 주세요.','Google 로그인',signIn);return;}
@@ -123,7 +125,7 @@ onAuth(async user=>{
  try{
   rules??=await fetch(new URL('./labels-specs.json',import.meta.url),{cache:'no-cache'}).then(r=>{if(!r.ok)throw Error();return r.json();});
   const catalog=await readCatalog({auth:{current,dbUrl},rules});if(seq!==authSequence||current()?.uid!==user.uid)return;
-  state.catalog=catalog;state.loaded=true;$('auth-status').hidden=true;$('label-workspace').hidden=false;showRemembered();renderProducts();refresh();
+  state.catalog=catalog;state.loaded=true;$('auth-status').hidden=true;$('label-workspace').hidden=false;showRemembered();renderProducts();refresh();priceMaker.setCatalog(catalog);
  }catch{if(seq!==authSequence)return;wipe();authMessage('상품 목록을 불러오지 못했어요. 로그인과 접근 권한을 확인해 주세요.','다시 불러오기',()=>location.reload());}
 });
 // Local fixture harness only; never enables access to the authenticated catalog.

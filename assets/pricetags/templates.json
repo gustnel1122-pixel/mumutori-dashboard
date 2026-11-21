@@ -1,0 +1,99 @@
+{
+  "pages": {
+    "clean": 0,
+    "back": 1,
+    "stickerGuide": 2,
+    "frontGuide": 10,
+    "backGuide": 14
+  },
+  "exact": [
+    {
+      "kind": "sticker",
+      "name": "감자 셰프",
+      "english": "Potato Chef",
+      "price": 3000,
+      "sub": "",
+      "page": 3
+    },
+    {
+      "kind": "sticker",
+      "name": "샌드위치",
+      "english": "Sandwich",
+      "price": 3000,
+      "sub": "",
+      "page": 4
+    },
+    {
+      "kind": "sticker",
+      "name": "치즈",
+      "english": "Cheese",
+      "price": 3000,
+      "sub": "",
+      "page": 5
+    },
+    {
+      "kind": "sticker",
+      "name": "무무아상",
+      "english": "Mumu Croissant",
+      "price": 3000,
+      "sub": "",
+      "page": 6
+    },
+    {
+      "kind": "sticker",
+      "name": "주먹밥 동전지갑",
+      "english": "Rice Ball Coin Purse",
+      "price": 3000,
+      "sub": "",
+      "page": 7
+    },
+    {
+      "kind": "sticker",
+      "name": "식빵 동전지갑",
+      "english": "Bread Loaf Coin Purse",
+      "price": 3000,
+      "sub": "",
+      "page": 8
+    },
+    {
+      "kind": "sticker",
+      "name": "북극에서 온 맹수",
+      "english": "Fierce Beasts from the Arctic",
+      "price": 3000,
+      "sub": "(개당)",
+      "page": 9
+    },
+    {
+      "kind": "card",
+      "name": "시무룩 양파",
+      "english": "Sulky Onion",
+      "price": 3000,
+      "sub": "",
+      "page": 11
+    },
+    {
+      "kind": "card",
+      "name": "물먹만두",
+      "english": "Water-Drinking Dumpling",
+      "price": 3000,
+      "sub": "",
+      "page": 12
+    },
+    {
+      "kind": "card",
+      "name": "군호구마",
+      "english": "Roasted Sweet Potato Pushover",
+      "price": 3000,
+      "sub": "",
+      "page": 13
+    }
+  ],
+  "source": "design3d v3d; original clipped vector forms, unchanged size/color/font",
+  "cleanInkMM": [
+    38.80555555555555,
+    4.938888888888888,
+    46.21388888888888,
+    14.111111111111109
+  ],
+  "fontUnits": 1024
+}

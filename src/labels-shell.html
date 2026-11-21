@@ -1,13 +1,14 @@
 <!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#174d3c">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'wasm-unsafe-eval' https://apis.google.com https://cdn.jsdelivr.net;style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self';connect-src 'self' https://cdn.jsdelivr.net https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.app https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com;worker-src 'self' blob:;frame-src 'self' blob: https://mumutori-letter.firebaseapp.com https://accounts.google.com;object-src 'none';form-action 'none';base-uri 'self'">
-<title>라벨 만들기 — 무무토리</title><link rel="icon" href="assets/mark.svg"><link rel="stylesheet" href="src/labels.css?v={{VERSION}}">{{PWA_HEAD}}
+<title>라벨 만들기 — 무무토리</title><link rel="icon" href="assets/mark.svg"><link rel="stylesheet" href="src/labels.css?v={{VERSION}}"><link rel="stylesheet" href="src/pricetags.css?v={{VERSION}}">{{PWA_HEAD}}
 </head><body data-page="labels" data-build="{{VERSION}}"><a class="skip" href="#sheet-section">라벨 판으로</a>
 <header class="label-header"><a href="index.html" class="brand">mumutori<span>®</span></a><a href="products.html">상품 관리</a><span class="header-note">라벨 작업대</span></header>
 <main>
-<section class="intro"><div><h1>라벨 만들기</h1><p>종이에서 칸을 고르고, 붙일 상품을 넣어 주세요.</p></div><div class="paper-spec"><b>PP7108</b><span>A4 · 원형20mm · 108칸</span></div></section>
+<section class="intro"><div><h1>라벨 · 가격표 만들기</h1><p>종이에서 칸을 고르고, 붙일 상품을 넣어 주세요.</p></div><div class="paper-spec"><b>PP7108</b><span>A4 · 원형20mm · 108칸</span></div></section>
+<nav class="maker-tabs" role="tablist" aria-label="만들기 종류"><button id="mode-labels" role="tab" aria-controls="label-workspace" aria-selected="true">라벨</button><button id="mode-prices" role="tab" aria-controls="pricetag-workspace" aria-selected="false">가격표</button></nav>
 <div id="auth-status" class="auth-status" role="status"><p>운영홈 로그인을 확인하고 있어요.</p></div>
-<div id="label-workspace" hidden>
+<div id="label-workspace" role="tabpanel" hidden>
 <div class="mobile-switch" role="tablist" aria-label="라벨 작업"><button id="tab-sheet" role="tab" aria-selected="true">칸 고르기</button><button id="tab-picker" role="tab" aria-selected="false">상품 고르기</button></div>
 <div class="workbench">
 <aside id="picker" class="picker" aria-label="상품과 라벨 내용">
@@ -31,5 +32,5 @@
  <p class="preview-note" id="preview-note">아직 비어 있는 종이예요. 칸을 고른 뒤 상품을 넣어 주세요.</p>
  <section class="export-panel"><div><h2 id="document-summary">1장 · 라벨0칸</h2><p id="render-status" role="status" aria-live="polite">준비됐어요.</p><p id="decode-status" class="decode-status" aria-live="polite"></p></div><div class="export-actions"><button id="download-pdf" class="primary" disabled>PDF 내려받기</button><button id="print-pdf" disabled>PDF 열어 인쇄</button></div>
  <p class="print-settings">엡손 · PP7108 · 매트 · 품질 높음 · <b>실제크기100% · 여백없음 해제</b> · 새 종이는1번 칸부터</p><div class="remember"><span>실제로 인쇄한 뒤에</span><button id="remember-print" disabled>마지막 쓴 칸 기억</button><small>이 기기에만 기억해요.</small></div></section>
-</section></div></div></main><div id="label-toast" class="label-toast" role="status" hidden></div>
+</section></div></div>{{PRICETAG_PANEL}}</main><div id="label-toast" class="label-toast" role="status" hidden></div>
 {{AUTH_TAGS}}<script src="assets/vendor/labels/zxing.min.js" defer></script><script type="module" src="src/labels-app.js?v={{VERSION}}"></script></body></html>
