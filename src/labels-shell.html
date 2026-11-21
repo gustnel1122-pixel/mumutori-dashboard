@@ -14,6 +14,7 @@
 <aside id="picker" class="picker" aria-label="상품과 라벨 내용">
  <h2>상품 고르기</h2><label class="search-label" for="product-search">이름 / 바코드 검색</label><input id="product-search" type="search" placeholder="예: 떡메모지, 20000882" autocomplete="off"><label class="all-products"><input id="all-products" type="checkbox">판매 외 상품도 보기</label>
  <div id="product-results" class="product-results" aria-label="상품 검색 결과"></div>
+ <section id="label-variants" class="variant-picker" hidden aria-label="묶음 상품의 색깔과 모양"><div class="variant-heading"><h3 id="label-variant-heading"></h3><button id="label-variants-close" type="button" aria-label="색깔 고르기 닫기">닫기</button></div><p>고른 색의 원래 바코드로 만들어요. 색 이름이 없으면 바코드로 골라 주세요.</p><div id="label-variant-options"></div></section>
  <form id="label-form" novalidate><div class="editor-head"><h3>라벨에 적을 내용</h3><span>이 작업에서만 변경</span></div>
  <label>품명<input id="field-name" maxlength="80" required autocomplete="off"></label>
  <label>바코드<input id="field-barcode" inputmode="numeric" maxlength="8" required autocomplete="off"></label>

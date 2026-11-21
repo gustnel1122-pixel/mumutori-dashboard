@@ -1,5 +1,5 @@
 {
-  "version": "20261121",
+  "version": "20261122-0041",
   "source": "Owner-approved round_label_v6 label material/origin rules, latest2057 PET confirmation. No catalog, quantities or cost data.",
   "specs": {
     "20000479": {
@@ -126,35 +126,40 @@
       "origin": "중국",
       "age": "14",
       "sellerRole": "수입·판매원",
-      "originWord": "원산지"
+      "originWord": "원산지",
+      "labelName": "행운의 거북이?"
     },
     "20000554": {
       "material": "레진",
       "origin": "중국",
       "age": "14",
       "sellerRole": "수입·판매원",
-      "originWord": "원산지"
+      "originWord": "원산지",
+      "labelName": "산타모자 야광 거북이 보라"
     },
     "20000561": {
       "material": "레진",
       "origin": "중국",
       "age": "14",
       "sellerRole": "수입·판매원",
-      "originWord": "원산지"
+      "originWord": "원산지",
+      "labelName": "산타모자 야광 거북이 분홍"
     },
     "20000547": {
       "material": "레진",
       "origin": "중국",
       "age": "14",
       "sellerRole": "수입·판매원",
-      "originWord": "원산지"
+      "originWord": "원산지",
+      "labelName": "산타모자 야광 거북이 연파랑"
     },
     "20000530": {
       "material": "레진",
       "origin": "중국",
       "age": "14",
       "sellerRole": "수입·판매원",
-      "originWord": "원산지"
+      "originWord": "원산지",
+      "labelName": "산타모자 야광 거북이 초록"
     },
     "20000127": {
       "material": "봉제",

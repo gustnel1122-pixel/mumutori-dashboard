@@ -1,0 +1,227 @@
+{
+  "version": "20261122-0041",
+  "source": "Page display rules only; no catalog, stock or barcode mutation. Group prices are computed from each fresh authenticated GET.",
+  "groups": [
+    {
+      "id": "group:lucky-turtles",
+      "name": "행운의 거북이?",
+      "memberIds": [
+        "fresh-P03",
+        "fresh-P03-2",
+        "fresh-P03-3",
+        "fresh-P03-4",
+        "fresh-P03-5"
+      ],
+      "variantLabels": {
+        "fresh-P03": "행운의 거북이? · 색상 미표기",
+        "fresh-P03-2": "초록",
+        "fresh-P03-3": "연파랑",
+        "fresh-P03-4": "보라",
+        "fresh-P03-5": "분홍"
+      },
+      "zone500": true,
+      "basis": "B1577·11/19 2258 v2 거북이5종 PDF/입력표; 2125·v2 500원 존 + 현재 매장가500"
+    },
+    {
+      "id": "group:goose-clips",
+      "name": "거위 집게핀",
+      "memberIds": [
+        "fresh-N02",
+        "fresh-N02-2",
+        "fresh-N02-3",
+        "fresh-N02-4",
+        "fresh-N02-5"
+      ],
+      "variantLabels": {},
+      "zone500": true,
+      "basis": "11/19 2258 결과 거위 집게핀5종; 2125·v2 500원 존 + 현재 매장가500"
+    },
+    {
+      "id": "group:goose-keyrings",
+      "name": "거위 키링",
+      "memberIds": [
+        "fresh-N14",
+        "fresh-N14-2",
+        "fresh-N14-3",
+        "fresh-N14-4",
+        "fresh-N14-5"
+      ],
+      "variantLabels": {},
+      "zone500": true,
+      "basis": "11/19 2258 결과 거위 키링5종·B1577 커위키링 원문 보존; 2125·v2 500원 존 + 현재 매장가500"
+    },
+    {
+      "id": "group:garlic-birds",
+      "name": "마늘새",
+      "memberIds": [
+        "fresh-D09",
+        "fresh-D09-2",
+        "fresh-D09-3"
+      ],
+      "variantLabels": {
+        "fresh-D09": "노랑",
+        "fresh-D09-2": "분홍",
+        "fresh-D09-3": "흰색"
+      },
+      "zone500": false,
+      "basis": "11/19 2125 색상 공용 마늘새; 2251 스티커 기본값 유지"
+    },
+    {
+      "id": "group:capybara-dolls",
+      "name": "카피바라 인형",
+      "memberIds": [
+        "fresh-R18",
+        "fresh-R18-2",
+        "fresh-R18-3"
+      ],
+      "variantLabels": {
+        "fresh-R18": "오리튜브",
+        "fresh-R18-2": "핑크후드",
+        "fresh-R18-3": "카피바라"
+      },
+      "zone500": false,
+      "basis": "2251 기준표 카피바라 인형3종; 미니어처·말랑이·우주는 별도 유지"
+    },
+    {
+      "id": "group:arctic-beasts",
+      "name": "북극에서 온 맹수",
+      "memberIds": [
+        "fresh-M18",
+        "fresh-M18-2",
+        "fresh-N05"
+      ],
+      "variantLabels": {
+        "fresh-M18": "북극곰",
+        "fresh-M18-2": "펭귄",
+        "fresh-N05": "해달"
+      },
+      "zone500": false,
+      "basis": "11/19 2125 북극3종 공용·(개당); 11/21 v3d 3000원 공용 정본 유지"
+    },
+    {
+      "id": "group:hamster-keyrings",
+      "name": "햄스터 인형 키링 세트",
+      "memberIds": [
+        "fresh-H01",
+        "fresh-H01-2",
+        "fresh-H01-3"
+      ],
+      "variantLabels": {
+        "fresh-H01": "꿀색",
+        "fresh-H01-2": "회색",
+        "fresh-H01-3": "흰색"
+      },
+      "zone500": false,
+      "basis": "상품홈 공통 상품명·색상, 현재 GET 대조"
+    },
+    {
+      "id": "group:memo-designs",
+      "name": "떡메모지",
+      "memberIds": [
+        "goods-premium-memo",
+        "goods-premium-memo-20000776"
+      ],
+      "variantLabels": {
+        "goods-premium-memo": "빼꼼",
+        "goods-premium-memo-20000776": "컴퍼니"
+      },
+      "zone500": false,
+      "basis": "상품홈 goods.options 빼꼼·컴퍼니; 2130·2057 승인 바코드20000769/20000776"
+    },
+    {
+      "id": "group:postcard-designs",
+      "name": "무무토리 엽서",
+      "memberIds": [
+        "goods-postcard-000082",
+        "goods-postcard-000079",
+        "goods-postcard-000081",
+        "goods-postcard-000080",
+        "goods-postcard-000084",
+        "goods-postcard-000078",
+        "goods-postcard-000083"
+      ],
+      "variantLabels": {},
+      "zone500": false,
+      "basis": "2251 공용 가격표·11/20 엽서 라벨·현재 디자인별 기존 바코드; 바코드 없는 성원 엽서는 제외"
+    }
+  ],
+  "review": [
+    {
+      "name": "검정 치와와·분홍 강아지 인형",
+      "status": "묶지 않음",
+      "reason": "색 외에 견종 이름도 달라 공통 상품명 확인 필요",
+      "ids": [
+        "fresh-D03",
+        "fresh-D03-2"
+      ]
+    },
+    {
+      "name": "감자 셰프 1차·2차",
+      "status": "묶지 않음",
+      "reason": "색 차이가 아닌 차수·기존 바코드 구분. 안 팜/판매 결정을 보존",
+      "ids": [
+        "fresh-R05",
+        "fresh-R05-4"
+      ]
+    },
+    {
+      "name": "억울버섯 1차·2차",
+      "status": "묶지 않음",
+      "reason": "색 차이가 아닌 차수·기존 바코드20000325/20000653 구분을 보존",
+      "ids": [
+        "fresh-R05-2",
+        "fresh-R05-5"
+      ]
+    },
+    {
+      "name": "성원 엽서와 디자인별 엽서7종",
+      "status": "추가 통합하지 않음",
+      "reason": "성원 엽서는 바코드 없는 별도 상품홈 항목. 디자인7종과의 관계 확인 전 합치지 않음",
+      "ids": [
+        "goods-sungwon-postcards"
+      ]
+    },
+    {
+      "name": "거위 집게핀5종 색 이름",
+      "status": "상품군 묶음·바코드로 선택",
+      "reason": "읽은 상품홈 이름에 색이 없어 색↔바코드 대응은 만들지 않음",
+      "ids": [
+        "fresh-N02",
+        "fresh-N02-2",
+        "fresh-N02-3",
+        "fresh-N02-4",
+        "fresh-N02-5"
+      ]
+    },
+    {
+      "name": "거위 키링5종 색 이름",
+      "status": "상품군 묶음·바코드로 선택",
+      "reason": "읽은 상품홈 이름에 색이 없고 커위키링 원문도 보존. 색↔바코드 대응 확인 필요",
+      "ids": [
+        "fresh-N14",
+        "fresh-N14-2",
+        "fresh-N14-3",
+        "fresh-N14-4",
+        "fresh-N14-5"
+      ]
+    },
+    {
+      "name": "행운의 거북이? 20000523 색 이름",
+      "status": "거북이5종 묶음·원문으로 선택",
+      "reason": "11/19 정본과 상품홈에 이 색 이름이 없음. 기본색을 임의로 붙이지 않음",
+      "ids": [
+        "fresh-P03"
+      ]
+    },
+    {
+      "name": "햄스터 인형 키링 세트3색 인쇄 정보",
+      "status": "상품군 묶음·인쇄 정보 확인",
+      "reason": "기존 바코드·재질·원산지·매장가가 미입력. 새 바코드를 만들지 않고 기존 인쇄 검증으로 차단",
+      "ids": [
+        "fresh-H01",
+        "fresh-H01-2",
+        "fresh-H01-3"
+      ]
+    }
+  ]
+}

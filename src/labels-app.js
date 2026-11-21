@@ -1,10 +1,11 @@
-import {initPricetags} from './pricetags-app.js';
+import {catalogRows,rowMembers,rowMatches} from './catalog-groups.mjs';
+import {initPricetags} from './pricetags-app.js?v=groups20261122';
 import {current,onAuth,signIn,dbUrl} from './fbauth.js?v=access20261028';
 import {SHEET,SIZE,newSheet,clonePages,rangeSelection,fillFrom,stats,labelErrors,toEngine,readCatalog,readUsed,rememberUsed} from './labels-core.mjs';
 const $=id=>document.getElementById(id);
 const priceMaker=initPricetags();
-const state={pages:[newSheet()],locked:[0],page:0,selected:new Set(),catalog:[],candidate:null,history:[],version:0,readyVersion:-1,pdf:null,bytes:null,meta:null,decoded:null,pdfUrl:null,worker:null,busy:false,user:'',loaded:false,rendering:false};
-let rules,timer,searchTimer,toastTimer,authSequence=0,paintSequence=0;
+const state={pages:[newSheet()],locked:[0],page:0,selected:new Set(),catalog:[],candidate:null,history:[],version:0,readyVersion:-1,pdf:null,bytes:null,meta:null,decoded:null,pdfUrl:null,worker:null,busy:false,user:'',loaded:false,rendering:false,openGroup:null};
+let rules,groupRules,timer,searchTimer,toastTimer,authSequence=0,paintSequence=0;
 const fields=['name','barcode','material','origin','age','seller','sellerRole','originWord'];
 const say=text=>{$('label-toast').textContent=text;$('label-toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('label-toast').hidden=true,3500);};
 function mobileMode(picker){$('label-workspace').classList.toggle('show-picker',picker);$('tab-picker').setAttribute('aria-selected',String(picker));$('tab-sheet').setAttribute('aria-selected',String(!picker));}
@@ -12,11 +13,32 @@ $('tab-picker').onclick=()=>mobileMode(true);$('tab-sheet').onclick=()=>mobileMo
 function formValue(){return Object.fromEntries(fields.map(k=>[k,$('field-'+k).value.trim()]));}
 function edit(p){state.candidate=p;for(const k of fields)$('field-'+k).value=p[k]||'';validateForm(false);renderProducts();}
 function validateForm(show=true){const p=formValue(),errors=labelErrors(p);if(show)$('field-errors').textContent=errors.join(' ');for(const k of fields){const el=$('field-'+k);el.classList.toggle('invalid-field',['name','barcode','material','origin','age','seller'].includes(k)&&(!p[k]||(k==='barcode'&&errors.some(t=>t.includes('바코드')))));}return errors;}
+function renderVariantChoices(){
+ const panel=$('label-variants'),row=catalogRows(state.catalog,groupRules||{}).find(r=>r.id===state.openGroup&&r.isGroup);panel.hidden=!row;
+ const root=$('label-variant-options');root.replaceChildren();if(!row)return;
+ $('label-variant-heading').textContent=row.name+' · 색깔 / 모양 고르기';
+ for(const p of rowMembers(row,$('all-products').checked)){
+  const b=document.createElement('button');b.type='button';b.className='product-choice';b.dataset.variantId=p.id;b.dataset.barcode=p.barcode;b.setAttribute('aria-pressed',String(state.candidate?.id===p.id));
+  const h=document.createElement('strong'),small=document.createElement('small');h.textContent=p.variantLabel;small.textContent=(p.barcode||'바코드 없음')+' · '+(p.material||'재질 확인 필요')+' · '+(p.origin||'원산지 확인 필요');b.append(h,small);b.onclick=()=>edit(p);root.append(b);
+ }
+ if(!root.children.length)root.textContent='판매 외 상품도 보기를 켜면 다른 색을 고를 수 있어요.';
+}
+function chooseGroup(row){
+ state.openGroup=row.id;state.candidate=null;const defaults={age:'14',seller:'무무토리',sellerRole:'수입·판매원',originWord:'원산지'};for(const k of fields)$('field-'+k).value=defaults[k]||'';
+ $('field-errors').textContent='아래에서 색깔 / 모양을 먼저 골라 주세요.';renderProducts();
+}
+$('label-variants-close').onclick=()=>{state.openGroup=null;renderProducts();};
 function renderProducts(){
- const list=$('product-results');list.replaceChildren();const q=$('product-search').value.trim().toLocaleLowerCase();
- const rows=state.catalog.filter(p=>($('all-products').checked||p.decision==='판매')&&(!q||p.name.toLocaleLowerCase().includes(q)||p.barcode.includes(q))).slice(0,35);
- if(!rows.length){const p=document.createElement('p');p.className='empty-results';p.textContent='이름이나 바코드를 다시 찾아 주세요. 판매 외 상품은 위 체크를 켜면 보여요.';list.append(p);return;}
- for(const p of rows){const b=document.createElement('button');b.type='button';b.className='product-choice'+(p.id===state.candidate?.id?' is-picked':'');b.dataset.barcode=p.barcode;const h=document.createElement('strong');h.textContent=p.name;const s=document.createElement('small');s.textContent=(p.barcode||'바코드 없음')+(p.variant?' · 디자인별 상품':'');b.append(h,s);const missing=labelErrors(p);if(missing.length){b.classList.add('needs-info');const t=document.createElement('small');t.className='missing';t.textContent=(!p.material?'재질 ':'')+(!p.origin?'제조국 ':'')+(!p.barcode?'바코드 ':'')+'확인 필요';b.append(t);}b.onclick=()=>edit(p);list.append(b);}
+ const list=$('product-results');list.replaceChildren();const q=$('product-search').value,all=$('all-products').checked;
+ const rows=catalogRows(state.catalog,groupRules||{}).filter(p=>rowMatches(p,q,all)).slice(0,35);
+ if(!rows.length){const p=document.createElement('p');p.className='empty-results';p.textContent='이름이나 바코드를 다시 찾아 주세요. 판매 외 상품은 위 체크를 켜면 보여요.';list.append(p);}
+ for(const p of rows){
+  const b=document.createElement('button');b.type='button';b.className='product-choice'+((p.id===state.candidate?.id||p.id===state.openGroup)?' is-picked':'');const h=document.createElement('strong'),small=document.createElement('small');h.textContent=p.name;
+  if(p.isGroup){b.dataset.groupId=p.id;b.setAttribute('aria-controls','label-variants');b.setAttribute('aria-expanded',String(state.openGroup===p.id));small.textContent=p.members.length+'종 · 누른 뒤 색깔 / 모양 고르기';b.onclick=()=>chooseGroup(p);}
+  else{b.dataset.barcode=p.barcode;small.textContent=(p.barcode||'바코드 없음')+(p.variant?' · 디자인별 상품':'');if(labelErrors(p).length){b.classList.add('needs-info');const t=document.createElement('small');t.className='missing';t.textContent=(!p.material?'재질 ':'')+(!p.origin?'제조국 ':'')+(!p.barcode?'바코드 ':'')+'확인 필요';b.append(t);}b.onclick=()=>{state.openGroup=null;edit(p);};}
+  b.prepend(h,small);list.append(b);
+ }
+ renderVariantChoices();
 }
 $('product-search').addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=setTimeout(renderProducts,80);});$('all-products').onchange=renderProducts;
 function checkpoint(){state.history.push({pages:clonePages(state.pages),locked:[...state.locked],page:state.page});if(state.history.length>30)state.history.shift();}
@@ -115,7 +137,7 @@ $('print-pdf').onclick=()=>{if(state.readyVersion===state.version)window.open(st
 function storage(){try{return window.localStorage;}catch{return null;}}
 function showRemembered(){const last=readUsed(storage());$('last-used').textContent=last?`지난번 ${last.slot}번까지 기억했어요.`:'';}
 $('remember-print').onclick=()=>{let slot=0;for(const page of state.pages)for(let s=0;s<108;s++)if(page[s])slot=s+1;if(rememberUsed(storage(),slot)){showRemembered();say(`${slot}번까지 쓴 것으로 기억했어요.`);}else say('이 브라우저에는 기억할 수 없지만 라벨은 계속 만들 수 있어요.');};
-function wipe(){priceMaker.reset();++authSequence;state.user='';state.loaded=false;state.catalog=[];state.candidate=null;state.pages=[newSheet()];state.locked=[0];state.selected.clear();state.history=[];state.version++;state.readyVersion=-1;state.worker?.terminate();state.worker=null;state.busy=false;state.rendering=false;clearPdf();$('label-workspace').hidden=true;for(const k of fields)$('field-'+k).value='';$('product-results').replaceChildren();}
+function wipe(){priceMaker.reset();++authSequence;state.user='';state.loaded=false;state.catalog=[];state.candidate=null;state.openGroup=null;$('label-variants').hidden=true;$('label-variant-options').replaceChildren();state.pages=[newSheet()];state.locked=[0];state.selected.clear();state.history=[];state.version++;state.readyVersion=-1;state.worker?.terminate();state.worker=null;state.busy=false;state.rendering=false;clearPdf();$('label-workspace').hidden=true;for(const k of fields)$('field-'+k).value='';$('product-results').replaceChildren();}
 function authMessage(text,button,action){const root=$('auth-status');root.replaceChildren();const p=document.createElement('p');p.textContent=text;root.append(p);if(button){const b=document.createElement('button');b.textContent=button;b.onclick=async()=>{b.disabled=true;try{await action();}catch{$('auth-status').firstChild.textContent='연결하지 못했어요. 다시 시도해 주세요.';b.disabled=false;}};root.append(b);}root.hidden=false;}
 onAuth(async user=>{
  if(!user?.uid){wipe();authMessage('운영홈에서 쓰는 계정으로 로그인해 주세요.','Google 로그인',signIn);return;}
@@ -124,8 +146,9 @@ onAuth(async user=>{
  authMessage('상품 목록을 읽고 있어요.');
  try{
   rules??=await fetch(new URL('./labels-specs.json',import.meta.url),{cache:'no-cache'}).then(r=>{if(!r.ok)throw Error();return r.json();});
+  groupRules??=await fetch(new URL('./catalog-groups.json',import.meta.url),{cache:'no-cache'}).then(r=>{if(!r.ok)throw Error();return r.json();});
   const catalog=await readCatalog({auth:{current,dbUrl},rules});if(seq!==authSequence||current()?.uid!==user.uid)return;
-  state.catalog=catalog;state.loaded=true;$('auth-status').hidden=true;$('label-workspace').hidden=false;showRemembered();renderProducts();refresh();priceMaker.setCatalog(catalog);
+  state.catalog=catalog;state.loaded=true;$('auth-status').hidden=true;$('label-workspace').hidden=false;showRemembered();renderProducts();refresh();priceMaker.setCatalog(catalog,groupRules);
  }catch{if(seq!==authSequence)return;wipe();authMessage('상품 목록을 불러오지 못했어요. 로그인과 접근 권한을 확인해 주세요.','다시 불러오기',()=>location.reload());}
 });
 // Local fixture harness only; never enables access to the authenticated catalog.

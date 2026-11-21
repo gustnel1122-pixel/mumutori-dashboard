@@ -19,3 +19,6 @@
 /src/pricetags-* text eol=lf
 /src/pricetags.css text eol=lf
 /tests/pricetags.test.cjs text eol=lf
+
+/src/catalog-groups.* text eol=lf
+/tests/catalog-groups.test.cjs text eol=lf
