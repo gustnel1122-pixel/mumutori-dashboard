@@ -4,6 +4,7 @@ export const DEPARTMENTS=[
  // 자금은 재무 안의 '계좌별' 탭(검수 기준 5 · 총괄 #15: 재무 · 통장 하나로). bank.html 주소는 그대로 이 탭이다.
  {id:'bank',tabOf:'finance',label:'계좌별',owner:'재무팀 · 계좌별',english:'ACCOUNTS',number:'01·B',icon:'bank',color:'blue',description:'같은 장부에서 계좌마다 잔액 — 재무 안의 탭',related:['sales','finance','settings']},
  {id:'products',label:'상품',owner:'상품팀',english:'PRODUCT STUDIO',number:'03',icon:'product',color:'orange',description:'상품 정보와 판매 준비',related:['purchases','stock','sales']},
+ {id:'labels',label:'라벨 만들기',owner:'상품팀',english:'LABELS',number:'03·L',icon:'product',color:'green',description:'108칸 고르고 상품 라벨 인쇄',related:['products','stock']},
  {id:'branding',label:'브랜딩',owner:'브랜드팀',english:'BRAND TOOLS',number:'03·B',icon:'stamp',color:'pink',description:'도장·잉크·포장 도구와 재주문 정보',related:['products','purchases','sourcing']},
  {id:'characters',label:'캐릭터',owner:'브랜드팀',english:'CHARACTER BOARD',number:'03·C',icon:'face',color:'orange',description:'캐릭터 프로필·그림 만들기와 확정',related:['branding','products']},
  {id:'purchases',label:'구매·원가',owner:'구매팀',english:'BUYING & COST',number:'04',icon:'bag',color:'purple',description:'발주에서 원가 확정까지',related:['sourcing','products','stock','finance']},

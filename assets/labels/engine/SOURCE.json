@@ -1,0 +1,18 @@
+{
+  "source": "round_label_v6 as used20261121 2057",
+  "sha256": {
+    "browser_bridge.py": "0ce23cb55d3b90fe56e8f2755c1ef59c4f7929a556b546773d6fb450894dc183",
+    "make_round_label_offset.py": "2a782a9ae1ac7b0fe36317d10444f98f414ba34074f3aebe8af1f6cd8ded35a2",
+    "rlkit.py": "71712b5848ced8d6f1a17cf877118358e44d843b466387bd72f14c646fbc23f8"
+  },
+  "runtime": "Pyodide0.29.0 (browser local), ReportLab5.1.0; original solver and glyph outlines unchanged",
+  "fonts": [
+    "Arimo[wght].ttf",
+    "Gaegu-Bold.ttf",
+    "NanumSquareRoundB.ttf",
+    "NanumSquareRoundEB.ttf",
+    "NanumSquareRoundR.ttf",
+    "Pretendard-Bold.otf",
+    "Pretendard-Medium.otf"
+  ]
+}

@@ -1,0 +1,498 @@
+{
+  "version": "20261121",
+  "source": "Owner-approved round_label_v6 label material/origin rules, latest2057 PET confirmation. No catalog, quantities or cost data.",
+  "specs": {
+    "20000479": {
+      "material": "레진",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000486": {
+      "material": "레진",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000493": {
+      "material": "레진",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000509": {
+      "material": "레진",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000516": {
+      "material": "레진",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000424": {
+      "material": "레진",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000431": {
+      "material": "레진",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000448": {
+      "material": "레진",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000455": {
+      "material": "레진",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000462": {
+      "material": "레진",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000622": {
+      "material": "봉제",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000042": {
+      "material": "봉제",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000059": {
+      "material": "봉제",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000066": {
+      "material": "봉제",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000028": {
+      "material": "봉제",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000035": {
+      "material": "봉제",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000233": {
+      "material": "플라스틱/레진",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000523": {
+      "material": "레진",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000554": {
+      "material": "레진",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000561": {
+      "material": "레진",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000547": {
+      "material": "레진",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000530": {
+      "material": "레진",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000127": {
+      "material": "봉제",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000226": {
+      "material": "플라스틱/레진",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000738": {
+      "material": "PU발포",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000745": {
+      "material": "플라스틱/레진",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000202": {
+      "material": "봉제",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000196": {
+      "material": "봉제",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000752": {
+      "material": "PVC",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000134": {
+      "material": "봉제",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000219": {
+      "material": "봉제",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000325": {
+      "material": "봉제",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000875": {
+      "material": "봉제",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000868": {
+      "material": "봉제",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000851": {
+      "material": "봉제",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000301": {
+      "material": "봉제",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000714": {
+      "material": "봉제",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000691": {
+      "material": "봉제",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000707": {
+      "material": "봉제",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000981": {
+      "material": "레진",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000646": {
+      "material": "봉제",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000165": {
+      "material": "봉제",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000172": {
+      "material": "봉제",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000189": {
+      "material": "봉제",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000271": {
+      "material": "봉제",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000332": {
+      "material": "봉제",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000363": {
+      "material": "봉제",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000370": {
+      "material": "봉제",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000097": {
+      "material": "봉제",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000103": {
+      "material": "봉제",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000264": {
+      "material": "봉제",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000288": {
+      "material": "봉제",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000295": {
+      "material": "봉제",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000141": {
+      "material": "봉제",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000349": {
+      "material": "봉제",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000660": {
+      "material": "봉제",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000684": {
+      "material": "봉제",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000721": {
+      "material": "종이",
+      "origin": "대한민국",
+      "age": "14",
+      "sellerRole": "판매원",
+      "originWord": "제조국"
+    },
+    "20000820": {
+      "material": "종이",
+      "origin": "대한민국",
+      "age": "14",
+      "sellerRole": "판매원",
+      "originWord": "제조국"
+    },
+    "20000790": {
+      "material": "종이",
+      "origin": "대한민국",
+      "age": "14",
+      "sellerRole": "판매원",
+      "originWord": "제조국"
+    },
+    "20000813": {
+      "material": "종이",
+      "origin": "대한민국",
+      "age": "14",
+      "sellerRole": "판매원",
+      "originWord": "제조국"
+    },
+    "20000806": {
+      "material": "종이",
+      "origin": "대한민국",
+      "age": "14",
+      "sellerRole": "판매원",
+      "originWord": "제조국"
+    },
+    "20000844": {
+      "material": "종이",
+      "origin": "대한민국",
+      "age": "14",
+      "sellerRole": "판매원",
+      "originWord": "제조국"
+    },
+    "20000783": {
+      "material": "종이",
+      "origin": "대한민국",
+      "age": "14",
+      "sellerRole": "판매원",
+      "originWord": "제조국"
+    },
+    "20000837": {
+      "material": "종이",
+      "origin": "대한민국",
+      "age": "14",
+      "sellerRole": "판매원",
+      "originWord": "제조국"
+    },
+    "20000677": {
+      "material": "PVC",
+      "origin": "중국",
+      "age": "14",
+      "sellerRole": "수입·판매원",
+      "originWord": "원산지"
+    },
+    "20000769": {
+      "material": "종이",
+      "origin": "대한민국",
+      "age": "14",
+      "sellerRole": "판매원",
+      "originWord": "제조국",
+      "labelName": "떡메모지 빼꼼"
+    },
+    "20000776": {
+      "material": "종이",
+      "origin": "대한민국",
+      "age": "14",
+      "sellerRole": "판매원",
+      "originWord": "제조국"
+    },
+    "20000882": {
+      "material": "PET",
+      "origin": "대한민국",
+      "age": "14",
+      "sellerRole": "판매원",
+      "originWord": "제조국"
+    }
+  },
+  "variants": [
+    {
+      "parentId": "goods-premium-memo",
+      "option": "컴퍼니",
+      "name": "떡메모지 컴퍼니",
+      "barcode": "20000776"
+    }
+  ]
+}

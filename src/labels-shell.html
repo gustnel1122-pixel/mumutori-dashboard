@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#174d3c">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self';script-src 'self' 'wasm-unsafe-eval' https://apis.google.com https://cdn.jsdelivr.net;style-src 'self' 'unsafe-inline';img-src 'self' data: blob:;font-src 'self';connect-src 'self' https://cdn.jsdelivr.net https://mumutori-letter-default-rtdb.asia-southeast1.firebasedatabase.app https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com;worker-src 'self' blob:;frame-src 'self' blob: https://mumutori-letter.firebaseapp.com https://accounts.google.com;object-src 'none';form-action 'none';base-uri 'self'">
+<title>라벨 만들기 — 무무토리</title><link rel="icon" href="assets/mark.svg"><link rel="stylesheet" href="src/labels.css?v={{VERSION}}">{{PWA_HEAD}}
+</head><body data-page="labels" data-build="{{VERSION}}"><a class="skip" href="#sheet-section">라벨 판으로</a>
+<header class="label-header"><a href="index.html" class="brand">mumutori<span>®</span></a><a href="products.html">상품 관리</a><span class="header-note">라벨 작업대</span></header>
+<main>
+<section class="intro"><div><h1>라벨 만들기</h1><p>종이에서 칸을 고르고, 붙일 상품을 넣어 주세요.</p></div><div class="paper-spec"><b>PP7108</b><span>A4 · 원형20mm · 108칸</span></div></section>
+<div id="auth-status" class="auth-status" role="status"><p>운영홈 로그인을 확인하고 있어요.</p></div>
+<div id="label-workspace" hidden>
+<div class="mobile-switch" role="tablist" aria-label="라벨 작업"><button id="tab-sheet" role="tab" aria-selected="true">칸 고르기</button><button id="tab-picker" role="tab" aria-selected="false">상품 고르기</button></div>
+<div class="workbench">
+<aside id="picker" class="picker" aria-label="상품과 라벨 내용">
+ <h2>상품 고르기</h2><label class="search-label" for="product-search">이름 / 바코드 검색</label><input id="product-search" type="search" placeholder="예: 떡메모지, 20000882" autocomplete="off"><label class="all-products"><input id="all-products" type="checkbox">판매 외 상품도 보기</label>
+ <div id="product-results" class="product-results" aria-label="상품 검색 결과"></div>
+ <form id="label-form" novalidate><div class="editor-head"><h3>라벨에 적을 내용</h3><span>이 작업에서만 변경</span></div>
+ <label>품명<input id="field-name" maxlength="80" required autocomplete="off"></label>
+ <label>바코드<input id="field-barcode" inputmode="numeric" maxlength="8" required autocomplete="off"></label>
+ <div class="field-pair"><label>재질<input id="field-material" maxlength="80" required placeholder="예: 봉제, 종이, PET"></label><label>제조국 / 원산지<input id="field-origin" maxlength="40" required placeholder="예: 대한민국, 중국"></label></div>
+ <div class="field-pair"><label>사용 연령<input id="field-age" value="14" maxlength="30" required></label><label>판매원 이름<input id="field-seller" value="무무토리" maxlength="40" required></label></div>
+ <div class="field-pair"><label>판매원 표기<select id="field-sellerRole"><option>수입·판매원</option><option>판매원</option><option>제조·판매원</option></select></label><label>국가 표기<select id="field-originWord"><option>원산지</option><option>제조국</option></select></label></div>
+ <p id="field-errors" class="field-errors" role="alert"></p><button type="submit" class="primary wide" id="assign">고른 칸에 넣기</button>
+ </form>
+ <section class="number-fill"><h3>번호로 이어 채우기</h3><div class="field-pair"><label>이 장의 시작 칸<input type="number" id="fill-start" min="1" max="108" value="1"></label><label>채울 칸수<input type="number" id="fill-count" min="1" max="10800" value="1"></label></div><button id="fill-range" class="wide">번호부터 채우기</button><p>108칸을 넘으면 다음 장으로 이어져요.</p></section>
+</aside>
+<section id="sheet-section" class="sheet-section" aria-label="108칸 라벨 판">
+ <div class="sheet-toolbar"><div class="page-controls"><button id="prev-page" aria-label="이전 장">‹</button><strong id="page-label">1 /1장</strong><button id="next-page" aria-label="다음 장">›</button><button id="add-page">+ 장 추가</button></div><div><button id="select-all">이 장 전체 선택</button><button id="clear-selection">선택 해제</button><button id="clear-cells">칸 비우기</button><button id="undo" disabled>되돌리기</button></div></div>
+ <div class="used-paper"><label>쓰다 남은 종이 <input id="used-start" type="number" min="1" max="108" value="1">번 칸부터</label><button id="use-start">앞 칸 비우기</button><span id="last-used"></span></div>
+ <div class="sheet-summary"><p id="selection-summary" aria-live="polite">고른 칸0개</p><button id="zoom-sheet" aria-pressed="false">판 크게 보기</button><span>끌어서 여러 칸 선택 · Shift로 범위 선택</span></div>
+ <div class="paper-scroll"><div class="paper" id="paper"><canvas id="pdf-canvas" aria-label="만들어진 PDF 미리보기"></canvas><div id="cell-grid" role="group" aria-label="라벨108칸"></div></div></div>
+ <p class="preview-note" id="preview-note">아직 비어 있는 종이예요. 칸을 고른 뒤 상품을 넣어 주세요.</p>
+ <section class="export-panel"><div><h2 id="document-summary">1장 · 라벨0칸</h2><p id="render-status" role="status" aria-live="polite">준비됐어요.</p><p id="decode-status" class="decode-status" aria-live="polite"></p></div><div class="export-actions"><button id="download-pdf" class="primary" disabled>PDF 내려받기</button><button id="print-pdf" disabled>PDF 열어 인쇄</button></div>
+ <p class="print-settings">엡손 · PP7108 · 매트 · 품질 높음 · <b>실제크기100% · 여백없음 해제</b> · 새 종이는1번 칸부터</p><div class="remember"><span>실제로 인쇄한 뒤에</span><button id="remember-print" disabled>마지막 쓴 칸 기억</button><small>이 기기에만 기억해요.</small></div></section>
+</section></div></div></main><div id="label-toast" class="label-toast" role="status" hidden></div>
+{{AUTH_TAGS}}<script src="assets/vendor/labels/zxing.min.js" defer></script><script type="module" src="src/labels-app.js?v={{VERSION}}"></script></body></html>
