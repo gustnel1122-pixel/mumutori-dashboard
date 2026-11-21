@@ -1,0 +1,12 @@
+# Keep the browser label bundle identical after a Windows checkout.
+/assets/labels/engine/*.py text eol=lf
+/assets/labels/engine/*.json text eol=lf
+/assets/labels/engine/*.txt text eol=lf
+/assets/labels/engine/fonts/* -text
+/assets/vendor/labels/* text eol=lf
+/assets/vendor/labels/*.whl -text
+/src/labels-* text eol=lf
+/src/labels.css text eol=lf
+/docs/LABELS.md text eol=lf
+/tests/labels.test.cjs text eol=lf
+/labels.html text eol=lf
