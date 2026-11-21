@@ -234,7 +234,7 @@ button,input,select{min-height:36px}
 /* 20261115_0815: 택 요청용 선택 체크박스 — 사진 칸 위에 작게 얹는다 */
 .tag-pick-row{position:absolute;top:6px;left:6px;z-index:2;line-height:0;background:var(--card);border-radius:6px;padding:2px}
 .tag-pick-row input{width:18px;height:18px;margin:0;accent-color:var(--bark)}
-.product-row-toggle{display:grid;grid-template-columns:40px minmax(35px,1fr) auto auto minmax(0,82px) minmax(0,88px) 10px auto 12px;align-items:center;gap:7px;width:100%;min-height:56px;padding:7px 10px;border:0;background:var(--card);text-align:left;cursor:pointer}
+.product-row-toggle{display:grid;grid-template-columns:40px minmax(35px,1fr) auto auto minmax(0,82px) minmax(0,88px) 55px 10px auto 12px;align-items:center;gap:7px;width:100%;min-height:56px;padding:7px 10px;border:0;background:var(--card);text-align:left;cursor:pointer}
 .product-row-toggle:hover{background:var(--butter-soft)}
 .product-row-toggle:focus-visible{outline:2px solid var(--focus);outline-offset:-3px}
 .product-row-photo{display:grid;place-items:center;width:40px;height:40px;border-radius:7px;background:#e7e6e2;overflow:hidden}
@@ -246,9 +246,10 @@ button,input,select{min-height:36px}
 .product-row-decision.sell{background:#dceedd;color:#285c35}
 .product-row-decision.hold{background:#fff0bf;color:#795600}
 .product-row-decision.no-sale{background:#f8dedb;color:#983a30}
-.product-row-price,.product-row-cost{display:grid;min-width:0;text-align:right;font-size:12px;font-variant-numeric:tabular-nums;line-height:1.15}
-.product-row-price small,.product-row-cost small{font-size:10px;color:var(--muted);white-space:nowrap}
-.product-row-price span,.product-row-cost span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.product-row-price,.product-row-cost,.product-row-stock{display:grid;min-width:0;text-align:right;font-size:12px;font-variant-numeric:tabular-nums;line-height:1.15}
+.product-row-price small,.product-row-cost small,.product-row-stock small{font-size:10px;color:var(--muted);white-space:nowrap}
+.product-row-price span,.product-row-cost span,.product-row-stock span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.product-row-stock,.product-row-stock small{color:#6b6f68}
 .product-row-roas{width:8px;height:8px;border-radius:50%;display:block}
 .product-row-roas.g{background:var(--good)} .product-row-roas.w{background:var(--warn)} .product-row-roas.b{background:var(--bad)}
 .product-row-market{display:flex;gap:2px;white-space:nowrap}
@@ -257,7 +258,7 @@ button,input,select{min-height:36px}
 .product-row-arrow{color:var(--muted);text-align:center;font-size:19px;line-height:1;transition:transform .15s}
 .product-row-toggle[aria-expanded="true"] .product-row-arrow{transform:rotate(180deg)}
 .product-detail{display:flex;flex-direction:column;gap:10px;min-width:0;padding:14px;border-top:1px solid var(--line)}
-@media(max-width:480px){.product-row-toggle{min-height:56px;grid-template-columns:24px minmax(45px,1fr) auto auto 55px 58px 7px auto 7px;gap:2px;padding:8px 5px}.product-row-photo{width:24px;height:24px}.product-row-name{font-size:12px}.product-row-batch{font-size:10px}.product-row-decision{padding:3px 3px;font-size:10px}.product-row-price,.product-row-cost{font-size:10px}.product-row-price small,.product-row-cost small{font-size:9px}.product-row-roas{width:7px;height:7px}.market-mark{width:10px;height:17px;font-size:9px}.product-detail{padding:10px}}
+@media(max-width:480px){.product-row-toggle{min-height:56px;grid-template-columns:24px minmax(45px,1fr) auto auto 55px 58px 34px 7px auto 7px;gap:1px;padding:8px 5px}.product-row-photo{width:24px;height:24px}.product-row-name{font-size:12px}.product-row-batch{font-size:10px}.product-row-decision{padding:3px 3px;font-size:10px}.product-row-price,.product-row-cost,.product-row-stock{font-size:10px}.product-row-price small,.product-row-cost small,.product-row-stock small{font-size:9px}.product-row-roas{width:7px;height:7px}.market-mark{width:10px;height:17px;font-size:9px}.product-detail{padding:10px}}
 @media(prefers-reduced-motion:reduce){.product-row-arrow{transition:none}}
 
 .links-dialog{border:1px solid var(--line);border-radius:16px;background:var(--paper, white);color:inherit;width:min(92vw, 520px);max-height:80vh;overflow:auto;padding:20px;box-shadow:0 18px 60px #0003}
